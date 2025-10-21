@@ -2,6 +2,7 @@ import Link from "next/link"
 import { Button } from "@workspace/ui/components/button"
 import { Navbar } from "@workspace/ui/components/ui/mini-navbar"
 import { SvgFollowScroll } from "@workspace/ui/components/ui/svg-follow-scroll"
+import { ThemeToggle } from "@/components/theme-toggle"
 
 /**
  * Rwanda Cancer Relief - Landing Page
@@ -14,6 +15,11 @@ export default function LandingPage() {
       
       {/* Navigation */}
       <Navbar />
+      
+      {/* Theme Toggle */}
+      <div className="fixed top-6 right-6 z-50">
+        <ThemeToggle />
+      </div>
       
       {/* SVG Scroll Animation */}
       <SvgFollowScroll />

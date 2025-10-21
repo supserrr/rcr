@@ -3,15 +3,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 
 const AnimatedNavLink = ({ href, children }: { href: string; children: React.ReactNode }) => {
-  const defaultTextColor = 'text-gray-300';
-  const hoverTextColor = 'text-white';
-  const textSizeClass = 'text-sm';
-
   return (
-    <a href={href} className={`group relative inline-block overflow-hidden h-5 flex items-center ${textSizeClass}`}>
+    <a href={href} className="group relative inline-block overflow-hidden h-5 flex items-center text-sm">
       <div className="flex flex-col transition-transform duration-400 ease-out transform group-hover:-translate-y-1/2">
-        <span className={defaultTextColor}>{children}</span>
-        <span className={hoverTextColor}>{children}</span>
+        <span className="text-foreground/70">{children}</span>
+        <span className="text-primary font-medium">{children}</span>
       </div>
     </a>
   );
@@ -48,10 +44,10 @@ export function Navbar() {
 
   const logoElement = (
     <div className="relative w-5 h-5 flex items-center justify-center">
-    <span className="absolute w-1.5 h-1.5 rounded-full bg-gray-200 top-0 left-1/2 transform -translate-x-1/2 opacity-80"></span>
-    <span className="absolute w-1.5 h-1.5 rounded-full bg-gray-200 left-0 top-1/2 transform -translate-y-1/2 opacity-80"></span>
-    <span className="absolute w-1.5 h-1.5 rounded-full bg-gray-200 right-0 top-1/2 transform -translate-y-1/2 opacity-80"></span>
-    <span className="absolute w-1.5 h-1.5 rounded-full bg-gray-200 bottom-0 left-1/2 transform -translate-x-1/2 opacity-80"></span>
+    <span className="absolute w-1.5 h-1.5 rounded-full bg-primary top-0 left-1/2 transform -translate-x-1/2"></span>
+    <span className="absolute w-1.5 h-1.5 rounded-full bg-primary left-0 top-1/2 transform -translate-y-1/2"></span>
+    <span className="absolute w-1.5 h-1.5 rounded-full bg-primary right-0 top-1/2 transform -translate-y-1/2"></span>
+    <span className="absolute w-1.5 h-1.5 rounded-full bg-primary bottom-0 left-1/2 transform -translate-x-1/2"></span>
  </div>
   );
 
@@ -62,7 +58,7 @@ export function Navbar() {
   ];
 
   const loginButtonElement = (
-    <button className="px-4 py-2 sm:px-3 text-xs sm:text-sm border border-[#333] bg-[rgba(31,31,31,0.62)] text-gray-300 rounded-full hover:border-white/50 hover:text-white transition-colors duration-200 w-full sm:w-auto">
+    <button className="px-4 py-2 sm:px-3 text-xs sm:text-sm border border-primary/30 bg-background/80 text-foreground rounded-full hover:border-primary hover:bg-primary/10 hover:text-primary transition-all duration-200 w-full sm:w-auto">
       LogIn
     </button>
   );
@@ -71,11 +67,11 @@ export function Navbar() {
     <div className="relative group w-full sm:w-auto">
        <div className="absolute inset-0 -m-2 rounded-full
                      hidden sm:block
-                     bg-gray-100
-                     opacity-40 filter blur-lg pointer-events-none
+                     bg-primary
+                     opacity-30 filter blur-lg pointer-events-none
                      transition-all duration-300 ease-out
-                     group-hover:opacity-60 group-hover:blur-xl group-hover:-m-3"></div>
-       <button className="relative z-10 px-4 py-2 sm:px-3 text-xs sm:text-sm font-semibold text-black bg-gradient-to-br from-gray-100 to-gray-300 rounded-full hover:from-gray-200 hover:to-gray-400 transition-all duration-200 w-full sm:w-auto">
+                     group-hover:opacity-50 group-hover:blur-xl group-hover:-m-3"></div>
+       <button className="relative z-10 px-4 py-2 sm:px-3 text-xs sm:text-sm font-semibold text-primary-foreground bg-primary rounded-full hover:opacity-90 transition-all duration-200 w-full sm:w-auto">
          Signup
        </button>
     </div>
@@ -84,11 +80,12 @@ export function Navbar() {
   return (
     <header className={`fixed top-6 left-1/2 transform -translate-x-1/2 z-20
                        flex flex-col items-center
-                       pl-6 pr-6 py-3 backdrop-blur-sm
+                       pl-6 pr-6 py-3 backdrop-blur-md
                        ${headerShapeClass}
-                       border border-[#333] bg-[#1f1f1f57]
+                       border border-primary/20 bg-background/90
+                       shadow-lg shadow-primary/10
                        w-[calc(100%-2rem)] sm:w-auto
-                       transition-[border-radius] duration-0 ease-in-out`}>
+                       transition-all duration-300 ease-in-out`}>
 
       <div className="flex items-center justify-between w-full gap-x-6 sm:gap-x-8">
         <div className="flex items-center">
@@ -108,7 +105,7 @@ export function Navbar() {
           {signupButtonElement}
         </div>
 
-        <button className="sm:hidden flex items-center justify-center w-8 h-8 text-gray-300 focus:outline-none" onClick={toggleMenu} aria-label={isOpen ? 'Close Menu' : 'Open Menu'}>
+        <button className="sm:hidden flex items-center justify-center w-8 h-8 text-foreground/70 hover:text-primary transition-colors focus:outline-none" onClick={toggleMenu} aria-label={isOpen ? 'Close Menu' : 'Open Menu'}>
           {isOpen ? (
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
           ) : (
@@ -121,7 +118,7 @@ export function Navbar() {
                        ${isOpen ? 'max-h-[1000px] opacity-100 pt-4' : 'max-h-0 opacity-0 pt-0 pointer-events-none'}`}>
         <nav className="flex flex-col items-center space-y-4 text-base w-full">
           {navLinksData.map((link) => (
-            <a key={link.href} href={link.href} className="text-gray-300 hover:text-white transition-colors w-full text-center">
+            <a key={link.href} href={link.href} className="text-foreground/70 hover:text-primary font-medium transition-colors w-full text-center">
               {link.label}
             </a>
           ))}
