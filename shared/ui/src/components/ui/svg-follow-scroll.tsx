@@ -78,13 +78,23 @@ const SvgFollowScroll = () => {
       ref={ref}
       className="mx-auto flex h-[350vh] w-screen flex-col items-start overflow-hidden bg-background text-foreground"
     >
-      <div className="mt-42 relative flex w-fit flex-col items-start justify-center gap-5 text-left pl-6 lg:pl-12">
-        <h1 className="font-jakarta-sans relative z-10 text-5xl font-medium tracking-[-0.02em] lg:text-7xl max-w-2xl text-foreground">
+      <div className="mt-42 relative flex w-full max-w-2xl flex-col items-start justify-start gap-6 text-left pl-6 lg:pl-12">
+        <h1 className="font-jakarta-sans relative z-10 text-5xl font-medium tracking-[-0.02em] lg:text-7xl text-foreground">
           Compassionate and Culturally Attuned Counselors You Can Trust
         </h1>
-        <p className="font-jakarta-sans relative z-10 max-w-2xl text-lg lg:text-xl font-normal text-muted-foreground leading-relaxed">
-          Connect with dedicated Rwandan counselors who understand the emotional, cultural, and social challenges faced by cancer patients and their families. Our trained professionals offer compassionate guidance through every stage of your journey — providing the same quality of care as in-person counseling, but accessible anywhere, anytime.
+        <p className="font-jakarta-sans relative z-10 text-lg lg:text-xl font-normal text-muted-foreground leading-relaxed">
+          Connect with dedicated Rwandan counselors who understand the emotional, cultural, and social challenges faced by cancer patients and their families. Our trained professionals offer compassionate guidance through every stage of your journey, providing the same quality of care as in-person counseling, but accessible anywhere, anytime.
         </p>
+        
+        {/* CTA Buttons */}
+        <div className="relative z-10 flex flex-row gap-3 lg:gap-4">
+          <a href="/get-help" className="inline-flex items-center justify-center px-6 py-3 lg:px-8 lg:py-4 text-sm lg:text-base font-semibold text-primary-foreground bg-primary rounded-full hover:opacity-90 transition-all duration-200 shadow-lg shadow-primary/20 whitespace-nowrap">
+            Get Help
+          </a>
+          <a href="/counselor" className="inline-flex items-center justify-center px-6 py-3 lg:px-8 lg:py-4 text-sm lg:text-base font-semibold text-primary bg-background border-2 border-primary rounded-full hover:bg-primary/10 transition-all duration-200 whitespace-nowrap">
+            I'm a Counselor
+          </a>
+        </div>
 
         {/* Mobile & iPad: Behind text */}
         <LinePath
