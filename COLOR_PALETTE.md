@@ -106,10 +106,11 @@ For data visualization, five purple harmony colors:
 ## 🌓 Theme Toggle
 
 Users can switch between light and dark mode:
-- **Toggle button** in top-right corner
+- **Toggle button** in footer next to social media links
 - **Sun icon** for light mode
 - **Moon icon** for dark mode
 - Smooth transitions between modes
+- Matches social media button styling
 
 ---
 
@@ -191,7 +192,7 @@ shared/ui/src/styles/globals.css
 ## 🚀 How to Use
 
 ### Toggle Dark Mode
-Click the sun/moon icon in the top-right corner!
+Click the sun/moon icon in the footer next to the social media links!
 
 ### In Your Code
 Colors automatically adapt based on theme:
@@ -206,5 +207,5 @@ Colors automatically adapt based on theme:
 **Last Updated:** October 21, 2025  
 **Theme:** Cancer Awareness Purple  
 **Modes:** Light & Dark  
-**Toggle Location:** Top-right corner of page
+**Toggle Location:** Footer next to social media links
 

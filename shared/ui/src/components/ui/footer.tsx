@@ -74,6 +74,10 @@ interface FooterProps {
    * Copyright and license information.
    */
   copyright: CopyrightInfo;
+  /**
+   * Optional theme toggle component.
+   */
+  themeToggle?: React.ReactNode;
 }
 
 /**
@@ -98,6 +102,7 @@ export function Footer({
   mainLinks,
   legalLinks,
   copyright,
+  themeToggle,
 }: FooterProps) {
   return (
     <footer className="pb-6 pt-16 lg:pb-8 lg:pt-24 bg-background border-t border-primary/10 w-full">
@@ -107,22 +112,29 @@ export function Footer({
             {logo}
             <span className="font-jakarta-sans font-bold text-xl text-foreground">{brandName}</span>
           </a>
-          <ul className="flex list-none mt-6 md:mt-0 space-x-3">
-            {socialLinks.map((link, i) => (
-              <li key={i}>
-                <Button
-                  variant="secondary"
-                  size="icon"
-                  className="h-10 w-10 rounded-full"
-                  asChild
-                >
-                  <a href={link.href} target="_blank" rel="noopener noreferrer" aria-label={link.label}>
-                    {link.icon}
-                  </a>
-                </Button>
-              </li>
-            ))}
-          </ul>
+          <div className="flex items-center gap-3 mt-6 md:mt-0">
+            <ul className="flex list-none space-x-3">
+              {socialLinks.map((link, i) => (
+                <li key={i}>
+                  <Button
+                    variant="secondary"
+                    size="icon"
+                    className="h-10 w-10 rounded-full"
+                    asChild
+                  >
+                    <a href={link.href} target="_blank" rel="noopener noreferrer" aria-label={link.label}>
+                      {link.icon}
+                    </a>
+                  </Button>
+                </li>
+              ))}
+            </ul>
+            {themeToggle && (
+              <div className="flex items-center">
+                {themeToggle}
+              </div>
+            )}
+          </div>
         </div>
         <div className="border-t border-primary/10 mt-6 pt-6 md:mt-4 md:pt-8 lg:grid lg:grid-cols-10">
           <nav className="lg:mt-0 lg:col-[4/11]">

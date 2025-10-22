@@ -76,10 +76,6 @@ export default function LandingPage() {
       {/* Mini Navbar */}
       <Navbar />
 
-      {/* Theme Toggle */}
-      <div className="fixed top-6 right-6 z-50">
-        <ThemeToggle />
-      </div>
       
       {/* Wrapper for scroll tracking */}
       <div className="relative w-full">
@@ -469,9 +465,14 @@ export default function LandingPage() {
                 }
               ]}
               copyright={{
-                text: "© 2024 Rwanda Cancer Relief",
+                text: "© 2025 Rwanda Cancer Relief",
                 license: "All rights reserved."
               }}
+              themeToggle={
+                <div className="flex items-center justify-center">
+                  <ThemeToggle />
+                </div>
+              }
             />
         </div>
       </div>
