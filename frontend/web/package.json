@@ -22,6 +22,7 @@
     "@radix-ui/react-tooltip": "^1.2.8",
     "@react-three/drei": "^10.7.6",
     "@react-three/fiber": "^9.4.0",
+    "@tabler/icons-react": "^3.35.0",
     "@workspace/ui": "workspace:*",
     "ai": "^5.0.76",
     "class-variance-authority": "^0.7.1",
