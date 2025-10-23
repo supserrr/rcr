@@ -4,59 +4,71 @@ Comprehensive documentation for the Rwanda Cancer Relief monorepo project.
 
 ## Documentation Structure
 
+### 📁 Architecture
+System architecture documentation, design decisions, and restructuring summaries.
+
 ### 📁 Components
-Integration guides for individual UI components with detailed implementation instructions, props documentation, and use cases.
+Complete UI component documentation including integration guides, quick starts, and overviews.
 
-### 📁 Guides
-Quick start guides and step-by-step tutorials for getting components up and running quickly.
+### 📁 Apps
+Application-specific documentation for individual apps in the monorepo.
 
-### 📁 Setup
-Project setup, configuration, and initial setup documentation.
+### 📁 Development
+Development guides, coding standards, and best practices (coming soon).
 
-### 📁 Overview
-High-level project overviews, integration summaries, and complete component catalogs.
+### 📁 Backend
+Backend services, API documentation, and database schemas (coming soon).
 
 ---
 
 ## Quick Navigation
 
-### Component Integration Guides
+### Architecture Documentation
+
+Located in `docs/architecture/`:
+
+- **[Frontend Restructure Summary](./architecture/FRONTEND_RESTRUCTURE_SUMMARY.md)** - Complete frontend restructuring with authentication system
+- **[Reorganization Summary](./architecture/REORGANIZATION_SUMMARY.md)** - Monorepo reorganization summary
+- **[Restructure Summary](./architecture/RESTRUCTURE_SUMMARY.md)** - Final restructure to frontend/backend/shared structure
+
+### Component Documentation
 
 Located in `docs/components/`:
 
-- **[CTA Integration](./components/CTA_INTEGRATION.md)** - Call to Action component
-- **[FAQ Section Integration](./components/FAQ_SECTION_INTEGRATION.md)** - FAQ accordion component
-- **[Features Grid Integration](./components/FEATURES_GRID_INTEGRATION.md)** - Feature grid layout
-- **[Feature Spotlight Integration](./components/FEATURE_SPOTLIGHT_INTEGRATION.md)** - Animated feature highlights
-- **[Footer Integration](./components/FOOTER_INTEGRATION.md)** - Footer component
-- **[Parallax Scroll Integration](./components/PARALLAX_SCROLL_INTEGRATION.md)** - Parallax scrolling effects
-- **[SVG Scroll Integration](./components/SVG_SCROLL_INTEGRATION.md)** - Animated SVG paths
+#### Integration Guides
+- **[CTA Integration](./components/integration/CTA_INTEGRATION.md)** - Call to Action component
+- **[FAQ Section Integration](./components/integration/FAQ_SECTION_INTEGRATION.md)** - FAQ accordion component
+- **[Features Grid Integration](./components/integration/FEATURES_GRID_INTEGRATION.md)** - Feature grid layout
+- **[Feature Spotlight Integration](./components/integration/FEATURE_SPOTLIGHT_INTEGRATION.md)** - Animated feature highlights
+- **[Footer Integration](./components/integration/FOOTER_INTEGRATION.md)** - Footer component
+- **[Parallax Scroll Integration](./components/integration/PARALLAX_SCROLL_INTEGRATION.md)** - Parallax scrolling effects
+- **[SVG Scroll Integration](./components/integration/SVG_SCROLL_INTEGRATION.md)** - Animated SVG paths
 
-### Quick Start Guides
+#### Quick Start Guides
+- **[Quick Start](./components/guides/QUICK_START.md)** - General project quick start
+- **[CTA Quick Start](./components/guides/CTA_QUICK_START.md)** - Call to Action quick setup
+- **[FAQ Section Quick Start](./components/guides/FAQ_SECTION_QUICK_START.md)** - FAQ quick setup
+- **[Features Grid Quick Start](./components/guides/FEATURES_GRID_QUICK_START.md)** - Features grid quick setup
+- **[Footer Quick Start](./components/guides/FOOTER_QUICK_START.md)** - Footer quick setup
+- **[Parallax Quick Start](./components/guides/PARALLAX_QUICK_START.md)** - Parallax quick setup
+- **[SVG Scroll Quick Start](./components/guides/SVG_SCROLL_QUICK_START.md)** - SVG animation quick setup
 
-Located in `docs/guides/`:
+#### Component Overviews
+- **[All Components Overview](./components/overview/ALL_COMPONENTS_OVERVIEW.md)** - Complete component catalog
+- **[Complete Integration Summary](./components/overview/COMPLETE_INTEGRATION_SUMMARY.md)** - Full integration details
+- **[Integration Summary](./components/overview/INTEGRATION_SUMMARY.md)** - Component integration overview
 
-- **[Quick Start](./guides/QUICK_START.md)** - General project quick start
-- **[CTA Quick Start](./guides/CTA_QUICK_START.md)** - Call to Action quick setup
-- **[FAQ Section Quick Start](./guides/FAQ_SECTION_QUICK_START.md)** - FAQ quick setup
-- **[Features Grid Quick Start](./guides/FEATURES_GRID_QUICK_START.md)** - Features grid quick setup
-- **[Footer Quick Start](./guides/FOOTER_QUICK_START.md)** - Footer quick setup
-- **[Parallax Quick Start](./guides/PARALLAX_QUICK_START.md)** - Parallax quick setup
-- **[SVG Scroll Quick Start](./guides/SVG_SCROLL_QUICK_START.md)** - SVG animation quick setup
+#### Setup Documentation
+- **[Component Library README](./components/COMPONENT_LIBRARY_README.md)** - Component library setup guide
 
-### Project Overview
+### Application Documentation
 
-Located in `docs/overview/`:
+Located in `docs/apps/`:
 
-- **[All Components Overview](./overview/ALL_COMPONENTS_OVERVIEW.md)** - Complete component catalog
-- **[Complete Integration Summary](./overview/COMPLETE_INTEGRATION_SUMMARY.md)** - Full integration details
-- **[Integration Summary](./overview/INTEGRATION_SUMMARY.md)** - Component integration overview
-
-### Setup & Configuration
-
-Located in `docs/setup/`:
-
-- **[Component Library README](./setup/COMPONENT_LIBRARY_README.md)** - Component library setup guide
+- **[Web App Building Guide](./apps/BUILDING_GUIDE.md)** - Building and development guide for the main web application
+- **[Web App Landing Page](./apps/LANDING_PAGE.md)** - Landing page documentation and features
+- **[Demos App Building Guide](./apps/demos-building-guide.md)** - Building guide for the demos application
+- **[Demos App Landing Page](./apps/demos-landing-page.md)** - Landing page documentation for demos
 
 ---
 
@@ -76,10 +88,8 @@ pnpm install
 pnpm dev
 ```
 
-This starts all three applications:
+This starts the web application:
 - Web App: `http://localhost:3000`
-- Dash: `http://localhost:3001`
-- Dashy: `http://localhost:3002`
 
 ### 2. Explore Demo Pages
 
@@ -103,19 +113,20 @@ import { Orb } from "@workspace/ui/components/ui/orb";
 
 ```
 rwanda-cancer-relief/
-├── apps/
-│   ├── web/          # Main website (23 demo pages)
-│   ├── dash/         # Admin dashboard
-│   └── dashy/        # Analytics dashboard
-├── packages/
-│   ├── ui/           # Shared UI components (68 components)
-│   ├── eslint-config/
-│   └── typescript-config/
+├── frontend/
+│   ├── apps/
+│   │   └── web/      # Main website (25 demo pages)
+│   └── packages/
+│       ├── ui/       # Shared UI components (68 components)
+│       ├── eslint-config/
+│       └── typescript-config/
+├── backend/          # Backend services (coming soon)
 └── docs/             # This documentation
-    ├── components/   # Component integration guides
-    ├── guides/       # Quick start guides
-    ├── setup/        # Setup documentation
-    └── overview/     # Project summaries
+    ├── architecture/ # System architecture and design decisions
+    ├── components/   # UI component documentation
+    ├── apps/         # Application-specific documentation
+    ├── development/  # Development guides (coming soon)
+    └── backend/      # Backend documentation (coming soon)
 ```
 
 ## Component Categories
@@ -271,5 +282,5 @@ For questions or issues:
 **Last Updated**: October 21, 2025  
 **Total Components**: 68  
 **Total Demo Pages**: 25  
-**Total Applications**: 3
+**Total Applications**: 1
 

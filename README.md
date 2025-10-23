@@ -7,8 +7,6 @@ A monorepo for Rwanda Cancer Relief project containing multiple applications and
 ### Frontend
 
 - **frontend/apps/web** - Main public-facing website with cancer services information
-- **frontend/apps/dash** - Admin dashboard for managing the platform (Port 3001)
-- **frontend/apps/demos** - Component demonstration hub (Port 4000)
 - **frontend/packages/ui** - Shared UI component library built with shadcn/ui
 - **frontend/packages/eslint-config** - Shared ESLint configurations
 - **frontend/packages/typescript-config** - Shared TypeScript configurations
@@ -21,10 +19,16 @@ A monorepo for Rwanda Cancer Relief project containing multiple applications and
 
 Comprehensive documentation is available in the `docs/` directory:
 
-- **[docs/components/](docs/components/)** - Component integration guides (7 guides)
-- **[docs/guides/](docs/guides/)** - Quick start guides (7 guides)
-- **[docs/overview/](docs/overview/)** - Project overviews and summaries (3 documents)
-- **[docs/setup/](docs/setup/)** - Setup and configuration documentation (1 guide)
+- **[Documentation Index](docs/INDEX.md)** - Complete documentation index and navigation
+- **[docs/architecture/](docs/architecture/)** - System architecture and design decisions (3 documents)
+- **[docs/components/](docs/components/)** - UI component documentation (18 files)
+  - **[Integration Guides](docs/components/integration/)** - Component implementation guides (7 guides)
+  - **[Quick Start Guides](docs/components/guides/)** - Rapid setup tutorials (7 guides)
+  - **[Component Overviews](docs/components/overview/)** - Component catalogs and summaries (3 documents)
+  - **[Setup Documentation](docs/components/)** - Component library setup (1 guide)
+- **[docs/apps/](docs/apps/)** - Application-specific documentation (4 guides)
+- **[docs/development/](docs/development/)** - Development guides and best practices (coming soon)
+- **[docs/backend/](docs/backend/)** - Backend documentation (coming soon)
 
 See the **[Documentation README](docs/README.md)** for a complete overview.
 
@@ -42,17 +46,11 @@ Run all apps in development mode:
 pnpm dev
 ```
 
-Run a specific app:
+Run the web app:
 
 ```bash
 # Web app (runs on http://localhost:3000)
-cd frontend/web && pnpm dev
-
-# Dash - Admin Dashboard (runs on http://localhost:3001)
-cd frontend/dash && pnpm dev
-
-# Dashy - Analytics Dashboard (runs on http://localhost:3002)
-cd frontend/dashy && pnpm dev
+cd frontend/apps/web && pnpm dev
 ```
 
 Build all apps:
@@ -91,9 +89,6 @@ The web app includes comprehensive demo pages showcasing various UI components:
 - **Multi-Step Form** (`/multi-step-form-demo`) - Progressive form with step navigation
 - **Logo Cloud** (`/logo-cloud-demo`) - Partner and sponsor logo showcase
 
-### Admin Dashboards
-- **Dashboard Demo** (`http://localhost:3001/demo`) - Admin dashboard components
-- **Dashy Demo** (`http://localhost:3002/pages/demo`) - Analytics dashboard
 
 ## Adding UI Components
 

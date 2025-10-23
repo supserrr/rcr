@@ -1,178 +1,130 @@
 # Documentation Index
 
-Quick reference index for all documentation in the Rwanda Cancer Relief project.
+Welcome to the Rwanda Cancer Relief project documentation. This index provides a comprehensive overview of all available documentation organized by category.
 
-## Documentation Structure (23 files)
+## 📁 Documentation Structure
 
 ```
 docs/
-├── README.md                                    # Main documentation hub
-├── INDEX.md                                     # This file
-│
-├── components/                                  # Component Integration Guides (7)
-│   ├── README.md                                # Components index
-│   ├── CTA_INTEGRATION.md                       # Call to Action
-│   ├── FAQ_SECTION_INTEGRATION.md               # FAQ accordion
-│   ├── FEATURES_GRID_INTEGRATION.md             # Features grid
-│   ├── FEATURE_SPOTLIGHT_INTEGRATION.md         # Feature highlights
-│   ├── FOOTER_INTEGRATION.md                    # Footer component
-│   ├── PARALLAX_SCROLL_INTEGRATION.md           # Parallax effects
-│   └── SVG_SCROLL_INTEGRATION.md                # SVG animations
-│
-├── guides/                                      # Quick Start Guides (7)
-│   ├── README.md                                # Guides index
-│   ├── QUICK_START.md                           # General quick start
-│   ├── CTA_QUICK_START.md                       # CTA quick setup
-│   ├── FAQ_SECTION_QUICK_START.md               # FAQ quick setup
-│   ├── FEATURES_GRID_QUICK_START.md             # Grid quick setup
-│   ├── FOOTER_QUICK_START.md                    # Footer quick setup
-│   ├── PARALLAX_QUICK_START.md                  # Parallax quick setup
-│   └── SVG_SCROLL_QUICK_START.md                # SVG quick setup
-│
-├── overview/                                    # Project Overviews (3)
-│   ├── README.md                                # Overview index
-│   ├── ALL_COMPONENTS_OVERVIEW.md               # Component catalog (68 components)
-│   ├── COMPLETE_INTEGRATION_SUMMARY.md          # Integration details
-│   └── INTEGRATION_SUMMARY.md                   # Project architecture
-│
-└── setup/                                       # Setup Documentation (1)
-    ├── README.md                                # Setup index
-    └── COMPONENT_LIBRARY_README.md              # Component library guide
+├── INDEX.md                    # This file - documentation index
+├── README.md                   # Main documentation overview
+├── architecture/               # System architecture and design decisions
+├── components/                 # UI component documentation
+├── development/                # Development guides and best practices
+├── apps/                       # Application-specific documentation
+└── backend/                    # Backend documentation (coming soon)
 ```
 
-## Quick Navigation by Topic
+## 🏗️ Architecture Documentation
 
-### Getting Started
-1. [Main README](../README.md) - Project overview
-2. [Quick Start Guide](./guides/QUICK_START.md) - Get up and running
-3. [Documentation Hub](./README.md) - Complete docs overview
-4. [Setup Guide](./setup/COMPONENT_LIBRARY_README.md) - Component library setup
+Located in `docs/architecture/`:
 
-### Finding Components
-1. [All Components Overview](./overview/ALL_COMPONENTS_OVERVIEW.md) - All 68 components
-2. [Components Index](./components/README.md) - Integration guides
-3. [Integration Summary](./overview/INTEGRATION_SUMMARY.md) - Architecture overview
+- **[Frontend Restructure Summary](architecture/FRONTEND_RESTRUCTURE_SUMMARY.md)** - Complete overview of the frontend restructuring with authentication system
+- **[Reorganization Summary](architecture/REORGANIZATION_SUMMARY.md)** - Summary of the monorepo reorganization from shared/frontend to apps/packages structure
+- **[Restructure Summary](architecture/RESTRUCTURE_SUMMARY.md)** - Final restructure summary moving to frontend/backend/shared structure
 
-### Implementation
-1. [Quick Start Guides](./guides/README.md) - Fast implementation (5-10 min)
-2. [Integration Guides](./components/README.md) - Detailed docs
-3. [Complete Integration Summary](./overview/COMPLETE_INTEGRATION_SUMMARY.md) - Full details
+## 🧩 Component Documentation
 
-### Configuration
-1. [Setup Documentation](./setup/README.md) - Project setup
-2. [Component Library](./setup/COMPONENT_LIBRARY_README.md) - Library setup
-3. [Main README](../README.md) - Basic commands
+Located in `docs/components/`:
 
-## Quick Reference by Component
+### Integration Guides
+- **[CTA Integration](components/integration/CTA_INTEGRATION.md)** - Call to Action component
+- **[FAQ Section Integration](components/integration/FAQ_SECTION_INTEGRATION.md)** - FAQ accordion component
+- **[Features Grid Integration](components/integration/FEATURES_GRID_INTEGRATION.md)** - Feature grid layout
+- **[Feature Spotlight Integration](components/integration/FEATURE_SPOTLIGHT_INTEGRATION.md)** - Animated feature highlights
+- **[Footer Integration](components/integration/FOOTER_INTEGRATION.md)** - Footer component
+- **[Parallax Scroll Integration](components/integration/PARALLAX_SCROLL_INTEGRATION.md)** - Parallax scrolling effects
+- **[SVG Scroll Integration](components/integration/SVG_SCROLL_INTEGRATION.md)** - Animated SVG paths
 
-| Component | Integration Guide | Quick Start | Category |
-|-----------|------------------|-------------|----------|
-| CTA | [Integration](./components/CTA_INTEGRATION.md) | [Quick Start](./guides/CTA_QUICK_START.md) | Conversion |
-| FAQ Section | [Integration](./components/FAQ_SECTION_INTEGRATION.md) | [Quick Start](./guides/FAQ_SECTION_QUICK_START.md) | Content |
-| Features Grid | [Integration](./components/FEATURES_GRID_INTEGRATION.md) | [Quick Start](./guides/FEATURES_GRID_QUICK_START.md) | Layout |
-| Feature Spotlight | [Integration](./components/FEATURE_SPOTLIGHT_INTEGRATION.md) | - | Content |
-| Footer | [Integration](./components/FOOTER_INTEGRATION.md) | [Quick Start](./guides/FOOTER_QUICK_START.md) | Layout |
-| Parallax Scroll | [Integration](./components/PARALLAX_SCROLL_INTEGRATION.md) | [Quick Start](./guides/PARALLAX_QUICK_START.md) | Animation |
-| SVG Scroll | [Integration](./components/SVG_SCROLL_INTEGRATION.md) | [Quick Start](./guides/SVG_SCROLL_QUICK_START.md) | Animation |
+### Quick Start Guides
+- **[Quick Start](components/guides/QUICK_START.md)** - General project quick start
+- **[CTA Quick Start](components/guides/CTA_QUICK_START.md)** - Call to Action quick setup
+- **[FAQ Section Quick Start](components/guides/FAQ_SECTION_QUICK_START.md)** - FAQ quick setup
+- **[Features Grid Quick Start](components/guides/FEATURES_GRID_QUICK_START.md)** - Features grid quick setup
+- **[Footer Quick Start](components/guides/FOOTER_QUICK_START.md)** - Footer quick setup
+- **[Parallax Quick Start](components/guides/PARALLAX_QUICK_START.md)** - Parallax quick setup
+- **[SVG Scroll Quick Start](components/guides/SVG_SCROLL_QUICK_START.md)** - SVG animation quick setup
 
-## Documentation Categories
+### Component Overviews
+- **[All Components Overview](components/overview/ALL_COMPONENTS_OVERVIEW.md)** - Complete component catalog
+- **[Complete Integration Summary](components/overview/COMPLETE_INTEGRATION_SUMMARY.md)** - Full integration details
+- **[Integration Summary](components/overview/INTEGRATION_SUMMARY.md)** - Component integration overview
 
-### 📦 Components (7 guides)
-Detailed integration guides with full documentation, props, examples, and best practices.
+### Setup Documentation
+- **[Component Library README](components/COMPONENT_LIBRARY_README.md)** - Component library setup guide
 
-**Location:** `docs/components/`  
-**Index:** [Components README](./components/README.md)
+## 🚀 Application Documentation
 
-### 🚀 Guides (7 guides)
-Quick start guides for rapid implementation in 5-10 minutes.
+Located in `docs/apps/`:
 
-**Location:** `docs/guides/`  
-**Index:** [Guides README](./guides/README.md)
+- **[Web App Building Guide](apps/BUILDING_GUIDE.md)** - Building and development guide for the main web application
+- **[Web App Landing Page](apps/LANDING_PAGE.md)** - Landing page documentation and features
+- **[Demos App Building Guide](apps/demos-building-guide.md)** - Building guide for the demos application
+- **[Demos App Landing Page](apps/demos-landing-page.md)** - Landing page documentation for demos
 
-### 📊 Overview (3 documents)
-High-level project summaries, component catalogs, and architecture overviews.
+## 🔧 Development Documentation
 
-**Location:** `docs/overview/`  
-**Index:** [Overview README](./overview/README.md)
+Located in `docs/development/`:
 
-### ⚙️ Setup (1 guide)
-Project setup, configuration, and environment setup documentation.
+*Coming soon - development guides, coding standards, and best practices*
 
-**Location:** `docs/setup/`  
-**Index:** [Setup README](./setup/README.md)
+## 🗄️ Backend Documentation
 
-## Documentation Statistics
+Located in `docs/backend/`:
 
-- **Total Documentation Files:** 23
-- **Component Integrations:** 7
-- **Quick Start Guides:** 7
-- **Overview Documents:** 3
-- **Setup Guides:** 1
-- **Index Files:** 5 (including this file)
+*Coming soon - backend services, API documentation, and database schemas*
 
-## Documentation Standards
+## 🎯 Quick Navigation
 
-All documentation follows:
-- ✅ Google's Technical Writing Style Guide
-- ✅ Present tense, active voice
-- ✅ Clear, concise language
-- ✅ Logical information ordering
-- ✅ Consistent formatting
+### For New Developers
+1. Start with [Main README](README.md) for project overview
+2. Read [Architecture Documentation](architecture/) to understand the system
+3. Follow [Component Quick Start](components/guides/QUICK_START.md) for setup
+4. Check [App Building Guides](apps/) for specific applications
 
-## Finding What You Need
+### For Component Development
+1. Review [All Components Overview](components/overview/ALL_COMPONENTS_OVERVIEW.md)
+2. Check [Integration Guides](components/integration/) for specific components
+3. Follow [Quick Start Guides](components/guides/) for rapid setup
+4. Reference [Component Library README](components/COMPONENT_LIBRARY_README.md)
 
-### I want to...
+### For System Understanding
+1. Read [Restructure Summary](architecture/RESTRUCTURE_SUMMARY.md) for current structure
+2. Review [Frontend Restructure](architecture/FRONTEND_RESTRUCTURE_SUMMARY.md) for authentication system
+3. Check [Reorganization Summary](architecture/REORGANIZATION_SUMMARY.md) for historical context
 
-**Get started quickly**
-→ [Quick Start Guide](./guides/QUICK_START.md)
+## 📊 Documentation Statistics
 
-**Find a specific component**
-→ [All Components Overview](./overview/ALL_COMPONENTS_OVERVIEW.md)
+- **Total Documentation Files**: 25+
+- **Architecture Documents**: 3
+- **Component Integration Guides**: 7
+- **Quick Start Guides**: 7
+- **Component Overviews**: 3
+- **Application Guides**: 4
+- **Setup Documentation**: 1
 
-**Implement a component quickly**
-→ [Quick Start Guides](./guides/README.md)
+## 🔄 Documentation Maintenance
 
-**Learn detailed implementation**
-→ [Component Integration Guides](./components/README.md)
+This documentation is actively maintained and updated with each major change to the project. When making significant changes:
 
-**Understand the architecture**
-→ [Integration Summary](./overview/INTEGRATION_SUMMARY.md)
+1. Update relevant documentation files
+2. Update this index if new categories are added
+3. Update the main README.md if structure changes
+4. Follow conventional commit format for documentation changes
 
-**Set up the project**
-→ [Setup Documentation](./setup/README.md)
+## 📝 Contributing to Documentation
 
-**See all available components**
-→ [All Components Overview](./overview/ALL_COMPONENTS_OVERVIEW.md)
+When adding or updating documentation:
 
-**Learn best practices**
-→ [Component Library README](./setup/COMPONENT_LIBRARY_README.md)
+1. Follow the established structure and naming conventions
+2. Use clear, concise language following Google's Technical Writing Style Guide
+3. Include code examples where appropriate
+4. Update this index when adding new documentation
+5. Test all links and examples before committing
 
-## External Links
+---
 
-### Main Project
-- [Main README](../README.md)
-- [Web App](http://localhost:3000)
-- [Dash Dashboard](http://localhost:3001)
-- [Dashy Analytics](http://localhost:3002)
-
-### External Documentation
-- [Next.js](https://nextjs.org/docs)
-- [shadcn/ui](https://ui.shadcn.com)
-- [Tailwind CSS](https://tailwindcss.com/docs)
-- [Framer Motion](https://www.framer.com/motion)
-- [Vercel AI SDK](https://sdk.vercel.ai)
-- [ElevenLabs UI](https://ui.elevenlabs.io)
-- [21st.dev](https://21st.dev)
-
-## Maintenance
-
-This index should be updated when:
-- New documentation is added
-- Files are moved or renamed
-- Categories change
-- Links become invalid
-
-**Last Updated:** October 21, 2025  
-**Total Files:** 23  
-**Maintainer:** Rwanda Cancer Relief Development Team
-
+**Last Updated**: December 2024  
+**Total Documentation Files**: 25+  
+**Documentation Categories**: 5  
+**Maintained By**: Development Team
