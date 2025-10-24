@@ -5,7 +5,7 @@ import { useRef } from 'react';
 import { Button } from "@workspace/ui/components/button";
 import { Navbar } from "@workspace/ui/components/ui/mini-navbar";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { Card, CardContent } from '@workspace/ui/components/ui/card';
+import { Card, CardContent } from '@workspace/ui/components/card';
 import { ClockIcon } from '@workspace/ui/components/clock';
 import { ShieldCheckIcon } from '@workspace/ui/components/shield-check';
 import { FAQSection } from '@workspace/ui/components/ui/faqsection';

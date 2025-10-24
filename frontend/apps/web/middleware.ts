@@ -14,9 +14,7 @@ export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
   
   // For now, we'll allow all routes since authentication is handled client-side
-  // In a real app, this would check JWT tokens or session data
-  const isAuthenticated = false // Will be handled client-side
-  const userRole = 'guest'
+  // In a real app, this would check JWT tokens or session data from cookies/headers
   
   // Public routes that don't require authentication
   const publicRoutes = [
@@ -25,7 +23,8 @@ export function middleware(request: NextRequest) {
     '/contact',
     '/counselors',
     '/get-help',
-    '/api/chat'
+    '/api/chat',
+    '/dashboard-demo'
   ]
   
   // Auth routes (signin, signup)
@@ -39,11 +38,6 @@ export function middleware(request: NextRequest) {
   // Protected routes that require authentication
   const protectedRoutes = [
     '/dashboard'
-  ]
-  
-  // Admin routes that require admin role
-  const adminRoutes = [
-    '/admin'
   ]
   
   // Check if current path is public
@@ -61,31 +55,9 @@ export function middleware(request: NextRequest) {
     pathname.startsWith(route)
   )
   
-  // Check if current path is admin route
-  const isAdminRoute = adminRoutes.some(route => 
-    pathname.startsWith(route)
-  )
+  // For now, allow all routes - authentication will be handled by the AuthProvider
+  // In a production app, you would check for JWT tokens here and redirect accordingly
   
-  // Redirect authenticated users away from auth pages
-  if (isAuthenticated && isAuthRoute) {
-    // Redirect to appropriate dashboard based on role
-    const redirectPath = userRole === 'counselor' 
-      ? '/dashboard/counselor' 
-      : '/dashboard/patient'
-    return NextResponse.redirect(new URL(redirectPath, request.url))
-  }
-  
-  // Redirect unauthenticated users from protected routes
-  if (!isAuthenticated && isProtectedRoute) {
-    return NextResponse.redirect(new URL('/signin', request.url))
-  }
-  
-  // Redirect non-admin users from admin routes
-  if (isAdminRoute && userRole !== 'admin') {
-    return NextResponse.redirect(new URL('/dashboard', request.url))
-  }
-  
-  // Allow access to public routes and authenticated access to protected routes
   return NextResponse.next()
 }
 

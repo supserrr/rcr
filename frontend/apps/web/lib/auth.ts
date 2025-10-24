@@ -181,16 +181,41 @@ export class AuthService {
     await new Promise(resolve => setTimeout(resolve, 1000))
     
     // Mock user data based on email
-    const isCounselor = credentials.email.includes('counselor')
-    const user: User = {
-      id: '1',
-      email: credentials.email,
-      name: isCounselor ? 'Dr. Grace Mukamana' : 'John Doe',
-      role: isCounselor ? ROLES.COUNSELOR : ROLES.PATIENT,
-      avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face',
-      isVerified: true,
-      createdAt: new Date(),
-      updatedAt: new Date(),
+    let user: User;
+    
+    if (credentials.email.includes('counselor')) {
+      user = {
+        id: '1',
+        email: credentials.email,
+        name: 'Dr. Grace Mukamana',
+        role: ROLES.COUNSELOR,
+        avatar: 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=150&h=150&fit=crop&crop=face',
+        isVerified: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }
+    } else if (credentials.email.includes('admin')) {
+      user = {
+        id: '2',
+        email: credentials.email,
+        name: 'Admin User',
+        role: ROLES.ADMIN,
+        avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face',
+        isVerified: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }
+    } else {
+      user = {
+        id: '3',
+        email: credentials.email,
+        name: 'Jean Baptiste',
+        role: ROLES.PATIENT,
+        avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&crop=face',
+        isVerified: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }
     }
     
     const token = 'mock-jwt-token-' + Date.now()

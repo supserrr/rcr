@@ -3,7 +3,7 @@
 // import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@workspace/ui/components/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@workspace/ui/components/ui/card'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@workspace/ui/components/card'
 import { Heart, User, Shield } from 'lucide-react'
 
 /**

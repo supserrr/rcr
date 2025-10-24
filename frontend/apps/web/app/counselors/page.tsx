@@ -2,8 +2,8 @@
 
 import { useState } from 'react';
 import { Button } from "@workspace/ui/components/button";
-import { Input } from '@workspace/ui/components/ui/input';
-import { Badge } from '@workspace/ui/components/ui/badge';
+import { Input } from '@workspace/ui/components/input';
+import { Badge } from '@workspace/ui/components/badge';
 import { Navbar } from "@workspace/ui/components/ui/mini-navbar";
 import { Footer } from '@workspace/ui/components/ui/footer';
 import { ThemeToggle } from "@/components/theme-toggle";

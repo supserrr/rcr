@@ -2,9 +2,9 @@
 
 import { useState } from 'react';
 import { Button } from "@workspace/ui/components/button";
-import { Input } from '@workspace/ui/components/ui/input';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@workspace/ui/components/ui/card';
-import { Badge } from '@workspace/ui/components/ui/badge';
+import { Input } from '@workspace/ui/components/input';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@workspace/ui/components/card';
+import { Badge } from '@workspace/ui/components/badge';
 import { Calendar, MapPin, ArrowRight, ArrowLeft, MessageCircle, Video, Phone } from 'lucide-react';
 import { HeartIcon } from '@workspace/ui/components/heart';
 import { FileTextIcon } from '@workspace/ui/components/file-text';

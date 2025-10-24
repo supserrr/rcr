@@ -1,0 +1,189 @@
+import React from 'react';
+import { Card, CardContent, CardHeader } from '@workspace/ui/components/card';
+import { Button } from '@workspace/ui/components/button';
+import { Badge } from '@workspace/ui/components/badge';
+import { Avatar, AvatarFallback, AvatarImage } from '@workspace/ui/components/avatar';
+import { 
+  Calendar, 
+  Clock, 
+  User, 
+  Video, 
+  MessageCircle,
+  CheckCircle,
+  XCircle,
+  AlertCircle
+} from 'lucide-react';
+import { Session } from '../../../lib/types';
+import { format } from 'date-fns';
+
+interface SessionCardProps {
+  session: Session;
+  patientName?: string;
+  counselorName?: string;
+  patientAvatar?: string;
+  counselorAvatar?: string;
+  onJoin?: (session: Session) => void;
+  onReschedule?: (session: Session) => void;
+  onCancel?: (session: Session) => void;
+  onViewNotes?: (session: Session) => void;
+  showActions?: boolean;
+}
+
+export function SessionCard({
+  session,
+  patientName,
+  counselorName,
+  patientAvatar,
+  counselorAvatar,
+  onJoin,
+  onReschedule,
+  onCancel,
+  onViewNotes,
+  showActions = true
+}: SessionCardProps) {
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'scheduled':
+        return <Calendar className="h-4 w-4 text-blue-500" />;
+      case 'completed':
+        return <CheckCircle className="h-4 w-4 text-green-500" />;
+      case 'cancelled':
+        return <XCircle className="h-4 w-4 text-red-500" />;
+      case 'rescheduled':
+        return <AlertCircle className="h-4 w-4 text-yellow-500" />;
+      default:
+        return <Calendar className="h-4 w-4 text-gray-500" />;
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'scheduled':
+        return 'bg-blue-100 text-blue-800';
+      case 'completed':
+        return 'bg-green-100 text-green-800';
+      case 'cancelled':
+        return 'bg-red-100 text-red-800';
+      case 'rescheduled':
+        return 'bg-yellow-100 text-yellow-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const isUpcoming = session.status === 'scheduled' && 
+    new Date(session.scheduledAt) > new Date();
+
+  return (
+    <Card className={`h-full ${isUpcoming ? 'border-blue-200 bg-blue-50/30' : ''}`}>
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            {getStatusIcon(session.status)}
+            <Badge className={getStatusColor(session.status)}>
+              {session.status.charAt(0).toUpperCase() + session.status.slice(1)}
+            </Badge>
+          </div>
+          <div className="text-sm text-muted-foreground">
+            {session.type === 'individual' ? '1-on-1' : 'Group'}
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="space-y-3">
+          <div className="flex items-center space-x-3">
+            <Avatar className="h-8 w-8">
+              <AvatarImage src={patientAvatar} alt={patientName} />
+              <AvatarFallback>
+                {patientName?.split(' ').map(n => n[0]).join('') || 'P'}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex-1">
+              <p className="text-sm font-medium">{patientName || 'Patient'}</p>
+              <p className="text-xs text-muted-foreground">Patient</p>
+            </div>
+          </div>
+
+          <div className="flex items-center space-x-3">
+            <Avatar className="h-8 w-8">
+              <AvatarImage src={counselorAvatar} alt={counselorName} />
+              <AvatarFallback>
+                {counselorName?.split(' ').map(n => n[0]).join('') || 'C'}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex-1">
+              <p className="text-sm font-medium">{counselorName || 'Counselor'}</p>
+              <p className="text-xs text-muted-foreground">Counselor</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="space-y-2 text-sm">
+          <div className="flex items-center space-x-2">
+            <Calendar className="h-4 w-4 text-muted-foreground" />
+            <span>{format(new Date(session.scheduledAt), 'MMM dd, yyyy')}</span>
+          </div>
+          <div className="flex items-center space-x-2">
+            <Clock className="h-4 w-4 text-muted-foreground" />
+            <span>{format(new Date(session.scheduledAt), 'h:mm a')}</span>
+          </div>
+          <div className="flex items-center space-x-2">
+            <Clock className="h-4 w-4 text-muted-foreground" />
+            <span>{session.duration} minutes</span>
+          </div>
+        </div>
+
+        {session.notes && (
+          <div className="p-3 bg-muted rounded-lg">
+            <p className="text-sm text-muted-foreground line-clamp-2">
+              {session.notes}
+            </p>
+          </div>
+        )}
+
+        {showActions && (
+          <div className="flex space-x-2 pt-2">
+            {session.status === 'scheduled' && onJoin && (
+              <Button 
+                size="sm" 
+                className="flex-1"
+                onClick={() => onJoin(session)}
+              >
+                <Video className="h-4 w-4 mr-2" />
+                Join Session
+              </Button>
+            )}
+            {session.status === 'scheduled' && onReschedule && (
+              <Button 
+                size="sm" 
+                variant="outline"
+                onClick={() => onReschedule(session)}
+              >
+                Reschedule
+              </Button>
+            )}
+            {session.status === 'scheduled' && onCancel && (
+              <Button 
+                size="sm" 
+                variant="destructive"
+                onClick={() => onCancel(session)}
+              >
+                Cancel
+              </Button>
+            )}
+            {session.status === 'completed' && onViewNotes && (
+              <Button 
+                size="sm" 
+                variant="outline"
+                onClick={() => onViewNotes(session)}
+              >
+                <MessageCircle className="h-4 w-4 mr-2" />
+                View Notes
+              </Button>
+            )}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}

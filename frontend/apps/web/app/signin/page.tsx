@@ -3,8 +3,9 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { SignInPage, Testimonial } from "@workspace/ui/components/ui/sign-in";
-import { AuthService } from '@/lib/auth';
 import { validateSignInForm } from '@/lib/validations';
+import { useAuth } from '@/components/auth/AuthProvider';
+import { TestCredentials } from './test-credentials';
 
 const sampleTestimonials: Testimonial[] = [
   {
@@ -31,13 +32,12 @@ const sampleTestimonials: Testimonial[] = [
  * Sign In page component for Rwanda Cancer Relief
  */
 export default function SignInPageDemo() {
-  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
+  const { signIn, isLoading } = useAuth();
 
   const handleSignIn = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    setIsLoading(true);
     setError(null);
 
     try {
@@ -55,24 +55,10 @@ export default function SignInPageDemo() {
         return;
       }
 
-      // Authenticate user
-      const result = await AuthService.signIn(data);
-      
-      // Store auth data in localStorage (in a real app, this would be handled by the auth context)
-      localStorage.setItem('auth-token', result.token);
-      localStorage.setItem('user-data', JSON.stringify(result.user));
-      localStorage.setItem('user-role', result.user.role);
-
-      // Redirect to appropriate onboarding
-      const onboardingRoute = result.user.role === 'counselor' 
-        ? '/onboarding/counselor' 
-        : '/onboarding/patient';
-      
-      router.push(onboardingRoute);
+      // Use the auth context to sign in (this will handle redirect automatically)
+      await signIn(data.email, data.password);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Sign in failed. Please try again.');
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -119,6 +105,7 @@ export default function SignInPageDemo() {
           </div>
         </div>
       )}
+      <TestCredentials />
     </div>
   );
 }
