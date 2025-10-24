@@ -116,10 +116,6 @@ export function ResourceCard({
           </div>
         )}
 
-        <div className="text-xs text-muted-foreground">
-          Added {resource.createdAt.toLocaleDateString()}
-        </div>
-
         {showActions && (
           <div className="flex space-x-2 pt-2">
             {onView && (

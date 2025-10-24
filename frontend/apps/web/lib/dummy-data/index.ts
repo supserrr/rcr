@@ -190,7 +190,8 @@ export const dummyResources: Resource[] = [
     duration: 15,
     tags: ['meditation', 'anxiety', 'stress-relief'],
     createdAt: new Date('2024-01-15'),
-    isPublic: true
+    isPublic: true,
+    publisher: 'Dr. Sarah Johnson'
   },
   {
     id: '2',
@@ -201,7 +202,8 @@ export const dummyResources: Resource[] = [
     thumbnail: '/thumbnails/diagnosis-guide.jpg',
     tags: ['education', 'diagnosis', 'treatment'],
     createdAt: new Date('2024-01-10'),
-    isPublic: true
+    isPublic: true,
+    publisher: 'Dr. Michael Chen'
   },
   {
     id: '3',
@@ -213,7 +215,8 @@ export const dummyResources: Resource[] = [
     duration: 25,
     tags: ['nutrition', 'treatment', 'wellness'],
     createdAt: new Date('2024-01-12'),
-    isPublic: true
+    isPublic: true,
+    publisher: 'Dr. Emily Rodriguez'
   },
   {
     id: '4',
@@ -224,7 +227,8 @@ export const dummyResources: Resource[] = [
     thumbnail: '/thumbnails/chemotherapy.jpg',
     tags: ['chemotherapy', 'side-effects', 'coping'],
     createdAt: new Date('2024-01-08'),
-    isPublic: true
+    isPublic: true,
+    publisher: 'Dr. James Wilson'
   }
 ];
 

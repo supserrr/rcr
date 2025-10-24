@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { AnimatedPageHeader } from '@workspace/ui/components/animated-page-header';
 import { AnimatedGrid } from '@workspace/ui/components/animated-grid';
 import { ResourceCard } from '../../../../components/dashboard/shared/ResourceCard';
+import { ResourceViewerModal } from '@workspace/ui/components/resource-viewer-modal';
 import { Input } from '@workspace/ui/components/input';
 import { Button } from '@workspace/ui/components/button';
 import { Badge } from '@workspace/ui/components/badge';
@@ -22,7 +23,10 @@ import { Resource } from '../../../../lib/types';
 export default function PatientResourcesPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedType, setSelectedType] = useState('all');
+  const [selectedResource, setSelectedResource] = useState<any>(null);
+  const [isViewerOpen, setIsViewerOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('all');
+  const [savedResources, setSavedResources] = useState<string[]>([]); // Track saved resource IDs
 
   const resourceTypes = ['all', 'audio', 'pdf', 'video', 'article'];
 
@@ -40,14 +44,38 @@ export default function PatientResourcesPage() {
     return filteredResources.filter(resource => resource.type === type);
   };
 
+  const getSavedResources = () => {
+    return dummyResources.filter(resource => savedResources.includes(resource.id));
+  };
+
   const handleViewResource = (resource: Resource) => {
-    console.log('View resource:', resource.title);
-    // Implement resource viewing logic
+    setSelectedResource(resource);
+    setIsViewerOpen(true);
+  };
+
+  const handleCloseViewer = () => {
+    setIsViewerOpen(false);
+    setSelectedResource(null);
   };
 
   const handleDownloadResource = (resource: Resource) => {
     console.log('Download resource:', resource.title);
     // Implement download logic
+  };
+
+  const handleShareResource = (resource: Resource) => {
+    console.log('Share resource:', resource.title);
+    // Implement share logic
+  };
+
+  const handleBookmarkResource = (resource: Resource) => {
+    console.log('Bookmark resource:', resource.title);
+    // Toggle saved state
+    setSavedResources(prev => 
+      prev.includes(resource.id) 
+        ? prev.filter(id => id !== resource.id)
+        : [...prev, resource.id]
+    );
   };
 
   const getTypeIcon = (type: string) => {
@@ -100,10 +128,14 @@ export default function PatientResourcesPage() {
 
       {/* Resource Type Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="all" className="flex items-center gap-2">
             <FileText className="h-4 w-4" />
             All
+          </TabsTrigger>
+          <TabsTrigger value="saved" className="flex items-center gap-2">
+            <Download className="h-4 w-4" />
+            Saved
           </TabsTrigger>
           <TabsTrigger value="audio" className="flex items-center gap-2">
             <Play className="h-4 w-4" />
@@ -123,7 +155,96 @@ export default function PatientResourcesPage() {
           </TabsTrigger>
         </TabsList>
 
-        {resourceTypes.map((type) => (
+        {/* All Resources Tab */}
+        <TabsContent value="all" className="mt-6">
+          <div className="space-y-4">
+            {/* Results Summary */}
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-muted-foreground">
+                {getResourcesByType('all').length} resource{getResourcesByType('all').length !== 1 ? 's' : ''} found
+              </p>
+              <div className="flex items-center gap-2">
+                <Filter className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm text-muted-foreground">All resources</span>
+              </div>
+            </div>
+
+            {/* Resources Grid */}
+            {getResourcesByType('all').length > 0 ? (
+              <AnimatedGrid className="grid gap-6 md:grid-cols-2 lg:grid-cols-3" staggerDelay={0.1}>
+                {getResourcesByType('all').map((resource, index) => (
+                  <ResourceCard
+                    key={resource.id}
+                    resource={resource}
+                    onView={handleViewResource}
+                    onDownload={handleDownloadResource}
+                    delay={index * 0.1}
+                  />
+                ))}
+              </AnimatedGrid>
+            ) : (
+              <div className="text-center py-12">
+                <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
+                  <FileText className="h-8 w-8 text-muted-foreground" />
+                </div>
+                <h3 className="text-lg font-semibold mb-2">No resources found</h3>
+                <p className="text-muted-foreground mb-4">
+                  Try adjusting your search criteria
+                </p>
+              </div>
+            )}
+          </div>
+        </TabsContent>
+
+        {/* Saved Resources Tab */}
+        <TabsContent value="saved" className="mt-6">
+          <div className="space-y-4">
+            {/* Results Summary */}
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-muted-foreground">
+                {getSavedResources().length} saved resource{getSavedResources().length !== 1 ? 's' : ''}
+              </p>
+              <div className="flex items-center gap-2">
+                <Download className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm text-muted-foreground">Your saved resources</span>
+              </div>
+            </div>
+
+            {/* Saved Resources Grid */}
+            {getSavedResources().length > 0 ? (
+              <AnimatedGrid className="grid gap-6 md:grid-cols-2 lg:grid-cols-3" staggerDelay={0.1}>
+                {getSavedResources().map((resource, index) => (
+                  <ResourceCard
+                    key={resource.id}
+                    resource={resource}
+                    onView={handleViewResource}
+                    onDownload={handleDownloadResource}
+                    delay={index * 0.1}
+                  />
+                ))}
+              </AnimatedGrid>
+            ) : (
+              <div className="text-center py-12">
+                <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Download className="h-8 w-8 text-muted-foreground" />
+                </div>
+                <h3 className="text-lg font-semibold mb-2">No saved resources</h3>
+                <p className="text-muted-foreground mb-4">
+                  Save resources by clicking the bookmark icon when viewing them
+                </p>
+                <Button 
+                  variant="outline" 
+                  onClick={() => setActiveTab('all')}
+                >
+                  Browse All Resources
+                </Button>
+              </div>
+            )}
+          </div>
+        </TabsContent>
+
+        {/* Other Resource Type Tabs */}
+        {resourceTypes.filter(type => type !== 'all').map((type) => (
           <TabsContent key={type} value={type} className="mt-6">
             <div className="space-y-4">
               {/* Results Summary */}
@@ -134,7 +255,7 @@ export default function PatientResourcesPage() {
                 <div className="flex items-center gap-2">
                   <Filter className="h-4 w-4 text-muted-foreground" />
                   <span className="text-sm text-muted-foreground">
-                    {type === 'all' ? 'All resources' : `${type.charAt(0).toUpperCase() + type.slice(1)} resources`}
+                    {type.charAt(0).toUpperCase() + type.slice(1)} resources
                   </span>
                 </div>
               </div>
@@ -159,19 +280,14 @@ export default function PatientResourcesPage() {
                   </div>
                   <h3 className="text-lg font-semibold mb-2">No {type} resources found</h3>
                   <p className="text-muted-foreground mb-4">
-                    {type === 'all' 
-                      ? 'Try adjusting your search criteria' 
-                      : `No ${type} resources available at the moment`
-                    }
+                    No {type} resources available at the moment
                   </p>
-                  {type !== 'all' && (
-                    <Button 
-                      variant="outline" 
-                      onClick={() => setActiveTab('all')}
-                    >
-                      View All Resources
-                    </Button>
-                  )}
+                  <Button 
+                    variant="outline" 
+                    onClick={() => setActiveTab('all')}
+                  >
+                    View All Resources
+                  </Button>
                 </div>
               )}
             </div>
@@ -179,60 +295,17 @@ export default function PatientResourcesPage() {
         ))}
       </Tabs>
 
-      {/* Quick Access Section */}
-      <div className="mt-12">
-        <h2 className="text-xl font-semibold mb-6">Quick Access</h2>
-        
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <div className="p-4 border rounded-lg hover:bg-muted/50 cursor-pointer">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
-                <Play className="h-5 w-5 text-purple-600" />
-              </div>
-              <div>
-                <p className="font-medium text-sm">Daily Meditation</p>
-                <p className="text-xs text-muted-foreground">5 min audio</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="p-4 border rounded-lg hover:bg-muted/50 cursor-pointer">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                <Video className="h-5 w-5 text-blue-600" />
-              </div>
-              <div>
-                <p className="font-medium text-sm">Breathing Exercises</p>
-                <p className="text-xs text-muted-foreground">10 min video</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="p-4 border rounded-lg hover:bg-muted/50 cursor-pointer">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-                <FileText className="h-5 w-5 text-green-600" />
-              </div>
-              <div>
-                <p className="font-medium text-sm">Treatment Guide</p>
-                <p className="text-xs text-muted-foreground">PDF download</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="p-4 border rounded-lg hover:bg-muted/50 cursor-pointer">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
-                <BookOpen className="h-5 w-5 text-orange-600" />
-              </div>
-              <div>
-                <p className="font-medium text-sm">Latest Articles</p>
-                <p className="text-xs text-muted-foreground">Updated weekly</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+      {/* Resource Viewer Modal */}
+      {selectedResource && (
+        <ResourceViewerModal
+          resource={selectedResource}
+          isOpen={isViewerOpen}
+          onClose={handleCloseViewer}
+          onDownload={handleDownloadResource}
+          onShare={handleShareResource}
+          onBookmark={handleBookmarkResource}
+        />
+      )}
     </div>
   );
 }
