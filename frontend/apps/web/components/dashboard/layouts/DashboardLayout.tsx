@@ -46,7 +46,7 @@ export function DashboardLayout({
       {/* Sidebar */}
       <div className={cn(
         "transition-all duration-300 ease-in-out",
-        isSidebarOpen ? "w-64" : "w-0",
+        isSidebarOpen ? (isSidebarCollapsed ? "w-16" : "w-64") : "w-0",
         "hidden md:block"
       )}>
         <Sidebar
@@ -89,7 +89,7 @@ export function DashboardLayout({
         />
         
         <main className="flex-1 overflow-auto p-6">
-          <div className="container mx-auto">
+          <div className="w-full">
             {children}
           </div>
         </main>

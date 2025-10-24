@@ -1,10 +1,16 @@
-import React from 'react';
-import { StatCard } from '../../../components/dashboard/shared/StatCard';
-import { PageHeader } from '../../../components/dashboard/shared/PageHeader';
+'use client';
+
+import React, { useState } from 'react';
+import { AnimatedStatCard } from '@workspace/ui/components/animated-stat-card';
+import { AnimatedPageHeader } from '@workspace/ui/components/animated-page-header';
+import { AnimatedCard } from '@workspace/ui/components/animated-card';
+import { AnimatedGrid } from '@workspace/ui/components/animated-grid';
 import { Card, CardContent, CardHeader, CardTitle } from '@workspace/ui/components/card';
 import { Progress } from '@workspace/ui/components/progress';
 import { Badge } from '@workspace/ui/components/badge';
 import { Button } from '@workspace/ui/components/button';
+import { Skeleton } from '@workspace/ui/components/skeleton';
+import { SlidingNumber } from '@workspace/ui/components/animate-ui/primitives/texts/sliding-number';
 import { 
   TrendingUp, 
   Calendar, 
@@ -12,11 +18,16 @@ import {
   BookOpen,
   Clock,
   CheckCircle,
-  Play
+  Play,
+  Heart,
+  Target,
+  Users
 } from 'lucide-react';
-import { dummyPatients, dummySessions, dummyResources, dummyMessages } from '../../../lib/dummy-data';
+import { dummyPatients, dummySessions, dummyResources, dummyMessages, dummyCounselors } from '../../../lib/dummy-data';
+import { QuickBookingModal } from '@workspace/ui/components/quick-booking-modal';
 
 export default function PatientDashboard() {
+  const [isQuickBookingOpen, setIsQuickBookingOpen] = useState(false);
   const currentPatient = dummyPatients[0]; // Jean Baptiste
   const upcomingSessions = dummySessions.filter(session => 
     session.patientId === currentPatient.id && 
@@ -28,47 +39,63 @@ export default function PatientDashboard() {
   ).slice(0, 3);
   const recommendedResources = dummyResources.slice(0, 3);
 
+  const handleQuickBooking = () => {
+    setIsQuickBookingOpen(true);
+  };
+
+  const handleConfirmQuickBooking = (bookingData: any) => {
+    console.log('Quick booking confirmed:', bookingData);
+    // Here you would typically send the booking data to your backend
+  };
+
+  const handleCloseQuickBooking = () => {
+    setIsQuickBookingOpen(false);
+  };
+
   return (
     <div className="space-y-6">
-      <PageHeader
+      <AnimatedPageHeader
         title="Welcome back, Jean"
         description="Here's an overview of your progress and upcoming activities"
       />
 
       {/* Stats Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <StatCard
+        <AnimatedStatCard
           title="Module Progress"
-          value={`${currentPatient.moduleProgress}%`}
+          value={currentPatient.moduleProgress}
           description="Coping with Anxiety"
           icon={TrendingUp}
           trend={{ value: 15, isPositive: true }}
+          delay={0.1}
         />
-        <StatCard
+        <AnimatedStatCard
           title="Upcoming Sessions"
           value={upcomingSessions.length}
           description="Next session in 2 days"
           icon={Calendar}
+          delay={0.2}
         />
-        <StatCard
+        <AnimatedStatCard
           title="Messages"
           value={recentMessages.length}
           description="Unread messages"
           icon={MessageCircle}
-          badge={{ text: "2 new", variant: "default" }}
+          delay={0.3}
         />
-        <StatCard
+        <AnimatedStatCard
           title="Resources Completed"
-          value="8"
+          value={8}
           description="This month"
           icon={BookOpen}
           trend={{ value: 25, isPositive: true }}
+          delay={0.4}
         />
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <AnimatedGrid className="grid gap-6 lg:grid-cols-2" staggerDelay={0.2}>
         {/* Module Progress */}
-        <Card>
+        <AnimatedCard delay={0.5}>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <TrendingUp className="h-5 w-5" />
@@ -79,7 +106,13 @@ export default function PatientDashboard() {
             <div>
               <div className="flex items-center justify-between mb-2">
                 <span className="text-sm font-medium">Coping with Anxiety</span>
-                <span className="text-sm text-muted-foreground">{currentPatient.moduleProgress}%</span>
+                <span className="text-sm text-muted-foreground">
+                  <SlidingNumber 
+                    number={currentPatient.moduleProgress}
+                    fromNumber={0}
+                    transition={{ stiffness: 200, damping: 20, mass: 0.4 }}
+                  />%
+                </span>
               </div>
               <Progress value={currentPatient.moduleProgress} className="h-2" />
             </div>
@@ -123,10 +156,10 @@ export default function PatientDashboard() {
               Continue Learning
             </Button>
           </CardContent>
-        </Card>
+        </AnimatedCard>
 
         {/* Upcoming Sessions */}
-        <Card>
+        <AnimatedCard delay={0.7}>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Calendar className="h-5 w-5" />
@@ -158,18 +191,18 @@ export default function PatientDashboard() {
               <div className="text-center py-6">
                 <Calendar className="h-12 w-12 text-muted-foreground mx-auto mb-2" />
                 <p className="text-muted-foreground">No upcoming sessions</p>
-                <Button className="mt-2" size="sm">
+                <Button className="mt-2" size="sm" onClick={handleQuickBooking}>
                   Book a Session
                 </Button>
               </div>
             )}
           </CardContent>
-        </Card>
-      </div>
+        </AnimatedCard>
+      </AnimatedGrid>
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <AnimatedGrid className="grid gap-6 lg:grid-cols-2" staggerDelay={0.2}>
         {/* Recent Messages */}
-        <Card>
+        <AnimatedCard delay={0.9}>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <MessageCircle className="h-5 w-5" />
@@ -206,10 +239,10 @@ export default function PatientDashboard() {
               </div>
             )}
           </CardContent>
-        </Card>
+        </AnimatedCard>
 
         {/* Recommended Resources */}
-        <Card>
+        <AnimatedCard delay={1.1}>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <BookOpen className="h-5 w-5" />
@@ -236,8 +269,16 @@ export default function PatientDashboard() {
               ))}
             </div>
           </CardContent>
-        </Card>
-      </div>
+        </AnimatedCard>
+      </AnimatedGrid>
+
+      {/* Quick Booking Modal */}
+      <QuickBookingModal
+        isOpen={isQuickBookingOpen}
+        onClose={handleCloseQuickBooking}
+        onConfirmBooking={handleConfirmQuickBooking}
+        counselors={dummyCounselors}
+      />
     </div>
   );
 }

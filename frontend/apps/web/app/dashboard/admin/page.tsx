@@ -1,9 +1,13 @@
+'use client';
+
 import React from 'react';
-import { StatCard } from '../../../components/dashboard/shared/StatCard';
-import { PageHeader } from '../../../components/dashboard/shared/PageHeader';
+import { AnimatedStatCard } from '@workspace/ui/components/animated-stat-card';
+import { AnimatedPageHeader } from '@workspace/ui/components/animated-page-header';
+import { AnimatedCard } from '@workspace/ui/components/animated-card';
 import { Card, CardContent, CardHeader, CardTitle } from '@workspace/ui/components/card';
 import { Badge } from '@workspace/ui/components/badge';
 import { Button } from '@workspace/ui/components/button';
+import { SlidingNumber } from '@workspace/ui/components/animate-ui/primitives/texts/sliding-number';
 import { 
   Users, 
   Calendar, 
@@ -12,7 +16,10 @@ import {
   UserCheck,
   AlertCircle,
   Activity,
-  BarChart3
+  BarChart3,
+  Heart,
+  Target,
+  Shield
 } from 'lucide-react';
 import { dummyDashboardStats } from '../../../lib/dummy-data';
 
@@ -21,46 +28,49 @@ export default function AdminDashboard() {
 
   return (
     <div className="space-y-6">
-      <PageHeader
+      <AnimatedPageHeader
         title="Admin Dashboard"
         description="Overview of platform statistics and system health"
       />
 
       {/* Main Stats Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <StatCard
+        <AnimatedStatCard
           title="Total Users"
           value={stats.totalUsers}
           description="Registered users"
           icon={Users}
           trend={{ value: 8, isPositive: true }}
+          delay={0.1}
         />
-        <StatCard
+        <AnimatedStatCard
           title="Active Sessions"
           value={stats.activeSessions}
           description="Currently in progress"
           icon={Calendar}
           trend={{ value: 15, isPositive: true }}
+          delay={0.2}
         />
-        <StatCard
+        <AnimatedStatCard
           title="Module Completions"
           value={stats.moduleCompletions}
           description="This month"
           icon={TrendingUp}
           trend={{ value: 23, isPositive: true }}
+          delay={0.3}
         />
-        <StatCard
+        <AnimatedStatCard
           title="Support Tickets"
           value={stats.supportTickets}
           description="Open tickets"
           icon={MessageCircle}
-          badge={{ text: "2 urgent", variant: "destructive" }}
+          delay={0.4}
         />
       </div>
 
       {/* Secondary Stats */}
       <div className="grid gap-4 md:grid-cols-3">
-        <Card>
+        <AnimatedCard delay={0.5}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Patient Count</CardTitle>
             <UserCheck className="h-4 w-4 text-muted-foreground" />
@@ -71,9 +81,9 @@ export default function AdminDashboard() {
               Active patients
             </p>
           </CardContent>
-        </Card>
+        </AnimatedCard>
 
-        <Card>
+        <AnimatedCard delay={0.5}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Counselor Count</CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
@@ -84,9 +94,9 @@ export default function AdminDashboard() {
               Active counselors
             </p>
           </CardContent>
-        </Card>
+        </AnimatedCard>
 
-        <Card>
+        <AnimatedCard delay={0.5}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Upcoming Sessions</CardTitle>
             <Calendar className="h-4 w-4 text-muted-foreground" />
@@ -97,12 +107,12 @@ export default function AdminDashboard() {
               Next 7 days
             </p>
           </CardContent>
-        </Card>
+        </AnimatedCard>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
         {/* System Health */}
-        <Card>
+        <AnimatedCard delay={0.5}>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Activity className="h-5 w-5" />
@@ -150,10 +160,10 @@ export default function AdminDashboard() {
               <Badge variant="default">Operational</Badge>
             </div>
           </CardContent>
-        </Card>
+        </AnimatedCard>
 
         {/* Recent Activity */}
-        <Card>
+        <AnimatedCard delay={0.5}>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <BarChart3 className="h-5 w-5" />
@@ -205,11 +215,11 @@ export default function AdminDashboard() {
               <span className="text-xs text-muted-foreground">8h ago</span>
             </div>
           </CardContent>
-        </Card>
+        </AnimatedCard>
       </div>
 
       {/* Quick Actions */}
-      <Card>
+      <AnimatedCard delay={0.5}>
         <CardHeader>
           <CardTitle>Quick Actions</CardTitle>
         </CardHeader>
@@ -233,7 +243,7 @@ export default function AdminDashboard() {
             </Button>
           </div>
         </CardContent>
-      </Card>
+      </AnimatedCard>
     </div>
   );
 }

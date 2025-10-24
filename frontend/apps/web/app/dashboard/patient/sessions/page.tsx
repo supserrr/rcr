@@ -1,8 +1,11 @@
 'use client';
 
 import React, { useState } from 'react';
-import { PageHeader } from '../../../../components/dashboard/shared/PageHeader';
+import { AnimatedPageHeader } from '@workspace/ui/components/animated-page-header';
+import { AnimatedCard } from '@workspace/ui/components/animated-card';
+import { AnimatedGrid } from '@workspace/ui/components/animated-grid';
 import { SessionCard } from '../../../../components/dashboard/shared/SessionCard';
+import { QuickBookingModal } from '@workspace/ui/components/quick-booking-modal';
 import { Button } from '@workspace/ui/components/button';
 import { Badge } from '@workspace/ui/components/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@workspace/ui/components/tabs';
@@ -21,6 +24,7 @@ import { Session } from '../../../../lib/types';
 
 export default function PatientSessionsPage() {
   const [activeTab, setActiveTab] = useState('upcoming');
+  const [isQuickBookingOpen, setIsQuickBookingOpen] = useState(false);
   const currentPatientId = '1'; // Jean Baptiste
 
   const upcomingSessions = dummySessions.filter(session => 
@@ -68,22 +72,29 @@ export default function PatientSessionsPage() {
     // Implement notes viewing logic
   };
 
+  const handleQuickBooking = () => {
+    setIsQuickBookingOpen(true);
+  };
+
+  const handleConfirmQuickBooking = (bookingData: any) => {
+    console.log('Quick booking confirmed:', bookingData);
+    // Here you would typically send the booking data to your backend
+  };
+
+  const handleCloseQuickBooking = () => {
+    setIsQuickBookingOpen(false);
+  };
+
   return (
     <div className="space-y-6">
-      <PageHeader
+      <AnimatedPageHeader
         title="My Sessions"
         description="Manage your counseling sessions and view your session history"
-        action={{
-          label: "Book New Session",
-          icon: Plus,
-          onClick: () => console.log('Book new session'),
-          variant: "default"
-        }}
       />
 
       {/* Quick Stats */}
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card>
+      <AnimatedGrid className="grid gap-4 md:grid-cols-3" staggerDelay={0.1}>
+        <AnimatedCard delay={0.5}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Upcoming Sessions</CardTitle>
             <Calendar className="h-4 w-4 text-muted-foreground" />
@@ -94,9 +105,9 @@ export default function PatientSessionsPage() {
               Next session in 2 days
             </p>
           </CardContent>
-        </Card>
+        </AnimatedCard>
 
-        <Card>
+        <AnimatedCard delay={0.6}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Completed Sessions</CardTitle>
             <MessageCircle className="h-4 w-4 text-muted-foreground" />
@@ -107,9 +118,9 @@ export default function PatientSessionsPage() {
               Total sessions completed
             </p>
           </CardContent>
-        </Card>
+        </AnimatedCard>
 
-        <Card>
+        <AnimatedCard delay={0.7}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Sessions</CardTitle>
             <Clock className="h-4 w-4 text-muted-foreground" />
@@ -120,8 +131,8 @@ export default function PatientSessionsPage() {
               All time sessions
             </p>
           </CardContent>
-        </Card>
-      </div>
+        </AnimatedCard>
+      </AnimatedGrid>
 
       {/* Sessions Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
@@ -166,7 +177,7 @@ export default function PatientSessionsPage() {
                 <p className="text-muted-foreground mb-4">
                   You don't have any scheduled sessions at the moment
                 </p>
-                <Button>
+                <Button onClick={handleQuickBooking}>
                   <Plus className="h-4 w-4 mr-2" />
                   Book a Session
                 </Button>
@@ -231,7 +242,7 @@ export default function PatientSessionsPage() {
                 <p className="text-muted-foreground mb-4">
                   Start your journey by booking your first session
                 </p>
-                <Button>
+                <Button onClick={handleQuickBooking}>
                   <Plus className="h-4 w-4 mr-2" />
                   Book a Session
                 </Button>
@@ -240,6 +251,14 @@ export default function PatientSessionsPage() {
           </div>
         </TabsContent>
       </Tabs>
+
+      {/* Quick Booking Modal */}
+      <QuickBookingModal
+        isOpen={isQuickBookingOpen}
+        onClose={handleCloseQuickBooking}
+        onConfirmBooking={handleConfirmQuickBooking}
+        counselors={dummyCounselors}
+      />
     </div>
   );
 }

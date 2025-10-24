@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState } from 'react';
-import { PageHeader } from '../../../../components/dashboard/shared/PageHeader';
+import { AnimatedPageHeader } from '@workspace/ui/components/animated-page-header';
+import { AnimatedCard } from '@workspace/ui/components/animated-card';
 import { Button } from '@workspace/ui/components/button';
 import { Input } from '@workspace/ui/components/input';
 import { Card, CardContent, CardHeader } from '@workspace/ui/components/card';
@@ -109,7 +110,7 @@ export default function CounselorAIChatPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader
+      <AnimatedPageHeader
         title="AI Counseling Assistant"
         description="Get professional support for your counseling practice and patient care"
       />
@@ -117,7 +118,7 @@ export default function CounselorAIChatPage() {
       <div className="grid gap-6 lg:grid-cols-4">
         {/* Quick Questions Sidebar */}
         <div className="lg:col-span-1">
-          <Card>
+          <AnimatedCard delay={0.5}>
             <CardHeader>
               <h3 className="font-semibold flex items-center gap-2">
                 <Lightbulb className="h-4 w-4" />
@@ -138,10 +139,10 @@ export default function CounselorAIChatPage() {
                 </Button>
               ))}
             </CardContent>
-          </Card>
+          </AnimatedCard>
 
           {/* Professional Resources */}
-          <Card className="mt-4">
+          <AnimatedCard delay={0.6} className="mt-4">
             <CardHeader>
               <h3 className="font-semibold flex items-center gap-2">
                 <BookOpen className="h-4 w-4" />
@@ -162,12 +163,12 @@ export default function CounselorAIChatPage() {
                 <p>• Professional development</p>
               </div>
             </CardContent>
-          </Card>
+          </AnimatedCard>
         </div>
 
         {/* Chat Area */}
         <div className="lg:col-span-3">
-          <Card className="h-[600px] flex flex-col">
+          <AnimatedCard delay={0.7} className="h-[600px] flex flex-col">
             {/* Chat Header */}
             <CardHeader className="pb-3 border-b">
               <div className="flex items-center justify-between">
@@ -283,7 +284,7 @@ export default function CounselorAIChatPage() {
                 Professional guidance for evidence-based counseling practice.
               </p>
             </div>
-          </Card>
+          </AnimatedCard>
         </div>
       </div>
     </div>

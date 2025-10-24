@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState } from 'react';
-import { PageHeader } from '../../../../components/dashboard/shared/PageHeader';
+import { AnimatedPageHeader } from '@workspace/ui/components/animated-page-header';
+import { AnimatedCard } from '@workspace/ui/components/animated-card';
 import { Button } from '@workspace/ui/components/button';
 import { Input } from '@workspace/ui/components/input';
 import { Badge } from '@workspace/ui/components/badge';
@@ -52,7 +53,7 @@ export default function CounselorChatPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader
+      <AnimatedPageHeader
         title="Patient Messages"
         description="Communicate with your patients and provide ongoing support"
       />
@@ -60,7 +61,7 @@ export default function CounselorChatPage() {
       <div className="grid gap-6 lg:grid-cols-4 h-[600px]">
         {/* Chat List */}
         <div className="lg:col-span-1">
-          <Card className="h-full">
+          <AnimatedCard delay={0.5} className="h-full">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
                 <h3 className="font-semibold">Patient Conversations</h3>
@@ -129,12 +130,12 @@ export default function CounselorChatPage() {
                 </div>
               </ScrollArea>
             </CardContent>
-          </Card>
+          </AnimatedCard>
         </div>
 
         {/* Chat Area */}
         <div className="lg:col-span-3">
-          <Card className="h-full flex flex-col">
+          <AnimatedCard delay={0.7} className="h-full flex flex-col">
             {activeChat ? (
               <>
                 {/* Chat Header */}
@@ -259,7 +260,7 @@ export default function CounselorChatPage() {
                 </div>
               </div>
             )}
-          </Card>
+          </AnimatedCard>
         </div>
       </div>
     </div>

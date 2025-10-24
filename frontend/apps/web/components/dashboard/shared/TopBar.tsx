@@ -10,14 +10,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@workspace/ui/components/dropdown-menu';
+import { NotificationInboxPopover } from '@workspace/ui/components/notification-inbox-popover';
 import { 
-  Bell, 
   LogOut, 
   Settings, 
   User, 
-  Menu,
-  Moon,
-  Sun
+  Menu
 } from 'lucide-react';
 import { UserRole } from '../../../lib/types';
 
@@ -43,8 +41,6 @@ export function TopBar({
   notifications = 0,
   onNotificationClick
 }: TopBarProps) {
-  const [isDarkMode, setIsDarkMode] = useState(false);
-
   const getRoleColor = (role: UserRole) => {
     switch (role) {
       case 'patient':
@@ -71,70 +67,36 @@ export function TopBar({
     }
   };
 
-  const toggleDarkMode = () => {
-    setIsDarkMode(!isDarkMode);
-    // Here you would typically update your theme context
-  };
-
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container flex h-16 items-center justify-between px-4">
+      <div className="flex h-20 items-center justify-between px-6 w-full">
         {/* Left side - Menu toggle and title */}
         <div className="flex items-center space-x-4">
           {onToggleSidebar && (
             <Button
               variant="ghost"
-              size="sm"
+              size="lg"
               onClick={onToggleSidebar}
-              className="md:hidden"
+              className="md:hidden h-12 w-12"
             >
-              <Menu className="h-5 w-5" />
+              <Menu className="h-6 w-6" />
             </Button>
           )}
           <div className="hidden md:block">
-            <h1 className="text-xl font-semibold">Rwanda Cancer Relief</h1>
+            <h1 className="text-2xl font-semibold">Rwanda Cancer Relief</h1>
           </div>
         </div>
 
         {/* Right side - Notifications and user menu */}
-        <div className="flex items-center space-x-4">
-          {/* Theme toggle */}
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={toggleDarkMode}
-            className="hidden sm:flex"
-          >
-            {isDarkMode ? (
-              <Sun className="h-4 w-4" />
-            ) : (
-              <Moon className="h-4 w-4" />
-            )}
-          </Button>
-
+        <div className="flex items-center space-x-3">
           {/* Notifications */}
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onNotificationClick}
-            className="relative"
-          >
-            <Bell className="h-4 w-4" />
-            {notifications > 0 && (
-              <Badge 
-                variant="destructive" 
-                className="absolute -top-1 -right-1 h-5 w-5 rounded-full p-0 text-xs flex items-center justify-center"
-              >
-                {notifications > 9 ? '9+' : notifications}
-              </Badge>
-            )}
-          </Button>
+          <NotificationInboxPopover />
 
           {/* User menu */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-                <Avatar className="h-8 w-8">
+              <Button variant="ghost" className="relative h-12 w-12 rounded-full">
+                <Avatar className="h-10 w-10">
                   <AvatarImage src={user.avatar} alt={user.name} />
                   <AvatarFallback>
                     {user.name.split(' ').map(n => n[0]).join('')}

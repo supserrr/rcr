@@ -1,11 +1,16 @@
+'use client';
+
 import React from 'react';
-import { StatCard } from '../../../components/dashboard/shared/StatCard';
-import { PageHeader } from '../../../components/dashboard/shared/PageHeader';
+import { AnimatedStatCard } from '@workspace/ui/components/animated-stat-card';
+import { AnimatedPageHeader } from '@workspace/ui/components/animated-page-header';
+import { AnimatedCard } from '@workspace/ui/components/animated-card';
+import { AnimatedGrid } from '@workspace/ui/components/animated-grid';
 import { Card, CardContent, CardHeader, CardTitle } from '@workspace/ui/components/card';
 import { Progress } from '@workspace/ui/components/progress';
 import { Badge } from '@workspace/ui/components/badge';
 import { Button } from '@workspace/ui/components/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@workspace/ui/components/avatar';
+import { SlidingNumber } from '@workspace/ui/components/animate-ui/primitives/texts/sliding-number';
 import { 
   Users, 
   Calendar, 
@@ -14,7 +19,9 @@ import {
   Clock,
   CheckCircle,
   AlertCircle,
-  Star
+  Star,
+  Heart,
+  Target
 } from 'lucide-react';
 import { dummyCounselors, dummySessions, dummyPatients, dummyMessages } from '../../../lib/dummy-data';
 
@@ -44,45 +51,48 @@ export default function CounselorDashboard() {
 
   return (
     <div className="space-y-6">
-      <PageHeader
+      <AnimatedPageHeader
         title="Welcome back, Dr. Marie Claire"
         description="Here's an overview of your patients and upcoming sessions"
       />
 
       {/* Stats Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <StatCard
+        <AnimatedStatCard
           title="Active Patients"
           value={assignedPatients.length}
           description="Currently assigned"
           icon={Users}
           trend={{ value: 12, isPositive: true }}
+          delay={0.1}
         />
-        <StatCard
+        <AnimatedStatCard
           title="Upcoming Sessions"
           value={upcomingSessions.length}
           description="Next session in 2 hours"
           icon={Calendar}
+          delay={0.2}
         />
-        <StatCard
+        <AnimatedStatCard
           title="Messages"
           value={recentMessages.length}
           description="Unread messages"
           icon={MessageCircle}
-          badge={{ text: "3 new", variant: "default" }}
+          delay={0.3}
         />
-        <StatCard
+        <AnimatedStatCard
           title="Rating"
           value={currentCounselor.rating}
           description="Based on patient feedback"
           icon={Star}
           trend={{ value: 5, isPositive: true }}
+          delay={0.4}
         />
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <AnimatedGrid className="grid gap-6 lg:grid-cols-2" staggerDelay={0.2}>
         {/* Upcoming Sessions */}
-        <Card>
+        <AnimatedCard delay={0.5}>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Calendar className="h-5 w-5" />
@@ -128,10 +138,10 @@ export default function CounselorDashboard() {
               </div>
             )}
           </CardContent>
-        </Card>
+        </AnimatedCard>
 
         {/* Patient Progress Overview */}
-        <Card>
+        <AnimatedCard delay={0.7}>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <TrendingUp className="h-5 w-5" />
@@ -162,12 +172,12 @@ export default function CounselorDashboard() {
               ))}
             </div>
           </CardContent>
-        </Card>
-      </div>
+        </AnimatedCard>
+      </AnimatedGrid>
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <AnimatedGrid className="grid gap-6 lg:grid-cols-2" staggerDelay={0.2}>
         {/* Recent Messages */}
-        <Card>
+        <AnimatedCard delay={0.9}>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <MessageCircle className="h-5 w-5" />
@@ -221,10 +231,10 @@ export default function CounselorDashboard() {
               </div>
             )}
           </CardContent>
-        </Card>
+        </AnimatedCard>
 
         {/* Quick Actions */}
-        <Card>
+        <AnimatedCard delay={1.1}>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Clock className="h-5 w-5" />
@@ -249,8 +259,8 @@ export default function CounselorDashboard() {
               Report Issue
             </Button>
           </CardContent>
-        </Card>
-      </div>
+        </AnimatedCard>
+      </AnimatedGrid>
     </div>
   );
 }

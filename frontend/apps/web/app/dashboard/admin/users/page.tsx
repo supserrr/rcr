@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState } from 'react';
-import { PageHeader } from '../../../../components/dashboard/shared/PageHeader';
+import { AnimatedPageHeader } from '@workspace/ui/components/animated-page-header';
+import { AnimatedCard } from '@workspace/ui/components/animated-card';
 import { Input } from '@workspace/ui/components/input';
 import { Button } from '@workspace/ui/components/button';
 import { Badge } from '@workspace/ui/components/badge';
@@ -103,20 +104,14 @@ export default function AdminUsersPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader
+      <AnimatedPageHeader
         title="User Management"
         description="Manage all users, patients, counselors, and administrators"
-        action={{
-          label: "Add User",
-          icon: Plus,
-          onClick: handleAddUser,
-          variant: "default"
-        }}
       />
 
       {/* Stats Cards */}
       <div className="grid gap-4 md:grid-cols-4">
-        <div className="bg-card border rounded-lg p-4">
+        <AnimatedCard delay={0.5}>
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-muted-foreground">Total Users</p>
@@ -124,9 +119,9 @@ export default function AdminUsersPage() {
             </div>
             <Users className="h-8 w-8 text-muted-foreground" />
           </div>
-        </div>
+        </AnimatedCard>
         
-        <div className="bg-card border rounded-lg p-4">
+        <AnimatedCard delay={0.5}>
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-muted-foreground">Patients</p>
@@ -134,9 +129,9 @@ export default function AdminUsersPage() {
             </div>
             <UserCheck className="h-8 w-8 text-blue-600" />
           </div>
-        </div>
+        </AnimatedCard>
         
-        <div className="bg-card border rounded-lg p-4">
+        <AnimatedCard delay={0.5}>
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-muted-foreground">Counselors</p>
@@ -144,9 +139,9 @@ export default function AdminUsersPage() {
             </div>
             <UserCheck className="h-8 w-8 text-green-600" />
           </div>
-        </div>
+        </AnimatedCard>
         
-        <div className="bg-card border rounded-lg p-4">
+        <AnimatedCard delay={0.5}>
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-muted-foreground">Admins</p>
@@ -154,7 +149,7 @@ export default function AdminUsersPage() {
             </div>
             <UserCheck className="h-8 w-8 text-purple-600" />
           </div>
-        </div>
+        </AnimatedCard>
       </div>
 
       {/* Filters */}
@@ -167,7 +162,7 @@ export default function AdminUsersPage() {
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-10"
           />
-        </div>
+        </AnimatedCard>
         
         <Select value={selectedRole} onValueChange={(value) => setSelectedRole(value as UserRole | 'all')}>
           <SelectTrigger className="w-full sm:w-48">
@@ -225,8 +220,8 @@ export default function AdminUsersPage() {
                     <div>
                       <p className="font-medium">{user.name}</p>
                       <p className="text-sm text-muted-foreground">{user.email}</p>
-                    </div>
-                  </div>
+                    </AnimatedCard>
+                  </AnimatedCard>
                 </TableCell>
                 <TableCell>
                   <Badge className={getRoleColor(user.role)}>
@@ -245,7 +240,7 @@ export default function AdminUsersPage() {
                       <p className="text-xs text-muted-foreground">
                         {user.lastLogin.toLocaleTimeString()}
                       </p>
-                    </div>
+                    </AnimatedCard>
                   ) : (
                     <span className="text-sm text-muted-foreground">Never</span>
                   )}
@@ -256,7 +251,7 @@ export default function AdminUsersPage() {
                     <p className="text-xs text-muted-foreground">
                       {Math.floor((Date.now() - user.createdAt.getTime()) / (1000 * 60 * 60 * 24))} days ago
                     </p>
-                  </div>
+                  </AnimatedCard>
                 </TableCell>
                 <TableCell className="text-right">
                   <div className="flex items-center justify-end space-x-2">
@@ -281,7 +276,7 @@ export default function AdminUsersPage() {
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
-                  </div>
+                  </AnimatedCard>
                 </TableCell>
               </TableRow>
             ))}
@@ -301,7 +296,7 @@ export default function AdminUsersPage() {
           <Button variant="outline" size="sm">
             Bulk Actions
           </Button>
-        </div>
+        </AnimatedCard>
       </div>
     </div>
   );

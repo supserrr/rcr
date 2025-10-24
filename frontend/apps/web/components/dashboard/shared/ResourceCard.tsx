@@ -1,5 +1,5 @@
 import React from 'react';
-import { Card, CardContent, CardHeader } from '@workspace/ui/components/card';
+import { AnimatedCard } from '@workspace/ui/components/animated-card';
 import { Button } from '@workspace/ui/components/button';
 import { Badge } from '@workspace/ui/components/badge';
 import { 
@@ -18,13 +18,15 @@ interface ResourceCardProps {
   onView?: (resource: Resource) => void;
   onDownload?: (resource: Resource) => void;
   showActions?: boolean;
+  delay?: number;
 }
 
 export function ResourceCard({ 
   resource, 
   onView, 
   onDownload, 
-  showActions = true 
+  showActions = true,
+  delay = 0
 }: ResourceCardProps) {
   const getTypeIcon = (type: string) => {
     switch (type) {
@@ -64,8 +66,12 @@ export function ResourceCard({
   };
 
   return (
-    <Card className="h-full hover:shadow-md transition-shadow">
-      <CardHeader className="pb-3">
+    <AnimatedCard delay={delay} className="h-full">
+      {/* Decorative gradient blobs */}
+      <div className="absolute top-0 right-0 w-32 h-32 bg-primary/10 rounded-full blur-2xl -z-0"></div>
+      <div className="absolute bottom-0 left-0 w-32 h-32 bg-primary/10 rounded-full blur-2xl -z-0"></div>
+      
+      <div className="relative z-10 pb-3">
         <div className="flex items-start justify-between">
           <div className="flex items-center space-x-3">
             <div className={`p-2 rounded-lg ${getTypeColor(resource.type)}`}>
@@ -89,8 +95,8 @@ export function ResourceCard({
             </div>
           </div>
         </div>
-      </CardHeader>
-      <CardContent className="space-y-3">
+      </div>
+      <div className="relative z-10 space-y-3">
         <p className="text-sm text-muted-foreground line-clamp-3">
           {resource.description}
         </p>
@@ -137,7 +143,7 @@ export function ResourceCard({
             )}
           </div>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </AnimatedCard>
   );
 }

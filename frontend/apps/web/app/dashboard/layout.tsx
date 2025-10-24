@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { PatientLayout } from '../../components/dashboard/layouts/PatientLayout';
 import { CounselorLayout } from '../../components/dashboard/layouts/CounselorLayout';
 import { AdminLayout } from '../../components/dashboard/layouts/AdminLayout';
@@ -17,6 +17,7 @@ interface DashboardLayoutProps {
 
 export default function DashboardLayout({ children, params }: DashboardLayoutProps) {
   const router = useRouter();
+  const pathname = usePathname();
   const { user, signOut, isLoading } = useAuth();
 
   // Show loading state while checking authentication
@@ -61,7 +62,7 @@ export default function DashboardLayout({ children, params }: DashboardLayoutPro
       return (
         <PatientLayout
           user={userData}
-          currentPath="/dashboard/patient"
+          currentPath={pathname}
           onNavigate={handleNavigate}
           onLogout={handleLogout}
           notifications={notifications}
@@ -75,7 +76,7 @@ export default function DashboardLayout({ children, params }: DashboardLayoutPro
       return (
         <CounselorLayout
           user={userData}
-          currentPath="/dashboard/counselor"
+          currentPath={pathname}
           onNavigate={handleNavigate}
           onLogout={handleLogout}
           notifications={notifications}
@@ -89,7 +90,7 @@ export default function DashboardLayout({ children, params }: DashboardLayoutPro
       return (
         <AdminLayout
           user={userData}
-          currentPath="/dashboard/admin"
+          currentPath={pathname}
           onNavigate={handleNavigate}
           onLogout={handleLogout}
           notifications={notifications}

@@ -206,11 +206,18 @@ export function Sidebar({
       className
     )}>
       {/* Header */}
-      <div className="flex items-center justify-between p-4">
-        {!isCollapsed && (
-          <div className="flex items-center space-x-2">
+      <div className={cn(
+        "flex items-center justify-between transition-all duration-300",
+        isCollapsed ? "p-3" : "p-6"
+      )}>
+        {!isCollapsed ? (
+          <div className="flex items-center space-x-3">
+            <Heart className="h-8 w-8 text-red-500" />
+            <span className="font-semibold text-lg">Rwanda Cancer Relief</span>
+          </div>
+        ) : (
+          <div className="flex items-center justify-center w-full">
             <Heart className="h-6 w-6 text-red-500" />
-            <span className="font-semibold">Rwanda Cancer Relief</span>
           </div>
         )}
         {onToggleCollapse && (
@@ -218,12 +225,15 @@ export function Sidebar({
             variant="ghost"
             size="sm"
             onClick={onToggleCollapse}
-            className="h-8 w-8 p-0"
+            className={cn(
+              "p-0 transition-all duration-300",
+              isCollapsed ? "h-8 w-8" : "h-10 w-10"
+            )}
           >
             {isCollapsed ? (
               <ChevronRight className="h-4 w-4" />
             ) : (
-              <ChevronLeft className="h-4 w-4" />
+              <ChevronLeft className="h-5 w-5" />
             )}
           </Button>
         )}
@@ -232,8 +242,11 @@ export function Sidebar({
       <Separator />
 
       {/* Navigation */}
-      <ScrollArea className="flex-1 px-3">
-        <nav className="space-y-1 py-4">
+      <ScrollArea className="flex-1">
+        <nav className={cn(
+          "space-y-0.5 py-2 transition-all duration-300",
+          isCollapsed ? "px-2" : "px-4"
+        )}>
           {filteredItems.map((item) => {
             const Icon = getIcon(item.icon);
             const isActive = currentPath === item.path;
@@ -242,23 +255,31 @@ export function Sidebar({
               <Button
                 key={item.id}
                 variant={isActive ? "secondary" : "ghost"}
+                size="lg"
                 className={cn(
-                  "w-full justify-start",
-                  isCollapsed ? "px-2" : "px-3",
+                  "w-full justify-start transition-all duration-300",
+                  isCollapsed ? "h-10 px-2" : "h-12 px-4",
                   isActive && "bg-secondary text-secondary-foreground"
                 )}
                 onClick={() => onNavigate(item.path)}
+                title={isCollapsed ? item.label : undefined}
               >
-                <Icon className={cn("h-4 w-4", !isCollapsed && "mr-3")} />
+                <Icon className={cn(
+                  "transition-all duration-300",
+                  isCollapsed ? "h-4 w-4" : "h-5 w-5 mr-4"
+                )} />
                 {!isCollapsed && (
                   <>
-                    <span className="flex-1 text-left">{item.label}</span>
+                    <span className="flex-1 text-left text-base font-medium">{item.label}</span>
                     {item.badge && item.badge > 0 && (
-                      <Badge variant="destructive" className="ml-2 h-5 w-5 rounded-full p-0 text-xs">
+                      <Badge variant="destructive" className="ml-2 h-6 w-6 rounded-full p-0 text-xs">
                         {item.badge > 9 ? '9+' : item.badge}
                       </Badge>
                     )}
                   </>
+                )}
+                {isCollapsed && item.badge && item.badge > 0 && (
+                  <div className="absolute -top-1 -right-1 h-3 w-3 bg-red-500 rounded-full" />
                 )}
               </Button>
             );
@@ -267,16 +288,22 @@ export function Sidebar({
       </ScrollArea>
 
       {/* Footer */}
-      {!isCollapsed && (
+      {!isCollapsed ? (
         <>
           <Separator />
-          <div className="p-4">
-            <div className="text-xs text-muted-foreground">
-              <p>Rwanda Cancer Relief</p>
-              <p>Supporting cancer patients and families</p>
+          <div className="p-6">
+            <div className="text-sm text-muted-foreground">
+              <p className="font-medium">Rwanda Cancer Relief</p>
+              <p className="text-xs mt-1">Supporting cancer patients and families</p>
             </div>
           </div>
         </>
+      ) : (
+        <div className="p-2">
+          <div className="flex items-center justify-center">
+            <Heart className="h-4 w-4 text-red-500" />
+          </div>
+        </div>
       )}
     </div>
   );

@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState } from 'react';
-import { PageHeader } from '../../../../components/dashboard/shared/PageHeader';
+import { AnimatedPageHeader } from '@workspace/ui/components/animated-page-header';
+import { AnimatedGrid } from '@workspace/ui/components/animated-grid';
 import { ResourceCard } from '../../../../components/dashboard/shared/ResourceCard';
 import { Input } from '@workspace/ui/components/input';
 import { Button } from '@workspace/ui/components/button';
@@ -66,7 +67,7 @@ export default function PatientResourcesPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader
+      <AnimatedPageHeader
         title="Resources"
         description="Access educational materials, guided meditations, and helpful articles"
       />
@@ -140,16 +141,17 @@ export default function PatientResourcesPage() {
 
               {/* Resources Grid */}
               {getResourcesByType(type).length > 0 ? (
-                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                  {getResourcesByType(type).map((resource) => (
+                <AnimatedGrid className="grid gap-6 md:grid-cols-2 lg:grid-cols-3" staggerDelay={0.1}>
+                  {getResourcesByType(type).map((resource, index) => (
                     <ResourceCard
                       key={resource.id}
                       resource={resource}
                       onView={handleViewResource}
                       onDownload={handleDownloadResource}
+                      delay={index * 0.1}
                     />
                   ))}
-                </div>
+                </AnimatedGrid>
               ) : (
                 <div className="text-center py-12">
                   <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">

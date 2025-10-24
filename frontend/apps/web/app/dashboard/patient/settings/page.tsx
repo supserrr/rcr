@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState } from 'react';
-import { PageHeader } from '../../../../components/dashboard/shared/PageHeader';
+import { AnimatedPageHeader } from '@workspace/ui/components/animated-page-header';
+import { AnimatedCard } from '@workspace/ui/components/animated-card';
 import { Button } from '@workspace/ui/components/button';
 import { Input } from '@workspace/ui/components/input';
 import { Label } from '@workspace/ui/components/label';
@@ -73,7 +74,7 @@ export default function PatientSettingsPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader
+      <AnimatedPageHeader
         title="Settings"
         description="Manage your account settings, preferences, and privacy"
       />
@@ -82,7 +83,7 @@ export default function PatientSettingsPage() {
         {/* Profile Information */}
         <div className="lg:col-span-2 space-y-6">
           {/* Personal Information */}
-          <Card>
+          <AnimatedCard delay={0.5}>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <User className="h-5 w-5" />
@@ -186,10 +187,10 @@ export default function PatientSettingsPage() {
                 Save Changes
               </Button>
             </CardContent>
-          </Card>
+          </AnimatedCard>
 
           {/* Medical Information */}
-          <Card>
+          <AnimatedCard delay={0.5}>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Shield className="h-5 w-5" />
@@ -221,13 +222,13 @@ export default function PatientSettingsPage() {
                 </div>
               </div>
             </CardContent>
-          </Card>
+          </AnimatedCard>
         </div>
 
         {/* Settings Sidebar */}
         <div className="space-y-6">
           {/* Notifications */}
-          <Card>
+          <AnimatedCard delay={0.5}>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Bell className="h-5 w-5" />
@@ -303,10 +304,10 @@ export default function PatientSettingsPage() {
                 />
               </div>
             </CardContent>
-          </Card>
+          </AnimatedCard>
 
           {/* Account Actions */}
-          <Card>
+          <AnimatedCard delay={0.5}>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Shield className="h-5 w-5" />
@@ -340,7 +341,7 @@ export default function PatientSettingsPage() {
                 Sign Out
               </Button>
             </CardContent>
-          </Card>
+          </AnimatedCard>
         </div>
       </div>
     </div>

@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState } from 'react';
-import { PageHeader } from '../../../../components/dashboard/shared/PageHeader';
+import { AnimatedPageHeader } from '@workspace/ui/components/animated-page-header';
+import { AnimatedCard } from '@workspace/ui/components/animated-card';
 import { Input } from '@workspace/ui/components/input';
 import { Button } from '@workspace/ui/components/button';
 import { Badge } from '@workspace/ui/components/badge';
@@ -108,14 +109,14 @@ export default function AdminSupportPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader
+      <AnimatedPageHeader
         title="Support Management"
         description="Manage support tickets and provide assistance to users"
       />
 
       {/* Stats Cards */}
       <div className="grid gap-4 md:grid-cols-4">
-        <Card>
+        <AnimatedCard delay={0.5}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Open Tickets</CardTitle>
             <AlertCircle className="h-4 w-4 text-muted-foreground" />
@@ -128,9 +129,9 @@ export default function AdminSupportPage() {
               Need attention
             </p>
           </CardContent>
-        </Card>
+        </AnimatedCard>
 
-        <Card>
+        <AnimatedCard delay={0.5}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">In Progress</CardTitle>
             <Clock className="h-4 w-4 text-muted-foreground" />
@@ -143,9 +144,9 @@ export default function AdminSupportPage() {
               Being worked on
             </p>
           </CardContent>
-        </Card>
+        </AnimatedCard>
 
-        <Card>
+        <AnimatedCard delay={0.5}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Resolved</CardTitle>
             <CheckCircle className="h-4 w-4 text-muted-foreground" />
@@ -158,9 +159,9 @@ export default function AdminSupportPage() {
               This month
             </p>
           </CardContent>
-        </Card>
+        </AnimatedCard>
 
-        <Card>
+        <AnimatedCard delay={0.5}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Urgent</CardTitle>
             <AlertCircle className="h-4 w-4 text-red-500" />
@@ -173,7 +174,7 @@ export default function AdminSupportPage() {
               High priority
             </p>
           </CardContent>
-        </Card>
+        </AnimatedCard>
       </div>
 
       {/* Filters */}

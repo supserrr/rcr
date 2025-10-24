@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState } from 'react';
-import { PageHeader } from '../../../../components/dashboard/shared/PageHeader';
+import { AnimatedPageHeader } from '@workspace/ui/components/animated-page-header';
+import { AnimatedCard } from '@workspace/ui/components/animated-card';
 import { ResourceCard } from '../../../../components/dashboard/shared/ResourceCard';
 import { Input } from '@workspace/ui/components/input';
 import { Button } from '@workspace/ui/components/button';
@@ -67,15 +68,9 @@ export default function CounselorResourcesPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader
+      <AnimatedPageHeader
         title="Resource Management"
         description="View, upload, and manage educational resources for your patients"
-        action={{
-          label: "Upload Resource",
-          icon: Upload,
-          onClick: handleUploadResource,
-          variant: "default"
-        }}
       />
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
@@ -113,18 +108,19 @@ export default function CounselorResourcesPage() {
 
           {/* Resources Grid */}
           {filteredResources.length > 0 ? (
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {filteredResources.map((resource) => (
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mt-8">
+              {filteredResources.map((resource, index) => (
                 <ResourceCard
                   key={resource.id}
                   resource={resource}
                   onView={handleViewResource}
                   onDownload={handleDownloadResource}
+                  delay={index * 0.1}
                 />
               ))}
             </div>
           ) : (
-            <div className="text-center py-12">
+            <div className="text-center py-12 mt-8">
               <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
                 <FileText className="h-8 w-8 text-muted-foreground" />
               </div>

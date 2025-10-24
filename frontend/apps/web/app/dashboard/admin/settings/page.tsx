@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState } from 'react';
-import { PageHeader } from '../../../../components/dashboard/shared/PageHeader';
+import { AnimatedPageHeader } from '@workspace/ui/components/animated-page-header';
+import { AnimatedCard } from '@workspace/ui/components/animated-card';
 import { Button } from '@workspace/ui/components/button';
 import { Input } from '@workspace/ui/components/input';
 import { Label } from '@workspace/ui/components/label';
@@ -64,7 +65,7 @@ export default function AdminSettingsPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader
+      <AnimatedPageHeader
         title="System Settings"
         description="Configure platform settings, security, and system preferences"
       />
@@ -73,7 +74,7 @@ export default function AdminSettingsPage() {
         {/* Main Settings */}
         <div className="lg:col-span-2 space-y-6">
           {/* General Settings */}
-          <Card>
+          <AnimatedCard delay={0.5}>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Globe className="h-5 w-5" />
@@ -142,10 +143,10 @@ export default function AdminSettingsPage() {
                 </div>
               </div>
             </CardContent>
-          </Card>
+          </AnimatedCard>
 
           {/* Security Settings */}
-          <Card>
+          <AnimatedCard delay={0.5}>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Shield className="h-5 w-5" />
@@ -193,10 +194,10 @@ export default function AdminSettingsPage() {
                 </Select>
               </div>
             </CardContent>
-          </Card>
+          </AnimatedCard>
 
           {/* Notification Settings */}
-          <Card>
+          <AnimatedCard delay={0.5}>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Bell className="h-5 w-5" />
@@ -226,10 +227,10 @@ export default function AdminSettingsPage() {
                 />
               </div>
             </CardContent>
-          </Card>
+          </AnimatedCard>
 
           {/* Backup Settings */}
-          <Card>
+          <AnimatedCard delay={0.5}>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Database className="h-5 w-5" />
@@ -263,13 +264,13 @@ export default function AdminSettingsPage() {
                 </Button>
               </div>
             </CardContent>
-          </Card>
+          </AnimatedCard>
         </div>
 
         {/* Settings Sidebar */}
         <div className="space-y-6">
           {/* System Status */}
-          <Card>
+          <AnimatedCard delay={0.5}>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Settings className="h-5 w-5" />
@@ -294,10 +295,10 @@ export default function AdminSettingsPage() {
                 <span className="text-sm text-muted-foreground">2 hours ago</span>
               </div>
             </CardContent>
-          </Card>
+          </AnimatedCard>
 
           {/* Quick Actions */}
-          <Card>
+          <AnimatedCard delay={0.5}>
             <CardHeader>
               <CardTitle>Quick Actions</CardTitle>
             </CardHeader>
@@ -328,10 +329,10 @@ export default function AdminSettingsPage() {
                 Reset to Defaults
               </Button>
             </CardContent>
-          </Card>
+          </AnimatedCard>
 
           {/* System Information */}
-          <Card>
+          <AnimatedCard delay={0.5}>
             <CardHeader>
               <CardTitle>System Information</CardTitle>
             </CardHeader>
@@ -353,7 +354,7 @@ export default function AdminSettingsPage() {
                 <span>2.3 GB</span>
               </div>
             </CardContent>
-          </Card>
+          </AnimatedCard>
         </div>
       </div>
     </div>

@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState } from 'react';
-import { PageHeader } from '../../../../components/dashboard/shared/PageHeader';
+import { AnimatedPageHeader } from '@workspace/ui/components/animated-page-header';
+import { AnimatedCard } from '@workspace/ui/components/animated-card';
 import { Input } from '@workspace/ui/components/input';
 import { Button } from '@workspace/ui/components/button';
 import { Badge } from '@workspace/ui/components/badge';
@@ -54,14 +55,14 @@ export default function CounselorPatientsPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader
+      <AnimatedPageHeader
         title="My Patients"
         description="Manage your assigned patients and track their progress"
       />
 
       {/* Stats Cards */}
       <div className="grid gap-4 md:grid-cols-3">
-        <Card>
+        <AnimatedCard delay={0.5}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Patients</CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
@@ -72,9 +73,9 @@ export default function CounselorPatientsPage() {
               Currently assigned
             </p>
           </CardContent>
-        </Card>
+        </AnimatedCard>
 
-        <Card>
+        <AnimatedCard delay={0.5}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Active Progress</CardTitle>
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
@@ -87,9 +88,9 @@ export default function CounselorPatientsPage() {
               Average progress
             </p>
           </CardContent>
-        </Card>
+        </AnimatedCard>
 
-        <Card>
+        <AnimatedCard delay={0.5}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Completed Modules</CardTitle>
             <Calendar className="h-4 w-4 text-muted-foreground" />
@@ -102,7 +103,7 @@ export default function CounselorPatientsPage() {
               Patients completed
             </p>
           </CardContent>
-        </Card>
+        </AnimatedCard>
       </div>
 
       {/* Search */}
@@ -123,7 +124,7 @@ export default function CounselorPatientsPage() {
       </div>
 
       {/* Patients Table */}
-      <Card>
+      <AnimatedCard delay={0.5}>
         <CardHeader>
           <CardTitle>Patient List</CardTitle>
         </CardHeader>
@@ -213,11 +214,11 @@ export default function CounselorPatientsPage() {
             </TableBody>
           </Table>
         </CardContent>
-      </Card>
+      </AnimatedCard>
 
       {/* Patient Progress Summary */}
       <div className="grid gap-6 md:grid-cols-2">
-        <Card>
+        <AnimatedCard delay={0.5}>
           <CardHeader>
             <CardTitle>Module Progress Summary</CardTitle>
           </CardHeader>
@@ -243,9 +244,9 @@ export default function CounselorPatientsPage() {
               </div>
             ))}
           </CardContent>
-        </Card>
+        </AnimatedCard>
 
-        <Card>
+        <AnimatedCard delay={0.5}>
           <CardHeader>
             <CardTitle>Recent Activity</CardTitle>
           </CardHeader>
@@ -270,7 +271,7 @@ export default function CounselorPatientsPage() {
               </div>
             ))}
           </CardContent>
-        </Card>
+        </AnimatedCard>
       </div>
     </div>
   );

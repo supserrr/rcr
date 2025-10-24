@@ -1,8 +1,10 @@
 'use client';
 
 import React, { useState } from 'react';
-import { PageHeader } from '../../../../components/dashboard/shared/PageHeader';
-import { ProfileCard } from '../../../../components/dashboard/shared/ProfileCard';
+import { AnimatedPageHeader } from '@workspace/ui/components/animated-page-header';
+import { AnimatedGrid } from '@workspace/ui/components/animated-grid';
+import { LandingStyleCounselorCard } from '@workspace/ui/components/landing-style-counselor-card';
+import { BookingModal } from '@workspace/ui/components/booking-modal';
 import { Input } from '@workspace/ui/components/input';
 import { Button } from '@workspace/ui/components/button';
 import { Badge } from '@workspace/ui/components/badge';
@@ -20,6 +22,8 @@ export default function PatientCounselorsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedSpecialty, setSelectedSpecialty] = useState('all');
   const [selectedAvailability, setSelectedAvailability] = useState('all');
+  const [selectedCounselor, setSelectedCounselor] = useState<any>(null);
+  const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
 
   const specialties = ['all', 'Oncology Psychology', 'Grief Counseling', 'Family Therapy'];
   const availabilityOptions = ['all', 'available', 'busy', 'offline'];
@@ -34,8 +38,22 @@ export default function PatientCounselorsPage() {
   });
 
   const handleBookSession = (counselorId: string) => {
-    console.log('Book session with counselor:', counselorId);
-    // Implement booking logic
+    const counselor = dummyCounselors.find(c => c.id === counselorId);
+    if (counselor) {
+      setSelectedCounselor(counselor);
+      setIsBookingModalOpen(true);
+    }
+  };
+
+  const handleConfirmBooking = (bookingData: any) => {
+    console.log('Booking confirmed:', bookingData);
+    // Here you would typically send the booking data to your backend
+    // For now, we'll just log it
+  };
+
+  const handleCloseBookingModal = () => {
+    setIsBookingModalOpen(false);
+    setSelectedCounselor(null);
   };
 
   const handleViewProfile = (counselorId: string) => {
@@ -50,14 +68,9 @@ export default function PatientCounselorsPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader
+      <AnimatedPageHeader
         title="Find a Counselor"
         description="Connect with experienced counselors who can support you on your journey"
-        action={{
-          label: "Book Session",
-          onClick: () => console.log('Quick book session'),
-          variant: "default"
-        }}
       />
 
       {/* Search and Filters */}
@@ -112,9 +125,9 @@ export default function PatientCounselorsPage() {
 
       {/* Counselors Grid */}
       {filteredCounselors.length > 0 ? (
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {filteredCounselors.map((counselor) => (
-            <ProfileCard
+        <AnimatedGrid className="grid gap-6 md:grid-cols-2 lg:grid-cols-3" staggerDelay={0.1}>
+          {filteredCounselors.map((counselor, index) => (
+            <LandingStyleCounselorCard
               key={counselor.id}
               id={counselor.id}
               name={counselor.name}
@@ -129,10 +142,10 @@ export default function PatientCounselorsPage() {
               experience={counselor.experience}
               onBookSession={handleBookSession}
               onViewProfile={handleViewProfile}
-              onSendMessage={handleSendMessage}
+              delay={index * 0.1}
             />
           ))}
-        </div>
+        </AnimatedGrid>
       ) : (
         <div className="text-center py-12">
           <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
@@ -162,12 +175,12 @@ export default function PatientCounselorsPage() {
           <h2 className="text-xl font-semibold">Featured Counselors</h2>
         </div>
         
-        <div className="grid gap-6 md:grid-cols-2">
+        <AnimatedGrid className="grid gap-6 md:grid-cols-2" staggerDelay={0.15}>
           {dummyCounselors
             .filter(counselor => counselor.rating >= 4.8)
-            .map((counselor) => (
+            .map((counselor, index) => (
               <div key={counselor.id} className="relative">
-                <ProfileCard
+                <LandingStyleCounselorCard
                   id={counselor.id}
                   name={counselor.name}
                   title={`${counselor.experience} years experience`}
@@ -181,15 +194,25 @@ export default function PatientCounselorsPage() {
                   experience={counselor.experience}
                   onBookSession={handleBookSession}
                   onViewProfile={handleViewProfile}
-                  onSendMessage={handleSendMessage}
+                  delay={index * 0.15}
                 />
-                <Badge className="absolute top-2 right-2 bg-yellow-100 text-yellow-800">
+                <Badge className="absolute top-4 right-4 bg-yellow-100 text-yellow-800 z-20">
                   Featured
                 </Badge>
               </div>
             ))}
-        </div>
+        </AnimatedGrid>
       </div>
+
+      {/* Booking Modal */}
+      {selectedCounselor && (
+        <BookingModal
+          counselor={selectedCounselor}
+          isOpen={isBookingModalOpen}
+          onClose={handleCloseBookingModal}
+          onConfirmBooking={handleConfirmBooking}
+        />
+      )}
     </div>
   );
 }

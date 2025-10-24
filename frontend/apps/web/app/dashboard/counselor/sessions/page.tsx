@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState } from 'react';
-import { PageHeader } from '../../../../components/dashboard/shared/PageHeader';
+import { AnimatedPageHeader } from '@workspace/ui/components/animated-page-header';
+import { AnimatedCard } from '@workspace/ui/components/animated-card';
 import { SessionCard } from '../../../../components/dashboard/shared/SessionCard';
 import { Button } from '@workspace/ui/components/button';
 import { Badge } from '@workspace/ui/components/badge';
@@ -72,20 +73,14 @@ export default function CounselorSessionsPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader
+      <AnimatedPageHeader
         title="My Sessions"
         description="Manage your counseling sessions and view session history"
-        action={{
-          label: "Schedule Session",
-          icon: Plus,
-          onClick: () => console.log('Schedule new session'),
-          variant: "default"
-        }}
       />
 
       {/* Quick Stats */}
       <div className="grid gap-4 md:grid-cols-4">
-        <Card>
+        <AnimatedCard delay={0.5}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Upcoming Sessions</CardTitle>
             <Calendar className="h-4 w-4 text-muted-foreground" />
@@ -96,9 +91,9 @@ export default function CounselorSessionsPage() {
               Next session in 2 hours
             </p>
           </CardContent>
-        </Card>
+        </AnimatedCard>
 
-        <Card>
+        <AnimatedCard delay={0.5}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Completed Sessions</CardTitle>
             <CheckCircle className="h-4 w-4 text-muted-foreground" />
@@ -109,9 +104,9 @@ export default function CounselorSessionsPage() {
               This month
             </p>
           </CardContent>
-        </Card>
+        </AnimatedCard>
 
-        <Card>
+        <AnimatedCard delay={0.5}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Cancelled Sessions</CardTitle>
             <XCircle className="h-4 w-4 text-muted-foreground" />
@@ -122,9 +117,9 @@ export default function CounselorSessionsPage() {
               This month
             </p>
           </CardContent>
-        </Card>
+        </AnimatedCard>
 
-        <Card>
+        <AnimatedCard delay={0.5}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Sessions</CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
@@ -135,7 +130,7 @@ export default function CounselorSessionsPage() {
               All time
             </p>
           </CardContent>
-        </Card>
+        </AnimatedCard>
       </div>
 
       {/* Sessions Tabs */}
