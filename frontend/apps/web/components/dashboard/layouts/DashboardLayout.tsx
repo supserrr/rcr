@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { cn } from '@workspace/ui/lib/utils';
-import { Sidebar } from '../shared/Sidebar';
+import { DashboardSidebar } from '../shared/DashboardSidebar';
 import { TopBar } from '../shared/TopBar';
 import { UserRole } from '../../../lib/types';
 
@@ -31,51 +31,20 @@ export function DashboardLayout({
   onNotificationClick
 }: DashboardLayoutProps) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   const toggleSidebar = () => {
     setIsSidebarOpen(!isSidebarOpen);
   };
 
-  const toggleSidebarCollapse = () => {
-    setIsSidebarCollapsed(!isSidebarCollapsed);
-  };
-
   return (
-    <div className="flex h-screen bg-background">
+    <div className="flex h-screen bg-sidebar">
       {/* Sidebar */}
-      <div className={cn(
-        "transition-all duration-300 ease-in-out",
-        isSidebarOpen ? (isSidebarCollapsed ? "w-16" : "w-64") : "w-0",
-        "hidden md:block"
-      )}>
-        <Sidebar
-          userRole={userRole}
-          currentPath={currentPath}
-          onNavigate={onNavigate}
-          isCollapsed={isSidebarCollapsed}
-          onToggleCollapse={toggleSidebarCollapse}
-          className="h-full"
-        />
-      </div>
-
-      {/* Mobile sidebar overlay */}
-      {isSidebarOpen && (
-        <div className="fixed inset-0 z-50 md:hidden">
-          <div className="fixed inset-0 bg-black/50" onClick={toggleSidebar} />
-          <div className="fixed left-0 top-0 h-full w-64">
-            <Sidebar
-              userRole={userRole}
-              currentPath={currentPath}
-              onNavigate={(path) => {
-                onNavigate(path);
-                toggleSidebar();
-              }}
-              className="h-full"
-            />
-          </div>
-        </div>
-      )}
+      <DashboardSidebar
+        userRole={userRole}
+        currentPath={currentPath}
+        onNavigate={onNavigate}
+        className="h-full"
+      />
 
       {/* Main content */}
       <div className="flex flex-1 flex-col overflow-hidden">
@@ -88,7 +57,7 @@ export function DashboardLayout({
           onNotificationClick={onNotificationClick}
         />
         
-        <main className="flex-1 overflow-auto p-6">
+        <main className="flex-1 overflow-auto p-6 bg-sidebar">
           <div className="w-full">
             {children}
           </div>

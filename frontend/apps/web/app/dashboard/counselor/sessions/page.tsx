@@ -93,8 +93,8 @@ export default function CounselorSessionsPage() {
           date: newDate,
           time: newTime,
           duration: newDuration,
-          notes: notes ? `${dummySessions[sessionIndex].notes || ''}\n\nReschedule Note: ${notes}` : dummySessions[sessionIndex].notes
-        };
+          notes: notes ? `${dummySessions[sessionIndex]?.notes || ''}\n\nReschedule Note: ${notes}` : dummySessions[sessionIndex]?.notes || ''
+        } as Session;
       }
       
       // Show success message (in a real app, you'd use a toast notification)
@@ -140,8 +140,6 @@ export default function CounselorSessionsPage() {
         duration: sessionData.duration,
         status: 'scheduled',
         type: sessionData.sessionType,
-        sessionType: sessionData.sessionType,
-        roomName: `session-${dummySessions.length + 1}-${sessionData.sessionType}`,
         notes: sessionData.notes || ''
       };
       
@@ -176,8 +174,8 @@ export default function CounselorSessionsPage() {
         dummySessions[sessionIndex] = {
           ...dummySessions[sessionIndex],
           status: 'cancelled',
-          notes: `${dummySessions[sessionIndex].notes || ''}\n\nCancellation: ${reason}${notes ? ` - ${notes}` : ''}`
-        };
+          notes: `${dummySessions[sessionIndex]?.notes || ''}\n\nCancellation: ${reason}${notes ? ` - ${notes}` : ''}`
+        } as Session;
       }
       
       // Show success message (in a real app, you'd use a toast notification)

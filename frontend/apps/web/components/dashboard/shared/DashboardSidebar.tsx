@@ -1,10 +1,8 @@
-import React from 'react';
-import { cn } from '@workspace/ui/lib/utils';
-import { Button } from '@workspace/ui/components/button';
-import { Badge } from '@workspace/ui/components/badge';
-import { ScrollArea } from '@workspace/ui/components/scroll-area';
-import { Separator } from '@workspace/ui/components/separator';
-import { RCRLogo } from '@workspace/ui/components/rcr-logo';
+"use client";
+
+import React, { useState } from "react";
+import { Sidebar, SidebarBody, SidebarLink, useSidebar } from "@workspace/ui/components/ui/sidebar";
+import { RCRLogo } from "@workspace/ui/components/rcr-logo";
 import {
   LayoutDashboard,
   Users,
@@ -15,16 +13,13 @@ import {
   Settings,
   UserCheck,
   HelpCircle,
-  BarChart3,
-  Shield,
-  Heart,
-  FileText,
-  Video,
-  Headphones
-} from 'lucide-react';
+} from "lucide-react";
 import { UserRole, NavigationItem } from '../../../lib/types';
+import { motion } from "framer-motion";
+import Link from "next/link";
+import { cn } from "@workspace/ui/lib/utils";
 
-interface SidebarProps {
+interface DashboardSidebarProps {
   userRole: UserRole;
   currentPath: string;
   onNavigate: (path: string) => void;
@@ -178,20 +173,16 @@ const iconMap = {
   Settings,
   UserCheck,
   HelpCircle,
-  BarChart3,
-  Shield,
-  Heart,
-  FileText,
-  Video,
-  Headphones
 };
 
-export function Sidebar({ 
+export function DashboardSidebar({ 
   userRole, 
   currentPath, 
   onNavigate, 
   className 
-}: SidebarProps) {
+}: DashboardSidebarProps) {
+  const [open, setOpen] = useState(false);
+  
   const filteredItems = navigationItems.filter(item => 
     item.roles.includes(userRole)
   );
@@ -201,57 +192,67 @@ export function Sidebar({
     return IconComponent || LayoutDashboard;
   };
 
+  const links = filteredItems.map((item) => {
+    const Icon = getIcon(item.icon);
+    const isActive = currentPath === item.path;
+    
+    return {
+      label: item.label,
+      href: item.path,
+      icon: (
+        <Icon 
+          className={cn(
+            "text-sidebar-foreground h-5 w-5 flex-shrink-0",
+            isActive && "text-sidebar-primary"
+          )} 
+        />
+      ),
+    };
+  });
+
   return (
-    <div className={cn(
-      "flex h-full flex-col border-r bg-background w-64",
-      className
-    )}>
-      {/* Header */}
-      <div className="flex items-center justify-center p-4">
-        <RCRLogo variant="simple" width={48} height={48} />
-      </div>
-
-      <Separator />
-
-      {/* Navigation */}
-      <ScrollArea className="flex-1">
-        <nav className="space-y-0.5 py-2 px-4">
-          {filteredItems.map((item) => {
-            const Icon = getIcon(item.icon);
-            const isActive = currentPath === item.path;
-            
-            return (
-              <Button
-                key={item.id}
-                variant={isActive ? "secondary" : "ghost"}
-                size="lg"
-                className={cn(
-                  "w-full justify-start h-12 px-4",
-                  isActive && "bg-secondary text-secondary-foreground"
-                )}
-                onClick={() => onNavigate(item.path)}
-              >
-                <Icon className="h-5 w-5 mr-4" />
-                <span className="flex-1 text-left text-base font-medium">{item.label}</span>
-                {item.badge && typeof item.badge === 'number' && item.badge > 0 && (
-                  <Badge variant="destructive" className="ml-2 h-6 w-6 rounded-full p-0 text-xs">
-                    {item.badge > 9 ? '9+' : item.badge}
-                  </Badge>
-                )}
-              </Button>
-            );
-          })}
-        </nav>
-      </ScrollArea>
-
-      {/* Footer */}
-      <Separator />
-      <div className="p-6">
-        <div className="text-sm text-muted-foreground">
-          <p className="font-medium">Rwanda Cancer Relief</p>
-          <p className="text-xs mt-1">Supporting cancer patients and families</p>
-        </div>
-      </div>
+    <div className={cn("h-full", className)}>
+      <Sidebar open={open} setOpen={setOpen}>
+        <SidebarBody className="justify-between gap-10">
+          <div className="flex flex-col flex-1 overflow-y-auto overflow-x-hidden">
+            <RCRLogoComponent />
+            <div className="mt-8 flex flex-col gap-2">
+              {links.map((link, idx) => (
+                <SidebarLink 
+                  key={idx} 
+                  link={link}
+                  className={cn(
+                    "rounded-md px-3 py-2 transition-colors",
+                    currentPath === link.href && "bg-sidebar-accent text-sidebar-primary"
+                  )}
+                />
+              ))}
+            </div>
+          </div>
+        </SidebarBody>
+      </Sidebar>
     </div>
   );
 }
+
+export const RCRLogoComponent = () => {
+  const { open, animate } = useSidebar();
+  
+  return (
+    <Link
+      href="/"
+      className="flex items-center justify-start gap-2 group/sidebar py-2"
+    >
+      <RCRLogo variant="simple" width={40} height={40} />
+      <motion.span
+        animate={{
+          display: animate ? (open ? "inline-block" : "none") : "inline-block",
+          opacity: animate ? (open ? 1 : 0) : 1,
+        }}
+        className="text-sidebar-foreground text-sm group-hover/sidebar:translate-x-1 transition duration-150 whitespace-pre inline-block !p-0 !m-0 font-medium"
+      >
+        Rwanda Cancer Relief
+      </motion.span>
+    </Link>
+  );
+};

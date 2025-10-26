@@ -11,6 +11,10 @@ import {
   DropdownMenuTrigger,
 } from '@workspace/ui/components/dropdown-menu';
 import { NotificationInboxPopover } from '@workspace/ui/components/notification-inbox-popover';
+import {
+  ThemeTogglerButton,
+  type ThemeTogglerButtonProps,
+} from '@workspace/ui/components/animate-ui/components/buttons/theme-toggler';
 import { 
   LogOut, 
   Settings, 
@@ -68,7 +72,7 @@ export function TopBar({
   };
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+    <header className="sticky top-0 z-50 w-full border-b bg-sidebar backdrop-blur supports-[backdrop-filter]:bg-sidebar">
       <div className="flex h-20 items-center justify-between px-6 w-full">
         {/* Left side - Menu toggle and title */}
         <div className="flex items-center space-x-4">
@@ -87,8 +91,17 @@ export function TopBar({
           </div>
         </div>
 
-        {/* Right side - Notifications and user menu */}
+        {/* Right side - Notifications, theme toggle and user menu */}
         <div className="flex items-center space-x-3">
+          {/* Theme Toggle */}
+          <ThemeTogglerButton
+            variant="ghost"
+            size="icon"
+            direction="ltr"
+            modes={['light', 'dark']}
+            className="h-12 w-12 rounded-full border-0"
+          />
+
           {/* Notifications */}
           <NotificationInboxPopover />
 

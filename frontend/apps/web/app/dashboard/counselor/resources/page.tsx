@@ -176,7 +176,7 @@ export default function CounselorResourcesPage() {
   };
 
   const handleBulkAction = (action: string) => {
-    console.log(`Bulk ${action} on:`, selectedResources);
+    console.log(`Bulk ${action} on:`, selectedResource);
     // Implement bulk actions
     setIsRefreshing(false);
   };
@@ -523,7 +523,7 @@ export default function CounselorResourcesPage() {
                     onDownload={handleDownloadResource}
                     onEdit={handleEditResource}
                     onDelete={(resource) => handleDeleteResource(resource.id)}
-                    onUnsave={handleUnsaveResource}
+                     onUnsave={(resource) => handleUnsaveResource(resource.id)}
                     showEditActions={true}
                     delay={index * 0.1}
                   />

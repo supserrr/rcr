@@ -90,7 +90,7 @@ export function SessionCard({
             </Badge>
           </div>
           <Badge variant="outline" className="flex items-center gap-1">
-            {session.sessionType === 'audio' ? (
+            {session.type === 'audio' ? (
               <><Mic className="h-3 w-3" /> Audio Only</>
             ) : (
               <><Video className="h-3 w-3" /> Video</>

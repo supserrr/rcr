@@ -48,11 +48,11 @@ export function CounselorRescheduleModal({
   }
 
   // Generate date options (next 30 days)
-  const dateOptions = [];
+  const dateOptions: { value: string; label: string }[] = [];
   for (let i = 1; i <= 30; i++) {
     const date = new Date();
     date.setDate(date.getDate() + i);
-    const dateString = date.toISOString().split('T')[0];
+    const dateString = date.toISOString().split('T')[0] || '';
     const displayDate = date.toLocaleDateString('en-US', {
       weekday: 'long',
       year: 'numeric',
@@ -138,12 +138,12 @@ export function CounselorRescheduleModal({
                 <span>{session.time}</span>
               </div>
               <div className="flex items-center gap-2">
-                {session.sessionType === 'audio' ? (
+                {session.type === 'audio' ? (
                   <Mic className="h-4 w-4" />
                 ) : (
                   <Video className="h-4 w-4" />
                 )}
-                <span className="capitalize">{session.sessionType || session.type} Session</span>
+                <span className="capitalize">{session.type} Session</span>
               </div>
               <div className="flex items-center gap-2">
                 <Clock className="h-4 w-4" />

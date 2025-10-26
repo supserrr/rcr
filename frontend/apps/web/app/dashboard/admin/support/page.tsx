@@ -138,7 +138,7 @@ export default function AdminSupportPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {dummySupportTickets.filter(t => t.status === 'in-progress').length}
+               {dummySupportTickets.filter(t => t.status === 'in_progress').length}
             </div>
             <p className="text-xs text-muted-foreground">
               Being worked on

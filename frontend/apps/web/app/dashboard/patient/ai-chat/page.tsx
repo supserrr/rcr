@@ -3,7 +3,7 @@
 import React from 'react';
 import { useRouter } from 'next/navigation';
 import { AIChatInterface } from '@workspace/ui/components/ai-chat-interface';
-import { Sidebar } from '../../../../components/dashboard/shared/Sidebar';
+import { DashboardSidebar } from '../../../../components/dashboard/shared/DashboardSidebar';
 import { useAuth } from '../../../../hooks/use-auth';
 
 export default function PatientAIChatPage() {
@@ -46,13 +46,11 @@ export default function PatientAIChatPage() {
       onLogout={handleLogout}
       notifications={3}
       onNotificationClick={handleNotificationClick}
-      sidebarComponent={({ isCollapsed, onToggleCollapse }) => (
-        <Sidebar
+      sidebarComponent={() => (
+        <DashboardSidebar
           userRole={user.role}
           currentPath="/dashboard/patient/ai-chat"
           onNavigate={handleNavigate}
-          isCollapsed={isCollapsed}
-          onToggleCollapse={onToggleCollapse}
           className="h-full"
         />
       )}

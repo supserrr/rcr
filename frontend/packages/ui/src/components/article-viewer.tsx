@@ -211,7 +211,7 @@ export function ArticleViewer({
         </DialogTitle>
         
         {/* Header */}
-        <div className="sticky top-0 z-20 bg-background border-b px-6 py-4">
+        <div className="sticky top-0 z-20 bg-sidebar border-b px-6 py-4">
           <div className="flex items-center justify-end">
             <Button
               variant="ghost"

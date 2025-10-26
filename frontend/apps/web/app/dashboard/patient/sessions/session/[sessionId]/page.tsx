@@ -87,10 +87,10 @@ export default function SessionRoomPage() {
     return (
       <div className="fixed inset-0 z-50 bg-black">
         <JitsiMeeting
-          roomName={session.roomName || `session-${session.id}`}
+          roomName={`session-${session.id}`}
           displayName={user?.name || 'Participant'}
           email={user?.email}
-          sessionType={session.sessionType || 'video'}
+          sessionType={session.type === 'chat' ? 'video' : session.type || 'video'}
           onMeetingEnd={handleMeetingEnd}
         />
       </div>
@@ -136,7 +136,7 @@ export default function SessionRoomPage() {
                 <p className="text-xs text-muted-foreground">minutes</p>
               </div>
               <div>
-                <p className="text-2xl font-bold capitalize">{session.sessionType || session.type}</p>
+                <p className="text-2xl font-bold capitalize">{session.type}</p>
                 <p className="text-xs text-muted-foreground">session type</p>
               </div>
               <div>
@@ -187,7 +187,7 @@ export default function SessionRoomPage() {
     <div className="space-y-6">
       <AnimatedPageHeader
         title="Join Session"
-        description={`Your ${session.sessionType || session.type} session with ${otherParticipant?.name}`}
+        description={`Your ${session.type} session with ${otherParticipant?.name}`}
       />
 
       <div className="max-w-4xl mx-auto space-y-6">
@@ -206,7 +206,7 @@ export default function SessionRoomPage() {
           <div>
             <h1 className="text-2xl font-bold mb-2">Counseling Session</h1>
             <p className="text-muted-foreground">
-              You're about to join a {session.sessionType || session.type} session
+              You're about to join a {session.type} session
             </p>
           </div>
           <Badge variant={session.status === 'scheduled' ? 'default' : 'secondary'}>
@@ -253,7 +253,7 @@ export default function SessionRoomPage() {
 
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
-                {session.sessionType === 'audio' ? (
+                {session.type === 'audio' ? (
                   <Mic className="h-5 w-5 text-primary" />
                 ) : (
                   <Video className="h-5 w-5 text-primary" />
@@ -262,8 +262,8 @@ export default function SessionRoomPage() {
               <div>
                 <p className="text-sm text-muted-foreground">Session Type</p>
                 <p className="font-semibold capitalize">
-                  {session.sessionType || session.type}
-                  {session.sessionType === 'audio' && ' Only'}
+                  {session.type}
+                  {session.type === 'audio' && ' Only'}
                 </p>
               </div>
             </div>
@@ -308,7 +308,7 @@ export default function SessionRoomPage() {
             onClick={handleJoinMeeting}
             className="bg-primary hover:bg-primary/90 px-8"
           >
-            {session.sessionType === 'audio' ? (
+            {session.type === 'audio' ? (
               <Mic className="h-5 w-5 mr-2" />
             ) : (
               <Video className="h-5 w-5 mr-2" />

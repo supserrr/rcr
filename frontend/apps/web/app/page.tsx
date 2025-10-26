@@ -4,12 +4,13 @@ import { motion, useScroll, useTransform } from 'framer-motion';
 import { useRef } from 'react';
 import { Button } from "@workspace/ui/components/button";
 import { Navbar } from "@workspace/ui/components/ui/mini-navbar";
-import { ThemeToggle } from "@/components/theme-toggle";
+import { ThemeTogglerButton } from '@workspace/ui/components/animate-ui/components/buttons/theme-toggler';
 import { Card, CardContent } from '@workspace/ui/components/card';
 import { ClockIcon } from '@workspace/ui/components/clock';
 import { ShieldCheckIcon } from '@workspace/ui/components/shield-check';
 import { FAQSection } from '@workspace/ui/components/ui/faqsection';
 import { Footer } from '@workspace/ui/components/ui/footer';
+import { RCRLogo } from '@workspace/ui/components/rcr-logo';
 
 /**
  * Props for the LinePath component.
@@ -473,7 +474,7 @@ export default function LandingPage() {
               }}
               themeToggle={
                 <div className="flex items-center justify-center">
-                  <ThemeToggle />
+                  <ThemeTogglerButton variant="outline" size="icon" direction="ltr" modes={['light', 'dark']} className="h-10 w-10 rounded-full" />
                 </div>
               }
             />

@@ -1,10 +1,22 @@
+export type UserRole = 'patient' | 'counselor' | 'admin' | 'guest';
+
+export interface NavigationItem {
+  id: string;
+  label: string;
+  icon: string;
+  path: string;
+  roles: UserRole[];
+  badge?: number;
+}
+
 export interface User {
   id: string;
   name: string;
   email: string;
-  role: 'patient' | 'counselor' | 'admin';
+  role: UserRole;
   avatar?: string;
   createdAt: Date;
+  lastLogin?: Date;
 }
 
 export interface Patient extends User {
@@ -12,9 +24,17 @@ export interface Patient extends User {
   diagnosis?: string;
   treatmentStage?: string;
   assignedCounselor?: string;
+  currentModule?: string;
   moduleProgress?: {
     [moduleId: string]: number;
   };
+  phoneNumber?: string;
+  emergencyContact?: string;
+  dateOfBirth?: Date;
+  medicalHistory?: string;
+  language?: string;
+  timezone?: string;
+  languages?: string[];
 }
 
 export interface Counselor extends User {
@@ -23,6 +43,13 @@ export interface Counselor extends User {
   experience: number;
   availability: 'available' | 'busy' | 'offline';
   patients?: string[];
+  phoneNumber?: string;
+  bio?: string;
+  credentials?: string;
+  languages?: string[];
+  timezone?: string;
+  profileImage?: string;
+  location?: string;
 }
 
 export interface Admin extends User {
@@ -42,6 +69,9 @@ export interface Resource {
   createdAt: Date;
   isPublic: boolean;
   publisher: string; // Added publisher field
+  isYouTube?: boolean;
+  youtubeUrl?: string;
+  content?: string;
 }
 
 export interface Session {
@@ -63,6 +93,61 @@ export interface Message {
   content: string;
   timestamp: Date;
   type: 'text' | 'image' | 'file';
+  isRead?: boolean;
+}
+
+export interface Chat {
+  id: string;
+  participants: string[];
+  messages: Message[];
+  lastMessage?: Message;
+  unreadCount?: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface SupportTicket {
+  id: string;
+  userId: string;
+  title: string;
+  subject: string;
+  description: string;
+  status: 'open' | 'in_progress' | 'resolved' | 'closed';
+  priority: 'low' | 'medium' | 'high' | 'urgent';
+  category: string;
+  assignedTo?: string;
+  createdAt: Date;
+  updatedAt: Date;
+  resolvedAt?: Date;
+}
+
+export interface Module {
+  id: string;
+  title: string;
+  description: string;
+  content: string;
+  duration?: number;
+  order: number;
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface DashboardStats {
+  totalUsers: number;
+  totalSessions: number;
+  totalResources: number;
+  totalSupportTickets: number;
+  supportTickets: number;
+  activeUsers: number;
+  activeSessions: number;
+  completedSessions: number;
+  pendingSessions: number;
+  openTickets: number;
+  moduleCompletions: number;
+  patientCount: number;
+  counselorCount: number;
+  upcomingSessions: number;
 }
 
 export interface StatCardProps {

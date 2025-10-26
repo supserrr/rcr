@@ -16,7 +16,7 @@ let ORBS: [string, string][] = [
 export function OrbDemo({ small = false }: { small?: boolean }) {
   const [agent, setAgent] = useState<AgentState>(null)
 
-  ORBS = small ? [ORBS[0]] : ORBS
+  const displayOrbs = small ? (ORBS[0] ? [ORBS[0]] : []) : ORBS
 
   return (
     <div className="bg-card w-full rounded-lg border p-6">
@@ -29,7 +29,7 @@ export function OrbDemo({ small = false }: { small?: boolean }) {
 
       <div className="space-y-4">
         <div className="flex justify-center gap-8">
-          {ORBS.map((colors, index) => (
+          {displayOrbs.map((colors, index) => (
             <div
               key={index}
               className={`relative ${index === 1 ? "block md:block" : "hidden md:block"}`}

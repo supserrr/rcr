@@ -148,7 +148,9 @@ function Scene({
     const apply = () => {
       if (!circleRef.current) return
       const isDark = document.documentElement.classList.contains("dark")
-      circleRef.current.material.uniforms.uInverted.value = isDark ? 1 : 0
+      if (circleRef.current.material?.uniforms?.uInverted) {
+        circleRef.current.material.uniforms.uInverted.value = isDark ? 1 : 0
+      }
     }
 
     apply()
@@ -170,9 +172,11 @@ function Scene({
       if (live[1]) targetColor2Ref.current.set(live[1])
     }
     const u = mat.uniforms
-    u.uTime.value += delta * 0.5
+    if (u.uTime) {
+      u.uTime.value += delta * 0.5
+    }
 
-    if (u.uOpacity.value < 1) {
+    if (u.uOpacity && u.uOpacity.value < 1) {
       u.uOpacity.value = Math.min(1, u.uOpacity.value + delta * 2)
     }
 
@@ -186,7 +190,7 @@ function Scene({
         manualOutput ?? outputVolumeRef?.current ?? getOutputVolume?.() ?? 0
       )
     } else {
-      const t = u.uTime.value * 2
+      const t = u.uTime ? u.uTime.value * 2 : 0
       if (agentRef.current === null) {
         targetIn = 0
         targetOut = 0.3
@@ -210,11 +214,21 @@ function Scene({
     const targetSpeed = 0.1 + (1 - Math.pow(curOutRef.current - 1, 2)) * 0.9
     animSpeedRef.current += (targetSpeed - animSpeedRef.current) * 0.12
 
-    u.uAnimation.value += delta * animSpeedRef.current
-    u.uInputVolume.value = curInRef.current
-    u.uOutputVolume.value = curOutRef.current
-    u.uColor1.value.lerp(targetColor1Ref.current, 0.08)
-    u.uColor2.value.lerp(targetColor2Ref.current, 0.08)
+    if (u.uAnimation) {
+      u.uAnimation.value += delta * animSpeedRef.current
+    }
+    if (u.uInputVolume) {
+      u.uInputVolume.value = curInRef.current
+    }
+    if (u.uOutputVolume) {
+      u.uOutputVolume.value = curOutRef.current
+    }
+    if (u.uColor1) {
+      u.uColor1.value.lerp(targetColor1Ref.current, 0.08)
+    }
+    if (u.uColor2) {
+      u.uColor2.value.lerp(targetColor2Ref.current, 0.08)
+    }
   })
 
   useEffect(() => {

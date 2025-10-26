@@ -6,7 +6,8 @@ import { Input } from '@workspace/ui/components/input';
 import { Badge } from '@workspace/ui/components/badge';
 import { Navbar } from "@workspace/ui/components/ui/mini-navbar";
 import { Footer } from '@workspace/ui/components/ui/footer';
-import { ThemeToggle } from "@/components/theme-toggle";
+import { ThemeTogglerButton } from '@workspace/ui/components/animate-ui/components/buttons/theme-toggler';
+import { RCRLogo } from '@workspace/ui/components/rcr-logo';
 import { 
   IconMapPin, 
   IconPhone, 
@@ -390,14 +391,7 @@ export default function ContactPage() {
 
       {/* Footer */}
       <Footer
-        logo={
-          <div className="relative w-8 h-8 flex items-center justify-center">
-            <span className="absolute w-2 h-2 rounded-full bg-primary top-0 left-1/2 transform -translate-x-1/2"></span>
-            <span className="absolute w-2 h-2 rounded-full bg-primary left-0 top-1/2 transform -translate-y-1/2"></span>
-            <span className="absolute w-2 h-2 rounded-full bg-primary right-0 top-1/2 transform -translate-y-1/2"></span>
-            <span className="absolute w-2 h-2 rounded-full bg-primary bottom-0 left-1/2 transform -translate-x-1/2"></span>
-          </div>
-        }
+        logo={<RCRLogo variant="simple" width={32} height={32} />}
         brandName="Rwanda Cancer Relief"
         mainLinks={[
           { href: "/counselors", label: "Find a Counselor" },
@@ -435,7 +429,7 @@ export default function ContactPage() {
         }}
         themeToggle={
           <div className="flex items-center justify-center">
-            <ThemeToggle />
+            <ThemeTogglerButton variant="outline" size="icon" direction="ltr" modes={['light', 'dark']} className="h-10 w-10 rounded-full" />
           </div>
         }
       />

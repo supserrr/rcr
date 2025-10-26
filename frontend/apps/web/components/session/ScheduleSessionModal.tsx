@@ -62,11 +62,11 @@ export function ScheduleSessionModal({
   }
 
   // Generate date options (next 30 days)
-  const dateOptions = [];
+  const dateOptions: { value: string; label: string }[] = [];
   for (let i = 1; i <= 30; i++) {
     const date = new Date();
     date.setDate(date.getDate() + i);
-    const dateString = date.toISOString().split('T')[0];
+    const dateString = date.toISOString().split('T')[0] || '';
     const displayDate = date.toLocaleDateString('en-US', {
       weekday: 'long',
       year: 'numeric',

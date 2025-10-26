@@ -152,11 +152,11 @@ export default function CounselorChatPage() {
                               <p className="text-sm font-medium truncate">
                                 {patient?.name || 'Patient'}
                               </p>
-                              {chat.unreadCount > 0 && (
-                                <Badge variant="destructive" className="h-5 w-5 rounded-full p-0 text-xs">
-                                  {chat.unreadCount}
-                                </Badge>
-                              )}
+                               {(chat.unreadCount || 0) > 0 && (
+                                 <Badge variant="destructive" className="h-5 w-5 rounded-full p-0 text-xs">
+                                   {chat.unreadCount}
+                                 </Badge>
+                               )}
                             </div>
                             <p className="text-xs text-muted-foreground truncate">
                               {chat.lastMessage?.content || 'No messages yet'}

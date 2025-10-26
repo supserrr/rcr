@@ -10,9 +10,9 @@ import { useAuth } from '../../components/auth/AuthProvider';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
-  params: {
+  params: Promise<{
     role: UserRole;
-  };
+  }>;
 }
 
 export default function DashboardLayout({ children, params }: DashboardLayoutProps) {

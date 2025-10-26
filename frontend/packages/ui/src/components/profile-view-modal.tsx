@@ -140,29 +140,29 @@ export function ProfileViewModal({
                     </div>
                   </div>
                   
-                  {user.phoneNumber && (
+                  {('phoneNumber' in user && user.phoneNumber) ? (
                     <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/30">
                       <div className="p-2 rounded-lg bg-green-100 dark:bg-green-900/30">
                         <Phone className="h-4 w-4 text-green-600 dark:text-green-400" />
                       </div>
                       <div>
                         <p className="text-sm font-medium">Phone</p>
-                        <p className="text-sm text-muted-foreground">{user.phoneNumber}</p>
+                        <p className="text-sm text-muted-foreground">{'phoneNumber' in user ? (user as any).phoneNumber : ''}</p>
                       </div>
                     </div>
-                  )}
+                  ) : null}
                   
-                  {user.location && (
+                  {('location' in user && user.location) ? (
                     <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/30">
                       <div className="p-2 rounded-lg bg-orange-100 dark:bg-orange-900/30">
                         <MapPin className="h-4 w-4 text-orange-600 dark:text-orange-400" />
                       </div>
                       <div>
                         <p className="text-sm font-medium">Location</p>
-                        <p className="text-sm text-muted-foreground">{user.location}</p>
+                        <p className="text-sm text-muted-foreground">{'location' in user ? (user as any).location : ''}</p>
                       </div>
                     </div>
-                  )}
+                  ) : null}
                   
                 </div>
 
@@ -180,37 +180,37 @@ export function ProfileViewModal({
                         </div>
                       </div>
                     )}
-                    {counselor.credentials && (
+                    {('credentials' in counselor && counselor.credentials) ? (
                       <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/30">
                         <div className="p-2 rounded-lg bg-green-100 dark:bg-green-900/30">
                           <Shield className="h-4 w-4 text-green-600 dark:text-green-400" />
                         </div>
                         <div>
                           <p className="text-sm font-medium">Credentials</p>
-                          <p className="text-sm text-muted-foreground">{counselor.credentials}</p>
+                          <p className="text-sm text-muted-foreground">{'credentials' in counselor ? (counselor as any).credentials : ''}</p>
                         </div>
                       </div>
-                    )}
-                    {counselor.bio && (
+                    ) : null}
+                    {('bio' in counselor && counselor.bio) ? (
                       <div className="p-3 rounded-lg bg-muted/30">
                         <p className="text-sm font-medium mb-2">About</p>
-                        <p className="text-sm text-muted-foreground leading-relaxed">{counselor.bio}</p>
+                        <p className="text-sm text-muted-foreground leading-relaxed">{'bio' in counselor ? (counselor as any).bio : ''}</p>
                       </div>
-                    )}
+                    ) : null}
                   </>
                 ) : patient ? (
                   <>
-                    {patient.emergencyContact && (
+                    {('emergencyContact' in patient && patient.emergencyContact) ? (
                       <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/30">
                         <div className="p-2 rounded-lg bg-red-100 dark:bg-red-900/30">
                           <Phone className="h-4 w-4 text-red-600 dark:text-red-400" />
                         </div>
                         <div>
                           <p className="text-sm font-medium">Emergency Contact</p>
-                          <p className="text-sm text-muted-foreground">{patient.emergencyContact}</p>
+                          <p className="text-sm text-muted-foreground">{'emergencyContact' in patient ? (patient as any).emergencyContact : ''}</p>
                         </div>
                       </div>
-                    )}
+                    ) : null}
                   </>
                 ) : null}
               </CardContent>

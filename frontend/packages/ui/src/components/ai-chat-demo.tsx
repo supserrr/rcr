@@ -66,7 +66,7 @@ export function AIChatDemo() {
                         key={label}
                         variant={agentState === state ? "default" : "outline"}
                         size="sm"
-                        onClick={() => setAgentState(state)}
+                        onClick={() => setAgentState(state as "thinking" | "listening" | "talking" | null)}
                       >
                         {label}
                       </Button>
@@ -84,7 +84,7 @@ export function AIChatDemo() {
                         style={{
                           background: `linear-gradient(45deg, ${colors[0]}, ${colors[1]})`
                         }}
-                        onClick={() => setOrbColors(colors)}
+                        onClick={() => setOrbColors(colors as [string, string])}
                       />
                     ))}
                   </div>

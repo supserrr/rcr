@@ -173,8 +173,6 @@ export const dummySessions: Session[] = [
     duration: 60,
     status: 'scheduled',
     type: 'video',
-    sessionType: 'video',
-    roomName: 'session-1-video',
     notes: 'Follow-up session to discuss anxiety management techniques'
   },
   {
@@ -185,9 +183,7 @@ export const dummySessions: Session[] = [
     time: '2:00 PM',
     duration: 45,
     status: 'scheduled',
-    sessionType: 'audio',
-    roomName: 'session-2-audio',
-    type: 'video',
+    type: 'audio',
     notes: 'Initial consultation for newly diagnosed patient'
   },
   {
@@ -199,8 +195,6 @@ export const dummySessions: Session[] = [
     duration: 60,
     status: 'completed',
     type: 'video',
-    sessionType: 'video',
-    roomName: 'session-3-video',
     notes: 'Discussed treatment side effects and coping strategies'
   }
 ];
@@ -384,7 +378,8 @@ export const dummyChats: Chat[] = [
   {
     id: '1',
     participants: ['1', '2'],
-    lastMessage: dummyMessages[1],
+    messages: [dummyMessages[0]!, dummyMessages[1]!],
+    lastMessage: dummyMessages[1]!,
     createdAt: new Date('2024-01-20'),
     updatedAt: new Date('2024-01-21'),
     unreadCount: 0
@@ -392,7 +387,8 @@ export const dummyChats: Chat[] = [
   {
     id: '2',
     participants: ['4', '2'],
-    lastMessage: dummyMessages[2],
+    messages: [dummyMessages[2]!],
+    lastMessage: dummyMessages[2]!,
     createdAt: new Date('2024-01-19'),
     updatedAt: new Date('2024-01-22'),
     unreadCount: 1
@@ -409,6 +405,7 @@ export const dummySupportTickets: SupportTicket[] = [
     description: 'I\'m having trouble playing the meditation videos on my phone.',
     status: 'open',
     priority: 'medium',
+    category: 'Technical',
     createdAt: new Date('2024-01-19'),
     updatedAt: new Date('2024-01-19')
   },
@@ -418,8 +415,9 @@ export const dummySupportTickets: SupportTicket[] = [
     title: 'Calendar Scheduling Problem',
     subject: 'Session scheduling issue',
     description: 'The calendar is not showing available time slots for next week.',
-    status: 'in-progress',
+    status: 'in_progress',
     priority: 'high',
+    category: 'Scheduling',
     createdAt: new Date('2024-01-18'),
     updatedAt: new Date('2024-01-20'),
     assignedTo: '3'
@@ -433,37 +431,46 @@ export const dummyModules: Module[] = [
     title: 'Understanding Your Diagnosis',
     description: 'Learn about your cancer diagnosis and what it means for your treatment journey.',
     content: 'This module covers the basics of cancer diagnosis, including what your diagnosis means, treatment options, and how to cope with the news.',
-    duration: 45,
     order: 1,
-    isCompleted: false
+    isActive: true,
+    createdAt: new Date('2024-01-10'),
+    updatedAt: new Date('2024-01-10')
   },
   {
     id: '2',
     title: 'Coping with Anxiety',
     description: 'Practical techniques for managing anxiety and stress during your cancer journey.',
     content: 'Learn breathing exercises, mindfulness techniques, and other strategies to help manage anxiety and stress.',
-    duration: 30,
     order: 2,
-    isCompleted: true
+    isActive: true,
+    createdAt: new Date('2024-01-11'),
+    updatedAt: new Date('2024-01-11')
   },
   {
     id: '3',
     title: 'Managing Treatment Side Effects',
     description: 'Understanding and managing common side effects of cancer treatment.',
     content: 'Comprehensive guide to managing nausea, fatigue, pain, and other treatment-related side effects.',
-    duration: 60,
     order: 3,
-    isCompleted: false
+    isActive: true,
+    createdAt: new Date('2024-01-12'),
+    updatedAt: new Date('2024-01-12')
   }
 ];
 
 // Dashboard Statistics
 export const dummyDashboardStats: DashboardStats = {
   totalUsers: 156,
-  activeSessions: 12,
-  moduleCompletions: 89,
+  totalSessions: 89,
   totalResources: 45,
+  totalSupportTickets: 5,
   supportTickets: 5,
+  activeUsers: 142,
+  activeSessions: 12,
+  completedSessions: 77,
+  pendingSessions: 12,
+  openTickets: 3,
+  moduleCompletions: 89,
   patientCount: 142,
   counselorCount: 8,
   upcomingSessions: 15

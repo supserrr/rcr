@@ -90,7 +90,7 @@ export default function PatientSessionsPage() {
           date: newDate,
           time: newTime,
           duration: newDuration
-        };
+        } as Session;
       }
       
       // Show success message (in a real app, you'd use a toast notification)
@@ -118,12 +118,12 @@ export default function PatientSessionsPage() {
       
       // Update the session in dummy data (for demo purposes)
       const sessionIndex = dummySessions.findIndex(s => s.id === sessionId);
-      if (sessionIndex !== -1) {
+      if (sessionIndex !== -1 && dummySessions[sessionIndex]) {
         dummySessions[sessionIndex] = {
           ...dummySessions[sessionIndex],
           status: 'cancelled',
-          notes: `${dummySessions[sessionIndex].notes || ''}\n\nCancellation: ${reason}${notes ? ` - ${notes}` : ''}`
-        };
+          notes: `${dummySessions[sessionIndex]?.notes || ''}\n\nCancellation: ${reason}${notes ? ` - ${notes}` : ''}`
+        } as Session;
       }
       
       // Show success message (in a real app, you'd use a toast notification)

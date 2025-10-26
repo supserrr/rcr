@@ -112,7 +112,7 @@ function NotificationInboxPopover() {
           )}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[400px] p-0">
+      <PopoverContent className="w-[400px] p-0 rounded-lg border bg-background shadow-lg">
         {/* Header with Tabs + Mark All */}
         <Tabs value={tab} onValueChange={setTab}>
           <div className="flex items-center justify-between border-b px-4 py-3">
