@@ -128,7 +128,7 @@ export function CounselorSelectionModal({
             filteredCounselors.map((counselor) => (
               <div
                 key={counselor.id}
-                className="border rounded-lg p-4 hover:bg-muted/50 transition-colors cursor-pointer"
+                className="border rounded-lg p-4 hover:bg-primary/5 dark:hover:bg-primary/10 hover:border-primary/20 dark:hover:border-primary/30 hover:shadow-md dark:hover:shadow-lg dark:hover:shadow-primary/20 transition-all duration-200 cursor-pointer group"
                 onClick={() => handleSelectCounselor(counselor)}
               >
                 <div className="flex items-start gap-4">

@@ -443,16 +443,16 @@ export default function CounselorResourcesPage() {
             ) : (
               <div className="space-y-4 mt-8">
                 {filteredResources.map((resource, index) => (
-                  <div key={resource.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 relative">
+                  <div key={resource.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-primary/5 dark:hover:bg-primary/10 hover:border-primary/20 dark:hover:border-primary/30 hover:shadow-md dark:hover:shadow-lg dark:hover:shadow-primary/20 transition-all duration-200 cursor-pointer group relative">
                     <div className="flex items-center space-x-4">
-                      <div className="w-12 h-12 bg-muted rounded-lg flex items-center justify-center">
-                        {resource.type === 'audio' && <Play className="h-6 w-6" />}
-                        {resource.type === 'pdf' && <FileText className="h-6 w-6" />}
-                        {resource.type === 'video' && <Video className="h-6 w-6" />}
-                        {resource.type === 'article' && <BookOpen className="h-6 w-6" />}
+                      <div className="w-12 h-12 bg-muted dark:bg-muted/50 rounded-lg flex items-center justify-center group-hover:bg-primary/10 dark:group-hover:bg-primary/20 transition-colors duration-200">
+                        {resource.type === 'audio' && <Play className="h-6 w-6 group-hover:text-primary dark:group-hover:text-primary transition-colors duration-200" />}
+                        {resource.type === 'pdf' && <FileText className="h-6 w-6 group-hover:text-primary dark:group-hover:text-primary transition-colors duration-200" />}
+                        {resource.type === 'video' && <Video className="h-6 w-6 group-hover:text-primary dark:group-hover:text-primary transition-colors duration-200" />}
+                        {resource.type === 'article' && <BookOpen className="h-6 w-6 group-hover:text-primary dark:group-hover:text-primary transition-colors duration-200" />}
                       </div>
                       <div className="flex-1">
-                        <h4 className="font-medium">{resource.title}</h4>
+                        <h4 className="font-medium group-hover:text-primary dark:group-hover:text-primary transition-colors duration-200">{resource.title}</h4>
                         <p className="text-sm text-muted-foreground line-clamp-2">{resource.description}</p>
                         <div className="flex items-center space-x-2 mt-1">
                           <Badge variant="outline" className="text-xs">

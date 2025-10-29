@@ -252,17 +252,17 @@ export default function PatientDashboard() {
           <CardContent>
             <div className="space-y-3">
               {recommendedResources.map((resource) => (
-                <div key={resource.id} className="flex items-center gap-3 p-3 border rounded-lg hover:bg-muted/50 cursor-pointer">
-                  <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
-                    <Play className="h-5 w-5 text-purple-600" />
+                <div key={resource.id} className="flex items-center gap-3 p-3 border rounded-lg hover:bg-primary/5 dark:hover:bg-primary/10 hover:border-primary/20 dark:hover:border-primary/30 hover:shadow-md dark:hover:shadow-lg dark:hover:shadow-primary/20 transition-all duration-200 cursor-pointer group">
+                  <div className="w-10 h-10 bg-purple-100 dark:bg-purple-900/30 rounded-lg flex items-center justify-center group-hover:bg-purple-200 dark:group-hover:bg-purple-800/50 transition-colors duration-200">
+                    <Play className="h-5 w-5 text-purple-600 dark:text-purple-400 group-hover:text-purple-700 dark:group-hover:text-purple-300 transition-colors duration-200" />
                   </div>
                   <div className="flex-1">
-                    <p className="font-medium text-sm">{resource.title}</p>
+                    <p className="font-medium text-sm group-hover:text-primary dark:group-hover:text-primary transition-colors duration-200">{resource.title}</p>
                     <p className="text-xs text-muted-foreground">
                       {resource.type.toUpperCase()} • {resource.duration ? `${resource.duration} min` : 'Article'}
                     </p>
                   </div>
-                  <Button size="sm" variant="ghost">
+                  <Button size="sm" variant="ghost" className="group-hover:bg-primary/10 dark:group-hover:bg-primary/20 group-hover:text-primary dark:group-hover:text-primary transition-all duration-200">
                     <Play className="h-4 w-4" />
                   </Button>
                 </div>

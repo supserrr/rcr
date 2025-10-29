@@ -249,6 +249,17 @@ export default function CounselorSessionsPage() {
         </AnimatedCard>
       </div>
 
+      {/* Action Bar */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <h2 className="text-lg font-semibold">Sessions</h2>
+        </div>
+        <Button onClick={handleScheduleSession} className="flex items-center gap-2">
+          <Plus className="h-4 w-4" />
+          Schedule Session
+        </Button>
+      </div>
+
       {/* Sessions Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="grid w-full grid-cols-3">
@@ -332,20 +343,28 @@ export default function CounselorSessionsPage() {
         <TabsContent value="all" className="mt-6">
           <div className="space-y-4">
             {allSessions.length > 0 ? (
-              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                {allSessions.map((session) => (
-                  <SessionCard
-                    key={session.id}
-                    session={session}
-                    patientName={getPatientName(session.patientId)}
-                    counselorName="Dr. Marie Claire"
-                    patientAvatar={getPatientAvatar(session.patientId)}
-                    onJoin={session.status === 'scheduled' ? handleJoinSession : undefined}
-                    onReschedule={session.status === 'scheduled' ? handleRescheduleSession : undefined}
-                    onViewNotes={session.status === 'completed' ? handleViewNotes : undefined}
-                  />
-                ))}
-              </div>
+              <>
+                <div className="flex justify-end mb-4">
+                  <Button onClick={handleScheduleSession} variant="outline" className="flex items-center gap-2">
+                    <Plus className="h-4 w-4" />
+                    Schedule Another Session
+                  </Button>
+                </div>
+                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                  {allSessions.map((session) => (
+                    <SessionCard
+                      key={session.id}
+                      session={session}
+                      patientName={getPatientName(session.patientId)}
+                      counselorName="Dr. Marie Claire"
+                      patientAvatar={getPatientAvatar(session.patientId)}
+                      onJoin={session.status === 'scheduled' ? handleJoinSession : undefined}
+                      onReschedule={session.status === 'scheduled' ? handleRescheduleSession : undefined}
+                      onViewNotes={session.status === 'completed' ? handleViewNotes : undefined}
+                    />
+                  ))}
+                </div>
+              </>
             ) : (
               <div className="text-center py-12">
                 <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">

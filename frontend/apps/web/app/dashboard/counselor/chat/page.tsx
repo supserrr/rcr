@@ -36,12 +36,15 @@ import {
 } from 'lucide-react';
 import { dummyChats, dummyMessages, dummyPatients } from '../../../../lib/dummy-data';
 import { ProfileViewModal } from '@workspace/ui/components/profile-view-modal';
+import { ScheduleSessionModal } from '../../../../components/session/ScheduleSessionModal';
 
 export default function CounselorChatPage() {
   const [selectedChat, setSelectedChat] = useState(dummyChats[0]?.id || '');
   const [newMessage, setNewMessage] = useState('');
   const [isNotificationsEnabled, setIsNotificationsEnabled] = useState(true);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [isScheduleOpen, setIsScheduleOpen] = useState(false);
+  const [selectedPatient, setSelectedPatient] = useState<any>(null);
 
   const activeChat = dummyChats.find(chat => chat.id === selectedChat);
   const activeMessages = dummyMessages.filter(msg => 
@@ -72,28 +75,95 @@ export default function CounselorChatPage() {
   };
 
   const handleScheduleSession = () => {
-    console.log('Schedule session with patient');
+    if (activeChat) {
+      const patientId = activeChat.participants.find((id: string) => id !== '2');
+      const patient = getPatientInfo(patientId || '');
+      if (patient) {
+        setSelectedPatient(patient);
+        setIsScheduleOpen(true);
+      } else {
+        alert('Patient information not found');
+      }
+    } else {
+      alert('Please select a conversation first');
+    }
   };
 
   const handleAddSessionNotes = () => {
     console.log('Add session notes');
+    // In a real app, this would open a notes modal
+    alert('Opening session notes editor...');
   };
 
   const handleFlagPatient = () => {
     console.log('Flag patient for follow-up');
+    if (confirm('Flag this patient for follow-up?')) {
+      alert('Patient flagged for follow-up');
+    }
   };
 
   const handleArchiveChat = () => {
     console.log('Archive chat');
+    if (confirm('Are you sure you want to archive this conversation?')) {
+      alert('Conversation archived');
+    }
   };
 
   const handleDeleteChat = () => {
     console.log('Delete chat');
+    if (confirm('Are you sure you want to delete this conversation? This action cannot be undone.')) {
+      alert('Conversation deleted');
+    }
   };
 
   const handleToggleNotifications = () => {
     setIsNotificationsEnabled(!isNotificationsEnabled);
     console.log('Toggle notifications:', !isNotificationsEnabled);
+  };
+
+  const handleMarkAllAsRead = () => {
+    console.log('Marking all conversations as read');
+    // In a real app, this would update the unread count for all chats
+    alert('All conversations marked as read');
+  };
+
+  const handleFilterConversations = () => {
+    console.log('Opening conversation filter');
+    // In a real app, this would open a filter modal or toggle filter options
+    alert('Filter conversations feature coming soon');
+  };
+
+  const handleArchiveAll = () => {
+    console.log('Archiving all conversations');
+    // In a real app, this would archive all conversations
+    if (confirm('Are you sure you want to archive all conversations?')) {
+      alert('All conversations archived');
+    }
+  };
+
+  const handleConfirmSchedule = async (sessionData: {
+    patientId: string;
+    date: Date;
+    time: string;
+    duration: number;
+    sessionType: 'video' | 'audio';
+    notes?: string;
+  }) => {
+    try {
+      // In a real app, this would make an API call to create the session
+      console.log('Scheduling session:', sessionData);
+      
+      // Show success message
+      alert('Session scheduled successfully! Patient has been notified.');
+      
+      // Close modal
+      setIsScheduleOpen(false);
+      setSelectedPatient(null);
+      
+    } catch (error) {
+      console.error('Error scheduling session:', error);
+      alert('Failed to schedule session. Please try again.');
+    }
   };
 
   return (
@@ -110,9 +180,37 @@ export default function CounselorChatPage() {
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
                 <h3 className="font-semibold">Patient Conversations</h3>
-                <Button size="sm" variant="ghost" className="hover:bg-primary/10">
-                  <MoreVertical className="h-4 w-4 text-primary" />
-                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button size="sm" variant="ghost" className="hover:bg-primary/10">
+                      <MoreVertical className="h-4 w-4 text-primary" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56 bg-background border-border shadow-lg z-[100]">
+                    <DropdownMenuItem 
+                      onClick={handleMarkAllAsRead}
+                      className="hover:bg-primary/10 focus:bg-primary/10 cursor-pointer"
+                    >
+                      <MessageCircle className="mr-2 h-4 w-4 text-primary" />
+                      <span className="text-foreground">Mark all as read</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem 
+                      onClick={handleFilterConversations}
+                      className="hover:bg-primary/10 focus:bg-primary/10 cursor-pointer"
+                    >
+                      <Search className="mr-2 h-4 w-4 text-primary" />
+                      <span className="text-foreground">Filter conversations</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem 
+                      onClick={handleArchiveAll}
+                      className="hover:bg-primary/10 focus:bg-primary/10 cursor-pointer"
+                    >
+                      <Archive className="mr-2 h-4 w-4 text-primary" />
+                      <span className="text-foreground">Archive all</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
@@ -132,8 +230,8 @@ export default function CounselorChatPage() {
                     return (
                       <div
                         key={chat.id}
-                        className={`p-3 cursor-pointer hover:bg-muted/50 border-b ${
-                          selectedChat === chat.id ? 'bg-muted' : ''
+                        className={`p-3 cursor-pointer hover:bg-primary/5 dark:hover:bg-primary/10 hover:border-primary/20 dark:hover:border-primary/30 hover:shadow-md dark:hover:shadow-lg dark:hover:shadow-primary/20 transition-all duration-200 border-b group ${
+                          selectedChat === chat.id ? 'bg-muted dark:bg-muted/50' : ''
                         }`}
                         onClick={() => setSelectedChat(chat.id)}
                       >
@@ -184,7 +282,7 @@ export default function CounselorChatPage() {
             {activeChat ? (
               <>
                 {/* Chat Header */}
-                <CardHeader className="pb-3 border-b">
+                <CardHeader className="pb-3 border-b relative">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-3">
                       <Avatar className="h-10 w-10">
@@ -211,7 +309,7 @@ export default function CounselorChatPage() {
                             <MoreVertical className="h-4 w-4 text-primary" />
                           </Button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-56 bg-background border-border shadow-lg">
+                        <DropdownMenuContent align="end" className="w-56 bg-background border-border shadow-lg z-[100]">
                           <DropdownMenuItem 
                             onClick={handleViewPatientProfile}
                             className="hover:bg-primary/10 focus:bg-primary/10 cursor-pointer"
@@ -374,6 +472,19 @@ export default function CounselorChatPage() {
           user={getPatientInfo(activeChat.participants[0] || '') || null}
           userType="patient"
           currentUserRole="counselor"
+        />
+      )}
+
+      {/* Schedule Session Modal */}
+      {selectedPatient && (
+        <ScheduleSessionModal
+          isOpen={isScheduleOpen}
+          onClose={() => {
+            setIsScheduleOpen(false);
+            setSelectedPatient(null);
+          }}
+          patient={selectedPatient}
+          onConfirm={handleConfirmSchedule}
         />
       )}
     </div>

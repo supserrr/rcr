@@ -57,15 +57,15 @@ export function ResourceCard({
   const getTypeColor = (type: string) => {
     switch (type) {
       case 'audio':
-        return 'bg-purple-100 text-purple-800';
+        return 'bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300';
       case 'pdf':
-        return 'bg-red-100 text-red-800';
+        return 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300';
       case 'video':
-        return 'bg-blue-100 text-blue-800';
+        return 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300';
       case 'article':
-        return 'bg-green-100 text-green-800';
+        return 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300';
       default:
-        return 'bg-gray-100 text-gray-800';
+        return 'bg-gray-100 dark:bg-gray-900/30 text-gray-800 dark:text-gray-300';
     }
   };
 
@@ -79,8 +79,8 @@ export function ResourceCard({
   return (
     <AnimatedCard delay={delay} className="h-full">
       {/* Decorative gradient blobs */}
-      <div className="absolute top-0 right-0 w-32 h-32 bg-primary/10 rounded-full blur-2xl -z-0"></div>
-      <div className="absolute bottom-0 left-0 w-32 h-32 bg-primary/10 rounded-full blur-2xl -z-0"></div>
+      <div className="absolute top-0 right-0 w-32 h-32 bg-primary/10 dark:bg-primary/15 rounded-full blur-2xl -z-0 group-hover:bg-primary/20 dark:group-hover:bg-primary/25 group-hover:w-40 group-hover:h-40 transition-all duration-300"></div>
+      <div className="absolute bottom-0 left-0 w-32 h-32 bg-primary/10 dark:bg-primary/15 rounded-full blur-2xl -z-0 group-hover:bg-primary/20 dark:group-hover:bg-primary/25 group-hover:w-40 group-hover:h-40 transition-all duration-300"></div>
       
       <div className="relative z-10 pb-3">
         <div className="flex items-start justify-between">
@@ -143,7 +143,7 @@ export function ResourceCard({
               <Button 
                 size="sm" 
                 variant="outline"
-                className="bg-primary/5 border-primary/20 hover:bg-primary hover:text-primary-foreground hover:border-primary"
+                className="bg-primary/5 dark:bg-primary/10 border-primary/20 dark:border-primary/30 hover:bg-primary hover:text-primary-foreground hover:border-primary dark:hover:bg-primary dark:hover:text-primary-foreground dark:hover:border-primary"
                 onClick={() => onEdit(resource)}
               >
                 <Edit className="h-4 w-4" />
@@ -153,7 +153,7 @@ export function ResourceCard({
               <Button 
                 size="sm" 
                 variant="outline"
-                className="bg-primary/5 border-primary/20 hover:bg-primary hover:text-primary-foreground hover:border-primary"
+                className="bg-primary/5 dark:bg-primary/10 border-primary/20 dark:border-primary/30 hover:bg-primary hover:text-primary-foreground hover:border-primary dark:hover:bg-primary dark:hover:text-primary-foreground dark:hover:border-primary"
                 onClick={() => onUnsave(resource)}
               >
                 <StarOff className="h-4 w-4" />
