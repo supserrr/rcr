@@ -4,10 +4,10 @@ import React, { useState } from 'react';
 import { AnimatedPageHeader } from '@workspace/ui/components/animated-page-header';
 import { AnimatedCard } from '@workspace/ui/components/animated-card';
 import { ResourceCard } from '../../../../components/dashboard/shared/ResourceCard';
-import { ResourceViewerModal } from '@workspace/ui/components/resource-viewer-modal';
+import { ResourceViewerModalV2 } from '../../../../components/viewers/resource-viewer-modal-v2';
 import { ResourceEditModal } from '@workspace/ui/components/resource-edit-modal';
 import { ArticleEditor } from '@workspace/ui/components/article-editor';
-import { ArticleViewer } from '@workspace/ui/components/article-viewer';
+import { ArticleViewerV2 } from '../../../../components/viewers/article-viewer-v2';
 import { Input } from '@workspace/ui/components/input';
 import { Textarea } from '@workspace/ui/components/textarea';
 import { Button } from '@workspace/ui/components/button';
@@ -1572,7 +1572,7 @@ Remember to:
 
       {/* Resource Viewer Modal */}
       {selectedResource && (
-        <ResourceViewerModal
+        <ResourceViewerModalV2
           resource={selectedResource}
           isOpen={isViewerOpen}
           onClose={handleCloseViewer}
@@ -1607,7 +1607,7 @@ Remember to:
 
       {/* Article Viewer */}
       {viewingArticle && (
-        <ArticleViewer
+        <ArticleViewerV2
           article={viewingArticle}
           isOpen={isArticleViewerOpen}
           onClose={handleCloseArticleViewer}

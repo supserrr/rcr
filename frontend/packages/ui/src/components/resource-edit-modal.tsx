@@ -7,6 +7,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from './dialog';
 import { Button } from './button';
 import { Input } from './input';
@@ -20,6 +21,7 @@ import {
   SelectValue,
 } from './select';
 import { Badge } from './badge';
+import { Switch } from './switch';
 import { 
   X, 
   Upload, 
@@ -192,12 +194,15 @@ export function ResourceEditModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent wide className="max-h-[92vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             {getTypeIcon(formData.type)}
             Edit Resource
           </DialogTitle>
+          <DialogDescription>
+            <span className="text-muted-foreground text-sm">Update resource details and preview changes.</span>
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6">
@@ -454,15 +459,67 @@ export function ResourceEditModal({
           </div>
 
           {/* Visibility */}
-          <div className="flex items-center space-x-2">
-            <input
-              type="checkbox"
-              id="isPublic"
-              checked={formData.isPublic}
-              onChange={(e) => setFormData(prev => ({ ...prev, isPublic: e.target.checked }))}
-              className="rounded"
-            />
-            <Label htmlFor="isPublic">Make this resource public</Label>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Switch
+                id="isPublic"
+                checked={formData.isPublic}
+                onCheckedChange={(checked) => setFormData(prev => ({ ...prev, isPublic: !!checked }))}
+              />
+              <Label htmlFor="isPublic">Make this resource public</Label>
+            </div>
+            <Badge variant="outline" className={cn(formData.isPublic ? 'border-green-500/40 text-green-600 dark:text-green-400' : 'border-yellow-500/40 text-yellow-600 dark:text-yellow-400')}>
+              {formData.isPublic ? 'Public' : 'Private'}
+            </Badge>
+          </div>
+
+          {/* Live Preview */}
+          <div className="rounded-lg border bg-card">
+            <div className="p-4 border-b flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                {getTypeIcon(formData.type)}
+                <span className="text-sm text-muted-foreground capitalize">{formData.type}</span>
+              </div>
+              <Badge variant="secondary">{formData.publisher || 'Publisher'}</Badge>
+            </div>
+            <div className="p-4 space-y-3">
+              <h3 className="text-lg font-semibold line-clamp-2">{formData.title || 'Untitled resource'}</h3>
+              <p className="text-sm text-muted-foreground line-clamp-3">{formData.description || 'Description preview...'}</p>
+              {formData.type === 'video' && !formData.isYouTube && formData.url && (
+                <video src={formData.url} controls className="w-full rounded-md" />
+              )}
+              {formData.type === 'video' && formData.isYouTube && formData.youtubeUrl && (
+                <div className="aspect-video w-full rounded-md overflow-hidden">
+                  <iframe
+                    className="w-full h-full"
+                    src={`https://www.youtube.com/embed/${(formData.youtubeUrl || '').split('v=')[1] || ''}`}
+                    title="YouTube preview"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                    allowFullScreen
+                  />
+                </div>
+              )}
+              {formData.type === 'pdf' && formData.url && (
+                <div className="w-full h-56 rounded-md overflow-hidden border">
+                  <iframe src={formData.url} className="w-full h-full" title="PDF preview" />
+                </div>
+              )}
+              {formData.type === 'audio' && formData.url && (
+                <audio src={formData.url} controls className="w-full" />
+              )}
+              {formData.type === 'article' && (
+                <div className="prose dark:prose-invert max-w-none border rounded-md p-3">
+                  <div dangerouslySetInnerHTML={{ __html: formData.content || formData.description || '<p>Article content preview...</p>' }} />
+                </div>
+              )}
+              <div className="flex flex-wrap gap-1">
+                {formData.tags.split(',').map((t, i) => {
+                  const tt = t.trim();
+                  if (!tt) return null;
+                  return <Badge key={i} variant="outline" className="text-xs">{tt}</Badge>;
+                })}
+              </div>
+            </div>
           </div>
 
           {/* Actions */}

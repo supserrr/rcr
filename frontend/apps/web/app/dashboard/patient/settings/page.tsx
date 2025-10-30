@@ -42,9 +42,15 @@ import {
   Languages,
   Trash2,
   X,
-  Plus
+  Plus,
+  MessageCircle,
+  Send,
+  FileText,
+  HelpCircle,
+  Ticket
 } from 'lucide-react';
-import { dummyPatients } from '../../../../lib/dummy-data';
+import { dummyPatients, dummySupportTickets } from '../../../../lib/dummy-data';
+import { Textarea } from '@workspace/ui/components/textarea';
 
 export default function PatientSettingsPage() {
   const currentPatient = dummyPatients[0]; // Jean Baptiste
@@ -55,6 +61,15 @@ export default function PatientSettingsPage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteConfirmation, setDeleteConfirmation] = useState('');
   const [newLanguage, setNewLanguage] = useState('');
+  const [isCreatingTicket, setIsCreatingTicket] = useState(false);
+  const [ticketForm, setTicketForm] = useState({
+    subject: '',
+    category: '',
+    priority: 'medium',
+    description: ''
+  });
+
+  const myTickets = dummySupportTickets.filter(ticket => ticket.userId === currentPatient?.id);
 
   const [notifications, setNotifications] = useState({
     email: true,
@@ -155,11 +170,71 @@ export default function PatientSettingsPage() {
     }
   };
 
+  const handleCreateTicket = async () => {
+    if (!ticketForm.subject || !ticketForm.category || !ticketForm.description) {
+      alert('Please fill in all required fields');
+      return;
+    }
+
+    setIsCreatingTicket(true);
+    try {
+      // Simulate API call
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      console.log('Creating ticket:', ticketForm);
+      
+      // Reset form
+      setTicketForm({
+        subject: '',
+        category: '',
+        priority: 'medium',
+        description: ''
+      });
+      
+      alert('Support ticket created successfully! Ticket ID: #' + Date.now().toString().slice(-6));
+    } catch (error) {
+      console.error('Error creating ticket:', error);
+      alert('Failed to create ticket. Please try again.');
+    } finally {
+      setIsCreatingTicket(false);
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'open':
+        return 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400';
+      case 'in_progress':
+        return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400';
+      case 'resolved':
+        return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400';
+      case 'closed':
+        return 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-400';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const getPriorityColor = (priority: string) => {
+    switch (priority) {
+      case 'urgent':
+        return 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400';
+      case 'high':
+        return 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400';
+      case 'medium':
+        return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400';
+      case 'low':
+        return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
+  };
+
   const tabs = [
     { id: 'profile', label: 'Profile', icon: User },
     { id: 'notifications', label: 'Notifications', icon: Bell },
     { id: 'security', label: 'Security', icon: Shield },
-    { id: 'preferences', label: 'Preferences', icon: Settings2 }
+    { id: 'preferences', label: 'Preferences', icon: Settings2 },
+    { id: 'support', label: 'Support', icon: MessageCircle }
   ];
 
   return (
@@ -709,10 +784,173 @@ export default function PatientSettingsPage() {
                   </div>
                 </div>
               </div>
-            </AnimatedCard>
-          )}
+              </AnimatedCard>
+            )}
+
+            {activeTab === 'support' && (
+              <div className="space-y-6">
+                {/* Create New Ticket */}
+                <AnimatedCard delay={0.2}>
+                  <div className="space-y-6">
+                    <div className="flex items-center gap-2 pb-4 border-b border-primary/10">
+                      <div className="p-2 rounded-lg bg-primary/10">
+                        <HelpCircle className="h-5 w-5 text-primary" />
+                      </div>
+                      <h3 className="text-lg font-semibold text-foreground">Create Support Ticket</h3>
+                    </div>
+
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="ticket-subject">Subject *</Label>
+                        <Input
+                          id="ticket-subject"
+                          value={ticketForm.subject}
+                          onChange={(e) => setTicketForm(prev => ({ ...prev, subject: e.target.value }))}
+                          placeholder="Brief description of your issue"
+                          className="border-input focus:ring-primary/20"
+                        />
+                      </div>
+
+                      <div className="grid gap-4 md:grid-cols-2">
+                        <div className="space-y-2">
+                          <Label htmlFor="ticket-category">Category *</Label>
+                          <Select 
+                            value={ticketForm.category} 
+                            onValueChange={(value) => setTicketForm(prev => ({ ...prev, category: value }))}
+                          >
+                            <SelectTrigger className="border-input focus:ring-primary/20">
+                              <SelectValue placeholder="Select a category" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="technical">Technical Issue</SelectItem>
+                              <SelectItem value="scheduling">Scheduling</SelectItem>
+                              <SelectItem value="billing">Billing & Payment</SelectItem>
+                              <SelectItem value="account">Account Issue</SelectItem>
+                              <SelectItem value="feature">Feature Request</SelectItem>
+                              <SelectItem value="other">Other</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="ticket-priority">Priority</Label>
+                          <Select 
+                            value={ticketForm.priority} 
+                            onValueChange={(value) => setTicketForm(prev => ({ ...prev, priority: value }))}
+                          >
+                            <SelectTrigger className="border-input focus:ring-primary/20">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="low">Low</SelectItem>
+                              <SelectItem value="medium">Medium</SelectItem>
+                              <SelectItem value="high">High</SelectItem>
+                              <SelectItem value="urgent">Urgent</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="ticket-description">Description *</Label>
+                        <Textarea
+                          id="ticket-description"
+                          value={ticketForm.description}
+                          onChange={(e) => setTicketForm(prev => ({ ...prev, description: e.target.value }))}
+                          placeholder="Please provide detailed information about your issue. Include any error messages, steps to reproduce, and what you were trying to do when the issue occurred."
+                          className="min-h-[150px] border-input focus:ring-primary/20 resize-none"
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          The more details you provide, the faster we can help you.
+                        </p>
+                      </div>
+
+                      <div className="flex items-center justify-between pt-4 border-t border-primary/10">
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <Info className="h-4 w-4" />
+                          <span>We typically respond within 24 hours</span>
+                        </div>
+                        <Button
+                          onClick={handleCreateTicket}
+                          disabled={isCreatingTicket || !ticketForm.subject || !ticketForm.category || !ticketForm.description}
+                          className="min-w-[140px] bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20"
+                        >
+                          {isCreatingTicket ? (
+                            <>
+                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
+                              Creating...
+                            </>
+                          ) : (
+                            <>
+                              <Send className="h-4 w-4 mr-2" />
+                              Submit Ticket
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </AnimatedCard>
+
+                {/* My Tickets */}
+                <AnimatedCard delay={0.3}>
+                  <div className="space-y-6">
+                    <div className="flex items-center gap-2 pb-4 border-b border-primary/10">
+                      <div className="p-2 rounded-lg bg-primary/10">
+                        <Ticket className="h-5 w-5 text-primary" />
+                      </div>
+                      <h3 className="text-lg font-semibold text-foreground">My Support Tickets</h3>
+                    </div>
+
+                    {myTickets.length > 0 ? (
+                      <div className="space-y-3">
+                        {myTickets.map((ticket) => (
+                          <div 
+                            key={ticket.id} 
+                            className="p-4 border border-primary/20 rounded-xl bg-gradient-to-r from-primary/5 to-transparent hover:from-primary/10 hover:to-primary/5 transition-all duration-200"
+                          >
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1 space-y-2">
+                                <div className="flex items-center gap-3">
+                                  <h4 className="font-semibold text-foreground">#{ticket.id}</h4>
+                                  <p className="font-medium text-foreground">{ticket.subject}</p>
+                                </div>
+                                <p className="text-sm text-muted-foreground line-clamp-2">
+                                  {ticket.description}
+                                </p>
+                                <div className="flex items-center gap-3 flex-wrap">
+                                  <Badge className={getStatusColor(ticket.status)}>
+                                    {ticket.status === 'in_progress' ? 'In Progress' : ticket.status.charAt(0).toUpperCase() + ticket.status.slice(1)}
+                                  </Badge>
+                                  <Badge className={getPriorityColor(ticket.priority)}>
+                                    {ticket.priority.charAt(0).toUpperCase() + ticket.priority.slice(1)} Priority
+                                  </Badge>
+                                  <Badge variant="outline" className="border-primary/20">
+                                    {ticket.category}
+                                  </Badge>
+                                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                                    <Calendar className="h-3 w-3" />
+                                    <span>Created {ticket.createdAt.toLocaleDateString()}</span>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-12">
+                        <Ticket className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                        <p className="text-muted-foreground mb-2">No support tickets yet</p>
+                        <p className="text-sm text-muted-foreground">Create a ticket above if you need assistance</p>
+                      </div>
+                    )}
+                  </div>
+                </AnimatedCard>
+              </div>
+            )}
+          </div>
         </div>
-      </div>
 
       {/* Delete Account Confirmation Modal */}
       <Dialog open={isDeleteModalOpen} onOpenChange={setIsDeleteModalOpen}>

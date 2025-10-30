@@ -12,7 +12,10 @@ import {
   Bot,
   Settings,
   UserCheck,
+  UserPlus,
+  GraduationCap,
   HelpCircle,
+  Server,
 } from "lucide-react";
 import { UserRole, NavigationItem } from '../../../lib/types';
 import { cn } from "@workspace/ui/lib/utils";
@@ -102,6 +105,13 @@ const navigationItems: NavigationItem[] = [
     roles: ['counselor']
   },
   {
+    id: 'counselor-training',
+    label: 'Professional Development',
+    icon: 'GraduationCap',
+    path: '/dashboard/counselor/training',
+    roles: ['counselor']
+  },
+  {
     id: 'counselor-sessions',
     label: 'Sessions',
     icon: 'Calendar',
@@ -147,12 +157,34 @@ const navigationItems: NavigationItem[] = [
     roles: ['admin']
   },
   {
+    id: 'approvals',
+    label: 'Approvals',
+    icon: 'UserPlus',
+    path: '/dashboard/admin/approvals',
+    roles: ['admin'],
+    badge: 3
+  },
+  {
+    id: 'training-resources',
+    label: 'Training Resources',
+    icon: 'GraduationCap',
+    path: '/dashboard/admin/training-resources',
+    roles: ['admin']
+  },
+  {
     id: 'support',
     label: 'Support',
     icon: 'HelpCircle',
     path: '/dashboard/admin/support',
     roles: ['admin'],
     badge: 3
+  },
+  {
+    id: 'systems',
+    label: 'Systems',
+    icon: 'Server',
+    path: '/dashboard/admin/systems',
+    roles: ['admin']
   },
   {
     id: 'admin-settings',
@@ -172,7 +204,9 @@ const iconMap = {
   Bot,
   Settings,
   UserCheck,
+  UserPlus,
   HelpCircle,
+  Server,
 };
 
 export function DashboardSidebar({ 

@@ -121,6 +121,26 @@ export interface SupportTicket {
   resolvedAt?: Date;
 }
 
+export interface TrainingResource {
+  id: string;
+  title: string;
+  description: string;
+  type: 'course' | 'workshop' | 'video' | 'document' | 'presentation';
+  category: string;
+  duration: string;
+  difficulty: 'Beginner' | 'Intermediate' | 'Advanced';
+  fileUrl: string;
+  thumbnailUrl?: string;
+  tags: string[];
+  createdAt: Date;
+  updatedAt: Date;
+  isActive: boolean;
+  downloads: number;
+  rating: number;
+  instructor: string;
+  learningObjectives: string[];
+}
+
 export interface Module {
   id: string;
   title: string;
@@ -205,4 +225,42 @@ export interface Notification {
   type: 'info' | 'success' | 'warning' | 'error';
   timestamp: Date;
   isRead: boolean;
+}
+
+export interface SystemHealth {
+  id: string;
+  component: string;
+  type: 'database' | 'api' | 'storage' | 'network' | 'security';
+  status: 'healthy' | 'warning' | 'critical' | 'offline';
+  responseTime: number;
+  description: string;
+  lastChecked: Date;
+  uptime: number;
+  errorCount: number;
+  warningCount: number;
+}
+
+export interface MaintenanceLog {
+  id: string;
+  title: string;
+  description: string;
+  type: 'backup' | 'update' | 'cleanup' | 'optimization' | 'security' | 'monitoring';
+  status: 'completed' | 'running' | 'scheduled' | 'failed';
+  duration: string;
+  riskLevel: 'low' | 'medium' | 'high';
+  frequency: string;
+  lastRun?: Date;
+  nextRun?: Date;
+  steps?: {
+    title: string;
+    description: string;
+  }[];
+  logs?: {
+    timestamp: Date;
+    level: 'info' | 'warning' | 'error' | 'success';
+    message: string;
+  }[];
+  createdBy: string;
+  createdAt: Date;
+  updatedAt: Date;
 }

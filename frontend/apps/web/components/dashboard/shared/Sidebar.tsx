@@ -5,15 +5,17 @@ import { Badge } from '@workspace/ui/components/badge';
 import { ScrollArea } from '@workspace/ui/components/scroll-area';
 import { Separator } from '@workspace/ui/components/separator';
 import { RCRLogo } from '@workspace/ui/components/rcr-logo';
-import {
-  LayoutDashboard,
-  Users,
-  BookOpen,
-  Calendar,
-  MessageCircle,
-  Bot,
-  Settings,
-  UserCheck,
+import { 
+  LayoutDashboard, 
+  Users, 
+  BookOpen, 
+  Calendar, 
+  MessageCircle, 
+  Bot, 
+  Settings, 
+  UserCheck, 
+  UserPlus,
+  GraduationCap,
   HelpCircle,
   BarChart3,
   Shield,
@@ -107,6 +109,13 @@ const navigationItems: NavigationItem[] = [
     roles: ['counselor']
   },
   {
+    id: 'counselor-training',
+    label: 'Professional Development',
+    icon: 'GraduationCap',
+    path: '/dashboard/counselor/training',
+    roles: ['counselor']
+  },
+  {
     id: 'counselor-sessions',
     label: 'Sessions',
     icon: 'Calendar',
@@ -152,6 +161,21 @@ const navigationItems: NavigationItem[] = [
     roles: ['admin']
   },
   {
+    id: 'approvals',
+    label: 'Approvals',
+    icon: 'UserPlus',
+    path: '/dashboard/admin/approvals',
+    roles: ['admin'],
+    badge: 3
+  },
+  {
+    id: 'training-resources',
+    label: 'Training Resources',
+    icon: 'GraduationCap',
+    path: '/dashboard/admin/training-resources',
+    roles: ['admin']
+  },
+  {
     id: 'support',
     label: 'Support',
     icon: 'HelpCircle',
@@ -177,6 +201,8 @@ const iconMap = {
   Bot,
   Settings,
   UserCheck,
+  UserPlus,
+  GraduationCap,
   HelpCircle,
   BarChart3,
   Shield,

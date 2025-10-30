@@ -21,6 +21,7 @@ interface ScheduleSessionModalProps {
   counselorId: string;
   counselorName: string;
   patients: Patient[];
+  preselectedPatientId?: string;
   onSchedule: (sessionData: {
     patientId: string;
     date: Date;
@@ -37,6 +38,7 @@ export function ScheduleSessionModal({
   counselorId,
   counselorName,
   patients,
+  preselectedPatientId,
   onSchedule 
 }: ScheduleSessionModalProps) {
   const [selectedPatient, setSelectedPatient] = useState('');
@@ -85,6 +87,13 @@ export function ScheduleSessionModal({
       setIsLoading(false);
     }
   };
+
+  // Preselect patient when provided
+  React.useEffect(() => {
+    if (isOpen && preselectedPatientId) {
+      setSelectedPatient(preselectedPatientId);
+    }
+  }, [isOpen, preselectedPatientId]);
 
   const handleClose = () => {
     setSelectedPatient('');
