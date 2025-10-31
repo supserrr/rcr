@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Button } from "@workspace/ui/components/button";
 import { Input } from '@workspace/ui/components/input';
+import { Avatar, AvatarFallback, AvatarImage } from '@workspace/ui/components/ui/avatar';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@workspace/ui/components/card';
 import { Badge } from '@workspace/ui/components/badge';
 import { Calendar, MapPin, ArrowRight, ArrowLeft, MessageCircle, Video, Phone } from 'lucide-react';
@@ -18,6 +19,8 @@ interface PatientOnboardingData {
   age: string;
   gender: string;
   location: string;
+  profileImage: File | null;
+  profileImagePreview: string;
   
   // Medical Information
   cancerType: string;
@@ -45,6 +48,8 @@ export default function PatientOnboardingPage() {
     age: '',
     gender: '',
     location: '',
+    profileImage: null,
+    profileImagePreview: '',
     cancerType: '',
     diagnosisDate: '',
     currentTreatment: '',
@@ -73,6 +78,22 @@ export default function PatientOnboardingPage() {
         ? prev.supportNeeds.filter(n => n !== need)
         : [...prev.supportNeeds, need]
     }));
+  };
+
+  const handleProfileImageChange = (file: File | null) => {
+    if (!file) {
+      setFormData(prev => ({ ...prev, profileImage: null, profileImagePreview: '' }));
+      return;
+    }
+    // basic size/type guard (<= 2MB, image types)
+    const isImage = /image\/png|image\/jpeg|image\/jpg/.test(file.type);
+    const isSmallEnough = file.size <= 2 * 1024 * 1024;
+    if (!isImage || !isSmallEnough) {
+      alert('Please upload a JPG/PNG image up to 2MB.');
+      return;
+    }
+    const previewUrl = URL.createObjectURL(file);
+    setFormData(prev => ({ ...prev, profileImage: file, profileImagePreview: previewUrl }));
   };
 
   const handleConsultationTypeToggle = (type: string) => {
@@ -109,6 +130,38 @@ export default function PatientOnboardingPage() {
         </div>
         <h2 className="text-xl sm:text-2xl font-bold text-foreground mb-2">Personal Information</h2>
         <p className="text-sm sm:text-base text-muted-foreground">Help us understand your basic information</p>
+      </div>
+
+        <div className="flex flex-col items-center gap-4 mb-6">
+        <Avatar className="h-24 w-24">
+          {formData.profileImagePreview ? (
+            <AvatarImage src={formData.profileImagePreview} alt="Profile preview" />
+          ) : (
+            <AvatarFallback>PI</AvatarFallback>
+          )}
+        </Avatar>
+        <div className="flex items-center gap-3">
+          <input
+            id="patient-profile-upload"
+            type="file"
+            accept="image/png,image/jpeg"
+            className="hidden"
+            onChange={(e) => handleProfileImageChange(e.target.files?.[0] || null)}
+          />
+          <label htmlFor="patient-profile-upload">
+            <Button variant="outline" size="sm">Upload Photo</Button>
+          </label>
+          {formData.profileImage && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => handleProfileImageChange(null)}
+            >
+              Remove
+            </Button>
+          )}
+        </div>
+        <p className="text-xs text-muted-foreground">JPG or PNG, up to 2MB</p>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">

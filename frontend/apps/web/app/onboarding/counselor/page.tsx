@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Button } from "@workspace/ui/components/button";
 import { Input } from '@workspace/ui/components/input';
+import { Avatar, AvatarFallback, AvatarImage } from '@workspace/ui/components/ui/avatar';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@workspace/ui/components/card';
 import { Badge } from '@workspace/ui/components/badge';
 import { ArrowRight, ArrowLeft, Upload, Award, GraduationCap, MessageCircle, Video, Phone } from 'lucide-react';
@@ -35,6 +36,10 @@ interface CounselorOnboardingData {
   consultationTypes: string[];
   availability: string;
   
+  // Profile
+  profileImage: File | null;
+  profileImagePreview: string;
+  
   // Documentation
   resumeFile: File | null;
   licenseFile: File | null;
@@ -65,6 +70,8 @@ export default function CounselorOnboardingPage() {
     languages: [],
     consultationTypes: [],
     availability: '',
+    profileImage: null,
+    profileImagePreview: '',
     resumeFile: null,
     licenseFile: null,
     certificationsFile: null,
@@ -96,6 +103,21 @@ export default function CounselorOnboardingPage() {
       ...prev,
       [field]: file
     }));
+  };
+
+  const handleProfileImageChange = (file: File | null) => {
+    if (!file) {
+      setFormData(prev => ({ ...prev, profileImage: null, profileImagePreview: '' }));
+      return;
+    }
+    const isImage = /image\/png|image\/jpeg|image\/jpg/.test(file.type);
+    const isSmallEnough = file.size <= 2 * 1024 * 1024;
+    if (!isImage || !isSmallEnough) {
+      alert('Please upload a JPG/PNG image up to 2MB.');
+      return;
+    }
+    const previewUrl = URL.createObjectURL(file);
+    setFormData(prev => ({ ...prev, profileImage: file, profileImagePreview: previewUrl }));
   };
 
   const handleNext = () => {
@@ -168,6 +190,38 @@ export default function CounselorOnboardingPage() {
             onChange={(e) => handleInputChange('issuingAuthority', e.target.value)}
           />
         </div>
+      </div>
+
+        <div className="flex flex-col items-center gap-4 pt-4 border-t border-border">
+        <Avatar className="h-24 w-24">
+          {formData.profileImagePreview ? (
+            <AvatarImage src={formData.profileImagePreview} alt="Profile preview" />
+          ) : (
+            <AvatarFallback>PI</AvatarFallback>
+          )}
+        </Avatar>
+        <div className="flex items-center gap-3">
+          <input
+            id="counselor-profile-upload"
+            type="file"
+            accept="image/png,image/jpeg"
+            className="hidden"
+            onChange={(e) => handleProfileImageChange(e.target.files?.[0] || null)}
+          />
+          <label htmlFor="counselor-profile-upload">
+            <Button variant="outline" size="sm">Upload Photo</Button>
+          </label>
+          {formData.profileImage && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => handleProfileImageChange(null)}
+            >
+              Remove
+            </Button>
+          )}
+        </div>
+        <p className="text-xs text-muted-foreground">JPG or PNG, up to 2MB</p>
       </div>
     </div>
   );
