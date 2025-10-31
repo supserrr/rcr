@@ -1,7 +1,8 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { motion } from 'framer-motion';
 import { AnimatedStatCard } from '@workspace/ui/components/animated-stat-card';
 import { AnimatedPageHeader } from '@workspace/ui/components/animated-page-header';
 import { AnimatedCard } from '@workspace/ui/components/animated-card';
@@ -22,13 +23,17 @@ import {
   AlertCircle,
   Star,
   Heart,
-  Target
+  Target,
+  Circle,
+  CircleDot,
+  Minus
 } from 'lucide-react';
 import { dummyCounselors, dummySessions, dummyPatients, dummyMessages, dummyChats } from '../../../lib/dummy-data';
 
 export default function CounselorDashboard() {
   const router = useRouter();
-  const currentCounselor = dummyCounselors[0]; // Dr. Marie Claire
+  const [currentCounselor, setCurrentCounselor] = useState(dummyCounselors[0]!);
+  const [availability, setAvailability] = useState<'available' | 'busy' | 'offline'>(currentCounselor.availability);
   const assignedPatients = dummyPatients.filter(patient => 
     currentCounselor?.patients?.includes(patient.id)
   );
@@ -67,6 +72,35 @@ export default function CounselorDashboard() {
     }
   };
 
+  const handleAvailabilityChange = (newAvailability: 'available' | 'busy' | 'offline') => {
+    setAvailability(newAvailability);
+    // In a real app, this would update the availability in the backend
+    setCurrentCounselor({ ...currentCounselor, availability: newAvailability });
+    console.log('Availability changed to:', newAvailability);
+  };
+
+  const getAvailabilityColor = () => {
+    switch (availability) {
+      case 'available':
+        return 'bg-green-100 text-green-700 border-green-300 dark:bg-green-900/20 dark:text-green-300 dark:border-green-800';
+      case 'busy':
+        return 'bg-yellow-100 text-yellow-700 border-yellow-300 dark:bg-yellow-900/20 dark:text-yellow-300 dark:border-yellow-800';
+      case 'offline':
+        return 'bg-gray-100 text-gray-700 border-gray-300 dark:bg-gray-900/20 dark:text-gray-300 dark:border-gray-800';
+    }
+  };
+
+  const getAvailabilityIcon = () => {
+    switch (availability) {
+      case 'available':
+        return CircleDot;
+      case 'busy':
+        return Circle;
+      case 'offline':
+        return Minus;
+    }
+  };
+
   return (
     <div className="space-y-6">
       <AnimatedPageHeader
@@ -98,6 +132,87 @@ export default function CounselorDashboard() {
           icon={MessageCircle}
           delay={0.3}
         />
+        
+        {/* Availability Status Card */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.4 }}
+          whileHover={{ scale: 1.02, y: -2 }}
+        >
+          <Card className="relative overflow-hidden h-full bg-gradient-to-br from-primary/5 via-background to-primary/10 dark:from-primary/10 dark:via-background dark:to-primary/15 rounded-3xl border-primary/20 dark:border-primary/30 transition-all duration-300 hover:shadow-2xl hover:shadow-primary/30 dark:hover:shadow-primary/40 hover:border-primary/40 dark:hover:border-primary/50 hover:from-primary/10 hover:to-primary/15 dark:hover:from-primary/15 dark:hover:to-primary/20 group">
+            {/* Decorative gradient blobs */}
+            <div className="absolute top-0 right-0 w-32 h-32 bg-primary/10 dark:bg-primary/15 rounded-full blur-2xl -z-0 group-hover:bg-primary/20 dark:group-hover:bg-primary/25 group-hover:w-40 group-hover:h-40 transition-all duration-300"></div>
+            <div className="absolute bottom-0 left-0 w-32 h-32 bg-primary/10 dark:bg-primary/15 rounded-full blur-2xl -z-0 group-hover:bg-primary/20 dark:group-hover:bg-primary/25 group-hover:w-40 group-hover:h-40 transition-all duration-300"></div>
+            
+            <CardContent className="relative z-10">
+              <div className="flex items-center justify-between space-y-0 pb-2">
+                <div className="text-sm font-medium text-muted-foreground">
+                  Availability Status
+                </div>
+                <motion.div
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{ duration: 0.3, delay: 0.6 }}
+                  className="p-2 rounded-full bg-primary/10"
+                >
+                  {React.createElement(getAvailabilityIcon(), { className: 'h-4 w-4 text-primary' })}
+                </motion.div>
+              </div>
+              <div>
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.5, delay: 0.7 }}
+                  className="text-2xl font-bold"
+                >
+                  {availability.charAt(0).toUpperCase() + availability.slice(1)}
+                </motion.div>
+                <motion.p
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.5, delay: 0.8 }}
+                  className="text-xs text-muted-foreground mt-1"
+                >
+                  Change status below
+                </motion.p>
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.5, delay: 0.9 }}
+                  className="mt-4 pt-4 border-t border-border/20"
+                >
+                  <div className="grid grid-cols-3 gap-2">
+                    <Button
+                      variant={availability === 'available' ? 'default' : 'outline'}
+                      size="sm"
+                      className={availability === 'available' ? 'bg-green-600 hover:bg-green-700' : ''}
+                      onClick={() => handleAvailabilityChange('available')}
+                    >
+                      <CircleDot className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant={availability === 'busy' ? 'default' : 'outline'}
+                      size="sm"
+                      className={availability === 'busy' ? 'bg-yellow-600 hover:bg-yellow-700' : ''}
+                      onClick={() => handleAvailabilityChange('busy')}
+                    >
+                      <Circle className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant={availability === 'offline' ? 'default' : 'outline'}
+                      size="sm"
+                      className={availability === 'offline' ? 'bg-gray-600 hover:bg-gray-700' : ''}
+                      onClick={() => handleAvailabilityChange('offline')}
+                    >
+                      <Minus className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </motion.div>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
       </div>
 
       <AnimatedGrid className="grid gap-6 lg:grid-cols-2" staggerDelay={0.2}>

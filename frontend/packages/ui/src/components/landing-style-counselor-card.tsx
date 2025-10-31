@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Button } from './button';
 import { Badge } from './badge';
-import { MessageCircle, Video, Phone } from 'lucide-react';
+import { MessageCircle, Video, Phone, CircleDot, Circle, Minus } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 interface LandingStyleCounselorCardProps {
@@ -65,6 +65,38 @@ export function LandingStyleCounselorCard({
     return placeholderImages[index];
   };
 
+  const getAvailabilityBadge = () => {
+    if (!availability) return null;
+    
+    const config = {
+      available: {
+        className: 'bg-green-500 text-white',
+        icon: CircleDot,
+        text: 'Available'
+      },
+      busy: {
+        className: 'bg-yellow-500 text-white',
+        icon: Circle,
+        text: 'Busy'
+      },
+      offline: {
+        className: 'bg-gray-500 text-white',
+        icon: Minus,
+        text: 'Offline'
+      }
+    };
+
+    const badgeConfig = config[availability];
+    const Icon = badgeConfig.icon;
+
+    return (
+      <Badge className={`absolute top-4 right-4 ${badgeConfig.className} backdrop-blur-sm border-0 shadow-lg`}>
+        <Icon className="w-3 h-3 mr-1" />
+        {badgeConfig.text}
+      </Badge>
+    );
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -86,7 +118,10 @@ export function LandingStyleCounselorCard({
       {/* Smooth Blur Overlay - Multiple layers for seamless fade */}
       <div className="absolute inset-0 bg-gradient-to-t from-sidebar/95 via-sidebar/40 via-sidebar/20 via-sidebar/10 to-transparent" />
       <div className="absolute bottom-0 left-0 right-0 h-64 bg-gradient-to-t from-sidebar/90 via-sidebar/60 via-sidebar/30 via-sidebar/15 via-sidebar/8 to-transparent backdrop-blur-[1px]" />
-      <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-sidebar/85 via-sidebar/40 to-transparent backdrop-blur-sm" />
+      <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-sidebar/85 via-sidebar/40 to-transparent backdrop-blur-sm"       />
+
+      {/* Availability Badge */}
+      {getAvailabilityBadge()}
 
       {/* Content */}
       <div className="absolute bottom-0 left-0 right-0 p-6 space-y-4">

@@ -192,7 +192,8 @@ export default function PatientCounselorsPage() {
                   onViewProfile={handleViewProfile}
                   delay={index * 0.15}
                 />
-                <Badge className="absolute top-4 right-4 bg-foreground text-background z-20">
+                <Badge className="absolute top-4 left-4 bg-gradient-to-r from-yellow-400 to-orange-500 text-white border-0 shadow-lg z-30">
+                  <Star className="w-3 h-3 mr-1 fill-current" />
                   Featured
                 </Badge>
               </div>
