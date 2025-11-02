@@ -153,19 +153,19 @@ export default function PatientChatPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6">
       <AnimatedPageHeader
         title="Messages"
         description="Chat with your counselors and get support when you need it"
       />
 
-      <div className="grid gap-6 lg:grid-cols-4 h-[calc(100vh-280px)] md:h-[600px]">
+      <div className="grid gap-4 md:gap-6 lg:grid-cols-4 h-[calc(100vh-280px)] md:h-[600px]">
         {/* Chat List */}
         <div className={`lg:col-span-1 ${showConversations ? 'block' : 'hidden lg:block'}`}>
           <AnimatedCard delay={0.5} className="h-full flex flex-col">
-            <CardHeader className="pb-3">
+            <CardHeader className="p-3 md:p-6 pb-2 md:pb-3">
               <div className="flex items-center justify-between">
-                <h3 className="font-semibold">Conversations</h3>
+                <h3 className="text-sm md:text-base font-semibold">Conversations</h3>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button size="sm" variant="ghost" className="hover:bg-primary/10">
@@ -216,7 +216,7 @@ export default function PatientChatPage() {
                     return (
                       <div
                         key={chat.id}
-                        className={`p-3 cursor-pointer hover:bg-primary/5 dark:hover:bg-primary/10 hover:border-primary/20 dark:hover:border-primary/30 hover:shadow-md dark:hover:shadow-lg dark:hover:shadow-primary/20 transition-all duration-200 border-b group ${
+                        className={`p-2 md:p-3 cursor-pointer hover:bg-primary/5 dark:hover:bg-primary/10 hover:border-primary/20 dark:hover:border-primary/30 hover:shadow-md dark:hover:shadow-lg dark:hover:shadow-primary/20 transition-all duration-200 border-b group ${
                           selectedChat === chat.id ? 'bg-muted dark:bg-muted/50' : ''
                         }`}
                         onClick={() => {
@@ -224,15 +224,15 @@ export default function PatientChatPage() {
                           setShowConversations(false);
                         }}
                       >
-                        <div className="flex items-center space-x-3">
+                        <div className="flex items-center space-x-2 md:space-x-3">
                           <div className="relative">
-                            <Avatar className="h-10 w-10">
+                            <Avatar className="h-8 w-8 md:h-10 md:w-10">
                               <AvatarImage src={counselor?.avatar} alt={counselor?.name} />
                               <AvatarFallback>
                                 {counselor?.name?.split(' ').map(n => n[0]).join('') || 'C'}
                               </AvatarFallback>
                             </Avatar>
-                            <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-white" />
+                            <div className="absolute -bottom-1 -right-1 w-2.5 h-2.5 md:w-3 md:h-3 bg-green-500 rounded-full border-2 border-white" />
                           </div>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center justify-between">
