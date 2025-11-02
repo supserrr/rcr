@@ -205,7 +205,7 @@ export function validateProfileForm(data: ProfileFormData): ValidationResult {
     errors.email = emailError
   }
   
-  if (data.phone && !/^\+?[\d\s\-()]+$/.test(data.phone)) {
+  if (data.phone && !/^\+?[\d\s\-\(\)]+$/.test(data.phone)) {
     errors.phone = 'Please enter a valid phone number'
   }
   
