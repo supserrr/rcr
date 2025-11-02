@@ -4,7 +4,6 @@
   "devCommand": "pnpm dev --filter=web",
   "installCommand": "pnpm install",
   "framework": "nextjs",
-  "outputDirectory": "frontend/apps/web/.next",
-  "rootDirectory": "frontend/apps/web"
+  "outputDirectory": "frontend/apps/web/.next"
 }
 
