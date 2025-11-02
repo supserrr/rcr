@@ -159,10 +159,10 @@ export default function PatientChatPage() {
         description="Chat with your counselors and get support when you need it"
       />
 
-      <div className="flex lg:grid gap-0 lg:gap-6 lg:grid-cols-4 h-[calc(100vh-16rem)] md:h-[600px]">
+      <div className="grid gap-4 md:gap-6 lg:grid-cols-4 h-[calc(100vh-280px)] md:h-[600px]">
         {/* Chat List */}
-        <div className={`lg:col-span-1 flex-1 lg:flex-none ${showConversations ? 'flex' : 'hidden lg:block'}`}>
-          <AnimatedCard delay={0.5} className="h-full flex flex-col w-full">
+        <div className={`lg:col-span-1 ${showConversations ? 'block' : 'hidden lg:block'}`}>
+          <AnimatedCard delay={0.5} className="h-full flex flex-col">
             <CardHeader className="p-3 md:p-6 pb-2 md:pb-3">
               <div className="flex items-center justify-between">
                 <h3 className="text-sm md:text-base font-semibold">Conversations</h3>
@@ -246,7 +246,11 @@ export default function PatientChatPage() {
                                )}
                             </div>
                             <p className="text-xs text-muted-foreground truncate">
-                              {chat.lastMessage?.content || 'No messages yet'}
+                              {chat.lastMessage?.content ? 
+                                (chat.lastMessage.content.length > 50 
+                                  ? chat.lastMessage.content.substring(0, 50) + '...' 
+                                  : chat.lastMessage.content)
+                                : 'No messages yet'}
                             </p>
                             <p className="text-xs text-muted-foreground">
                               {chat.lastMessage?.timestamp ? 
@@ -266,8 +270,8 @@ export default function PatientChatPage() {
         </div>
 
         {/* Chat Area */}
-        <div className={`flex-1 lg:col-span-3 ${showConversations ? 'hidden lg:block' : 'flex'}`}>
-          <AnimatedCard delay={0.7} className="h-full flex flex-col w-full">
+        <div className={`col-span-1 lg:col-span-3 ${showConversations ? 'hidden lg:block' : 'block'}`}>
+          <AnimatedCard delay={0.7} className="h-full flex flex-col">
             {activeChat ? (
               <>
                 {/* Chat Header */}
@@ -383,12 +387,12 @@ export default function PatientChatPage() {
                             </div>
                             <p className={`text-xs mt-1 px-1 ${
                               isOwnMessage ? 'text-primary/70' : 'text-muted-foreground'
-                            }`}>
-                              {new Date(message.timestamp).toLocaleTimeString([], { 
-                                hour: '2-digit', 
-                                minute: '2-digit' 
-                              })}
-                            </p>
+                              }`}>
+                                {new Date(message.timestamp).toLocaleTimeString([], { 
+                                  hour: '2-digit', 
+                                  minute: '2-digit' 
+                                })}
+                              </p>
                           </div>
                         );
                       })}

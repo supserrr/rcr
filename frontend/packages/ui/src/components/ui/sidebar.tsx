@@ -134,31 +134,31 @@ export const MobileSidebar = ({
         </div>
         </div>
       )}
-      <AnimatePresence>
-        {open && (
-          <motion.div
-            initial={{ x: "-100%", opacity: 0 }}
-            animate={{ x: 0, opacity: 1 }}
-            exit={{ x: "-100%", opacity: 0 }}
-            transition={{
-              duration: 0.3,
-              ease: "easeInOut",
-            }}
-            className={cn(
+        <AnimatePresence>
+          {open && (
+            <motion.div
+              initial={{ x: "-100%", opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              exit={{ x: "-100%", opacity: 0 }}
+              transition={{
+                duration: 0.3,
+                ease: "easeInOut",
+              }}
+              className={cn(
               "fixed h-full w-full inset-0 bg-sidebar p-10 z-[100] flex flex-col justify-between font-sans md:hidden",
-              className
-            )}
-          >
-            <div
-              className="absolute right-10 top-10 z-50 text-sidebar-foreground cursor-pointer"
-              onClick={() => setOpen(!open)}
+                className
+              )}
             >
-              <X />
-            </div>
-            {children}
-          </motion.div>
-        )}
-      </AnimatePresence>
+              <div
+                className="absolute right-10 top-10 z-50 text-sidebar-foreground cursor-pointer"
+                onClick={() => setOpen(!open)}
+              >
+                <X />
+              </div>
+              {children}
+            </motion.div>
+          )}
+        </AnimatePresence>
     </>
   );
 };

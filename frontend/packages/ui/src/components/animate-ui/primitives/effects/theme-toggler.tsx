@@ -55,7 +55,7 @@ function ThemeToggler({
 
       setCurrent({ effective: theme, resolved });
       onImmediateChange?.(theme);
-      
+
       // Manually toggle dark class for instant theme change
       if (typeof window !== 'undefined') {
         if (resolved === 'dark') {
@@ -65,7 +65,7 @@ function ThemeToggler({
         }
       }
       
-      setTheme(theme);
+          setTheme(theme);
     },
     [onImmediateChange, setTheme],
   );

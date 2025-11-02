@@ -85,15 +85,15 @@ export function TopBar({
       <div className="flex h-20 items-center justify-between px-6 w-full">
         {/* Left side - Title */}
         <div className="flex items-center space-x-4">
-          <Button
-            variant="ghost"
-            size="lg"
-            onClick={onToggleSidebar}
+            <Button
+              variant="ghost"
+              size="lg"
+              onClick={onToggleSidebar}
             className="h-12 w-12 md:hidden"
             aria-label="Toggle sidebar"
-          >
-            <Menu className="h-6 w-6" />
-          </Button>
+            >
+              <Menu className="h-6 w-6" />
+            </Button>
           <div className="hidden md:block">
             <h1 className="text-2xl font-semibold">Rwanda Cancer Relief</h1>
           </div>
