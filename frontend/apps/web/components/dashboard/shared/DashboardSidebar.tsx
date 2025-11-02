@@ -28,6 +28,8 @@ interface DashboardSidebarProps {
   currentPath: string;
   onNavigate: (path: string) => void;
   className?: string;
+  open?: boolean;
+  setOpen?: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
 const navigationItems: NavigationItem[] = [
@@ -223,9 +225,13 @@ export function DashboardSidebar({
   userRole, 
   currentPath, 
   onNavigate, 
-  className 
+  className,
+  open: openProp,
+  setOpen: setOpenProp
 }: DashboardSidebarProps) {
-  const [open, setOpen] = useState(true);
+  const [openState, setOpenState] = useState(true);
+  const open = openProp !== undefined ? openProp : openState;
+  const setOpen = setOpenProp !== undefined ? setOpenProp : setOpenState;
   
   const filteredItems = navigationItems.filter(item => 
     item.roles.includes(userRole)
@@ -258,7 +264,7 @@ export function DashboardSidebar({
     <div className={cn("h-full", className)}>
       <SidebarProvider>
       <Sidebar open={open} setOpen={setOpen}>
-        <SidebarBody className="justify-between gap-10">
+        <SidebarBody className="justify-between gap-10" hideMobileTrigger>
           <div className="flex flex-col flex-1 overflow-y-auto overflow-x-hidden">
             <RCRLogoComponent />
             <div className="mt-8 flex flex-col gap-2">

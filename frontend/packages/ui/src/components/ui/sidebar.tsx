@@ -70,11 +70,12 @@ export const Sidebar = ({
   );
 };
 
-export const SidebarBody = (props: React.ComponentProps<typeof motion.div>) => {
+export const SidebarBody = (props: React.ComponentProps<typeof motion.div> & { hideMobileTrigger?: boolean }) => {
+  const { hideMobileTrigger, ...restProps } = props;
   return (
     <>
-      <DesktopSidebar {...props} />
-      <MobileSidebar {...(props as React.ComponentProps<"div">)} />
+      <DesktopSidebar {...restProps} />
+      <MobileSidebar {...(restProps as React.ComponentProps<"div">)} hideTrigger={hideMobileTrigger} />
     </>
   );
 };
@@ -106,49 +107,52 @@ export const DesktopSidebar = ({
 export const MobileSidebar = ({
   className,
   children,
+  hideTrigger = false,
   ...props
-}: React.ComponentProps<"div">) => {
+}: React.ComponentProps<"div"> & { hideTrigger?: boolean }) => {
   const { open, setOpen } = useSidebar();
   return (
     <>
-      <div
-        className={cn(
-          "h-10 px-4 py-4 flex flex-row md:hidden items-center justify-between bg-sidebar w-full font-sans"
-        )}
-        {...props}
-      >
-        <div className="flex justify-end z-20 w-full">
-          <Menu
-            className="text-sidebar-foreground cursor-pointer"
-            onClick={() => setOpen(!open)}
-          />
-        </div>
-        <AnimatePresence>
-          {open && (
-            <motion.div
-              initial={{ x: "-100%", opacity: 0 }}
-              animate={{ x: 0, opacity: 1 }}
-              exit={{ x: "-100%", opacity: 0 }}
-              transition={{
-                duration: 0.3,
-                ease: "easeInOut",
-              }}
-              className={cn(
-                "fixed h-full w-full inset-0 bg-white dark:bg-neutral-900 p-10 z-[100] flex flex-col justify-between font-sans",
-                className
-              )}
-            >
-              <div
-                className="absolute right-10 top-10 z-50 text-sidebar-foreground cursor-pointer"
-                onClick={() => setOpen(!open)}
-              >
-                <X />
-              </div>
-              {children}
-            </motion.div>
+      {!hideTrigger && (
+        <div
+          className={cn(
+            "h-10 px-4 py-4 flex flex-row md:hidden items-center justify-between bg-sidebar w-full font-sans"
           )}
-        </AnimatePresence>
-      </div>
+          {...props}
+        >
+          <div className="flex justify-end z-20 w-full">
+            <Menu
+              className="text-sidebar-foreground cursor-pointer"
+              onClick={() => setOpen(!open)}
+            />
+          </div>
+        </div>
+      )}
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ x: "-100%", opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            exit={{ x: "-100%", opacity: 0 }}
+            transition={{
+              duration: 0.3,
+              ease: "easeInOut",
+            }}
+            className={cn(
+              "fixed h-full w-full inset-0 bg-white dark:bg-neutral-900 p-10 z-[100] flex flex-col justify-between font-sans",
+              className
+            )}
+          >
+            <div
+              className="absolute right-10 top-10 z-50 text-sidebar-foreground cursor-pointer"
+              onClick={() => setOpen(!open)}
+            >
+              <X />
+            </div>
+            {children}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </>
   );
 };

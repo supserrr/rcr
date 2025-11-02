@@ -44,6 +44,8 @@ export function DashboardLayout({
         currentPath={currentPath}
         onNavigate={onNavigate}
         className="h-full"
+        open={isSidebarOpen}
+        setOpen={setIsSidebarOpen}
       />
 
       {/* Main content */}
