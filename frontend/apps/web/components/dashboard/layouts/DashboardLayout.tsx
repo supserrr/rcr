@@ -30,7 +30,7 @@ export function DashboardLayout({
   notifications = 0,
   onNotificationClick
 }: DashboardLayoutProps) {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const toggleSidebar = () => {
     setIsSidebarOpen(!isSidebarOpen);

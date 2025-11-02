@@ -229,7 +229,7 @@ export function DashboardSidebar({
   open: openProp,
   setOpen: setOpenProp
 }: DashboardSidebarProps) {
-  const [openState, setOpenState] = useState(true);
+  const [openState, setOpenState] = useState(false);
   
   const open = openProp !== undefined ? openProp! : openState;
   const setOpen = setOpenProp !== undefined ? setOpenProp! : setOpenState;
