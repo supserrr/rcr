@@ -200,7 +200,7 @@ export function CounselorRescheduleModal({
               </Label>
               <Textarea
                 id="notes"
-                placeholder="Add a note about why you&apos;re rescheduling this session..."
+                placeholder="Add a note about why you're rescheduling this session..."
                 value={rescheduleNotes}
                 onChange={(e) => setRescheduleNotes(e.target.value)}
                 className="min-h-[80px]"

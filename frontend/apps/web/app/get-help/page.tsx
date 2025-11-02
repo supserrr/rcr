@@ -32,7 +32,7 @@ export default function GetHelpPage() {
             Get Help Now
           </h1>
           <p className="font-jakarta-sans text-lg lg:text-xl text-muted-foreground max-w-4xl mx-auto leading-relaxed">
-            You don&apos;t have to face this journey alone. We&apos;re here to provide immediate support, guidance, and care when you need it most.
+            You don't have to face this journey alone. We're here to provide immediate support, guidance, and care when you need it most.
           </p>
         </div>
       </section>
@@ -45,7 +45,7 @@ export default function GetHelpPage() {
               Immediate Support
             </h2>
             <p className="font-jakarta-sans text-lg text-muted-foreground max-w-3xl mx-auto">
-              If you&apos;re in crisis or need immediate emotional support, we&apos;re here 24/7.
+              If you're in crisis or need immediate emotional support, we're here 24/7.
             </p>
           </div>
           
@@ -92,7 +92,7 @@ export default function GetHelpPage() {
                     Crisis Email Support
                   </h3>
                   <p className="font-jakarta-sans text-muted-foreground mb-6">
-                    Send us an urgent message and we&apos;ll respond within 2 hours.
+                    Send us an urgent message and we'll respond within 2 hours.
                   </p>
                   <Button 
                     asChild

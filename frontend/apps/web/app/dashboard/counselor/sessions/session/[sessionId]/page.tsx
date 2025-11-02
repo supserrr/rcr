@@ -53,7 +53,7 @@ export default function SessionRoomPage() {
           <AlertCircle className="h-12 w-12 text-destructive mx-auto mb-4" />
           <h2 className="text-xl font-semibold mb-2">Session Not Found</h2>
           <p className="text-muted-foreground mb-4">
-            The session you&apos;re looking for doesn&apos;t exist or has been cancelled.
+            The session you're looking for doesn't exist or has been cancelled.
           </p>
           <Button onClick={() => router.push(`/dashboard/${user?.role}/sessions`)}>
             Return to Sessions
@@ -178,7 +178,7 @@ export default function SessionRoomPage() {
           <div>
             <h1 className="text-2xl font-bold mb-2">Counseling Session</h1>
             <p className="text-muted-foreground">
-              You&apos;re about to join a {session.type} session
+              You're about to join a {session.type} session
             </p>
           </div>
           <Badge variant={session.status === 'scheduled' ? 'default' : 'secondary'}>

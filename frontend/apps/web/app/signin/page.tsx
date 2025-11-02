@@ -12,13 +12,13 @@ const sampleTestimonials: Testimonial[] = [
     avatarSrc: "https://images.unsplash.com/photo-1494790108755-2616b612b786?w=150&h=150&fit=crop&crop=face",
     name: "Sarah Chen",
     handle: "@sarahdigital",
-    text: "Rwanda Cancer Relief has been a lifeline for my family. The support and care we received during my mother&apos;s treatment was exceptional."
+    text: "Rwanda Cancer Relief has been a lifeline for my family. The support and care we received during my mother's treatment was exceptional."
   },
   {
     avatarSrc: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&crop=face",
     name: "Marcus Johnson",
     handle: "@marcustech",
-    text: "The counseling services provided by RCR helped me navigate through the most difficult time of my life. I&apos;m forever grateful."
+    text: "The counseling services provided by RCR helped me navigate through the most difficult time of my life. I'm forever grateful."
   },
   {
     avatarSrc: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face",
@@ -89,7 +89,7 @@ export default function SignInPageDemo() {
             Welcome Back to <span className="font-semibold text-primary">Rwanda Cancer Relief</span>
           </span>
         }
-        description="Access your account and continue your healing journey with us. Whether you&apos;re seeking support or offering it, we&apos;re here every step of the way."
+        description="Access your account and continue your healing journey with us. Whether you're seeking support or offering it, we're here every step of the way."
         heroImageSrc="https://images.unsplash.com/photo-1559757175-0eb30cd8c063?w=2160&q=80"
         testimonials={[]}
         onSignIn={handleSignIn}

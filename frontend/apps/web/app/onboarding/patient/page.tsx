@@ -415,7 +415,7 @@ export default function PatientOnboardingPage() {
         <label className="block text-sm font-medium text-foreground mb-2">Special Requests or Notes</label>
         <textarea
           className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground min-h-[100px]"
-          placeholder="Any special requests, accessibility needs, or additional information you&apos;d like counselors to know..."
+          placeholder="Any special requests, accessibility needs, or additional information you'd like counselors to know..."
           value={formData.specialRequests}
           onChange={(e) => handleInputChange('specialRequests', e.target.value)}
         />
@@ -444,7 +444,7 @@ export default function PatientOnboardingPage() {
             Welcome to Rwanda Cancer Relief
           </CardTitle>
           <CardDescription className="text-base sm:text-lg relative z-10">
-            Let&apos;s get to know you better so we can provide the best support
+            Let's get to know you better so we can provide the best support
           </CardDescription>
           
           {/* Progress Bar */}
