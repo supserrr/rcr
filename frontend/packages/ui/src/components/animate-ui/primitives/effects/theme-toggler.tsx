@@ -36,7 +36,6 @@ function ThemeToggler({
   setTheme,
   onImmediateChange,
   children,
-  ...props
 }: ThemeTogglerProps) {
   const [current, setCurrent] = React.useState<{
     effective: ThemeSelection;
@@ -62,7 +61,7 @@ function ThemeToggler({
   );
 
   return (
-    <React.Fragment {...props}>
+    <>
       {typeof children === 'function'
         ? children({
             effective: current.effective,
@@ -70,7 +69,7 @@ function ThemeToggler({
             toggleTheme,
           })
         : children}
-    </React.Fragment>
+    </>
   );
 }
 
