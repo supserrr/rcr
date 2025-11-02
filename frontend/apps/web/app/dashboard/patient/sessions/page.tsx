@@ -144,7 +144,7 @@ export default function PatientSessionsPage() {
         } as Session;
       }
       
-      // Show success message (in a real app, you'd use a toast notification)
+      // Show success message (in a real app, you&apos;d use a toast notification)
       alert('Session rescheduled successfully!');
       
     } catch (error) {
@@ -177,7 +177,7 @@ export default function PatientSessionsPage() {
         } as Session;
       }
       
-      // Show success message (in a real app, you'd use a toast notification)
+      // Show success message (in a real app, you&apos;d use a toast notification)
       alert('Session cancelled successfully! Your counselor has been notified.');
       
     } catch (error) {
@@ -305,7 +305,7 @@ export default function PatientSessionsPage() {
                 </div>
                 <h3 className="text-lg font-semibold mb-2">No upcoming sessions</h3>
                 <p className="text-muted-foreground mb-4">
-                  You don't have any scheduled sessions at the moment
+                  You don&apos;t have any scheduled sessions at the moment
                 </p>
                 <Button onClick={handleQuickBooking}>
                   <Plus className="h-4 w-4 mr-2" />

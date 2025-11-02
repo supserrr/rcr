@@ -51,7 +51,7 @@ export default function PatientCounselorsPage() {
   const handleConfirmBooking = (bookingData: any) => {
     console.log('Booking confirmed:', bookingData);
     // Here you would typically send the booking data to your backend
-    // For now, we'll just log it
+    // For now, we&apos;ll just log it
   };
 
   const handleCloseBookingModal = () => {

@@ -153,7 +153,7 @@ export default function CounselorOnboardingPage() {
             <div className="w-2 h-2 bg-primary rounded-full"></div>
           </div>
           <div>
-            <h4 className="font-medium text-foreground mb-1">Don't have a professional license?</h4>
+            <h4 className="font-medium text-foreground mb-1">Don&apos;t have a professional license?</h4>
             <p className="text-sm text-muted-foreground">
               No problem! Many qualified counselors work without formal licensing. You can skip this section and continue with your application.
             </p>
@@ -245,8 +245,8 @@ export default function CounselorOnboardingPage() {
             onChange={(e) => handleInputChange('highestDegree', e.target.value)}
           >
             <option value="">Select degree</option>
-            <option value="bachelor">Bachelor's Degree</option>
-            <option value="master">Master's Degree</option>
+            <option value="bachelor">Bachelor&apos;s Degree</option>
+            <option value="master">Master&apos;s Degree</option>
             <option value="phd">PhD/Doctorate</option>
             <option value="md">Medical Doctor (MD)</option>
             <option value="other">Other</option>
@@ -532,7 +532,7 @@ export default function CounselorOnboardingPage() {
           <label className="block text-sm font-medium text-foreground mb-2">Previous Employers/Experience</label>
           <textarea
             className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground min-h-[100px]"
-            placeholder="List your previous employers, hospitals, clinics, or organizations where you've worked..."
+            placeholder="List your previous employers, hospitals, clinics, or organizations where you&apos;ve worked..."
             value={formData.previousEmployers}
             onChange={(e) => handleInputChange('previousEmployers', e.target.value)}
           />

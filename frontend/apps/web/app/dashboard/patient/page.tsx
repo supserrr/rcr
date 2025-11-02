@@ -74,7 +74,7 @@ export default function PatientDashboard() {
     <div className="space-y-6">
       <AnimatedPageHeader
         title="Welcome back, Jean"
-        description="Here's an overview of your progress and upcoming activities"
+        description="Here&apos;s an overview of your progress and upcoming activities"
       />
 
       {/* Stats Cards */}

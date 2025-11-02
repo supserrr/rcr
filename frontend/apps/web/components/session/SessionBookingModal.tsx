@@ -255,7 +255,7 @@ export function SessionBookingModal({
               <label className="text-sm font-medium mb-2 block">Additional Notes (Optional)</label>
               <textarea
                 className="w-full min-h-[80px] p-3 border rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-primary"
-                placeholder="Any specific topics or concerns you'd like to discuss?"
+                placeholder="Any specific topics or concerns you&apos;d like to discuss?"
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
               />
@@ -323,7 +323,7 @@ export function SessionBookingModal({
                     Session Confirmation
                   </p>
                   <p className="text-blue-800 dark:text-blue-200">
-                    You'll receive a confirmation email with the meeting link. You can join the session
+                    You&apos;ll receive a confirmation email with the meeting link. You can join the session
                     from your sessions page 5 minutes before the scheduled time.
                   </p>
                 </div>

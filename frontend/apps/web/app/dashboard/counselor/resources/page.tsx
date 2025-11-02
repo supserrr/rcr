@@ -628,7 +628,7 @@ export default function CounselorResourcesPage() {
             <div className="text-center space-y-2">
               <h2 className="text-2xl font-bold">Add New Resource</h2>
               <p className="text-muted-foreground max-w-2xl mx-auto">
-                Choose how you'd like to add content to your resource library. All resources will be available to your patients.
+                Choose how you&apos;d like to add content to your resource library. All resources will be available to your patients.
               </p>
             </div>
 
@@ -1165,7 +1165,7 @@ export default function CounselorResourcesPage() {
                     </Button>
                   </div>
                   <p className="text-xs text-muted-foreground mt-1">
-                    We'll automatically fetch the title, description, and thumbnail
+                    We&apos;ll automatically fetch the title, description, and thumbnail
                   </p>
                 </div>
 

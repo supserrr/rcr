@@ -62,7 +62,7 @@ const sampleTestimonials: Testimonial[] = [
     avatarSrc: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150&h=150&fit=crop&crop=face",
     name: "Maria Rodriguez",
     handle: "@mariarodriguez",
-    text: "RCR's holistic approach to cancer care goes beyond medical treatment. They truly care about your emotional and mental well-being."
+    text: "RCR&apos;s holistic approach to cancer care goes beyond medical treatment. They truly care about your emotional and mental well-being."
   },
 ];
 
@@ -142,7 +142,7 @@ export default function PatientSignUpPage() {
               </span>
             </h1>
             <p className="animate-element animate-delay-200 text-muted-foreground">
-              Create your account to connect with compassionate counselors and find the emotional support you deserve. Together, we'll walk this path toward hope and healing.
+              Create your account to connect with compassionate counselors and find the emotional support you deserve. Together, we&apos;ll walk this path toward hope and healing.
             </p>
 
             <form className="space-y-5" onSubmit={handleSignUp}>

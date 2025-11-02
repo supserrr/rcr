@@ -56,13 +56,13 @@ const sampleTestimonials: Testimonial[] = [
     avatarSrc: "https://images.unsplash.com/photo-1582750433449-648ed127bb54?w=150&h=150&fit=crop&crop=face",
     name: "Dr. Michael Chen",
     handle: "@drmichaelchen",
-    text: "The resources and training provided by RCR help me deliver the best possible care to my patients. It's a truly supportive community."
+    text: "The resources and training provided by RCR help me deliver the best possible care to my patients. It&apos;s a truly supportive community."
   },
   {
     avatarSrc: "https://images.unsplash.com/photo-1594824388852-8a0a4b0a0a0a?w=150&h=150&fit=crop&crop=face",
     name: "Dr. Aisha Mwangi",
     handle: "@draisamwangi",
-    text: "RCR's approach to cancer care in Rwanda is revolutionary. I'm proud to be part of this mission to support patients and families."
+    text: "RCR&apos;s approach to cancer care in Rwanda is revolutionary. I&apos;m proud to be part of this mission to support patients and families."
   },
 ];
 

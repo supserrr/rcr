@@ -273,7 +273,7 @@ export const dummyResources: Resource[] = [
       <p>Chemotherapy is a powerful treatment that can effectively target cancer cells, but it may also affect healthy cells in your body. Understanding the potential side effects and how to manage them can help you feel more prepared and in control during your treatment journey.</p>
       
       <h3>Common Side Effects</h3>
-      <p>While everyone's experience with chemotherapy is unique, there are several common side effects that many patients experience:</p>
+      <p>While everyone&apos;s experience with chemotherapy is unique, there are several common side effects that many patients experience:</p>
       
       <h4>Fatigue</h4>
       <p>Feeling tired or exhausted is one of the most common side effects of chemotherapy. This fatigue can be different from normal tiredness and may persist even after rest.</p>
@@ -318,7 +318,7 @@ export const dummyResources: Resource[] = [
       </ul>
       
       <h4>Emotional Support</h4>
-      <p>Chemotherapy can be emotionally challenging. Don't hesitate to seek support:</p>
+      <p>Chemotherapy can be emotionally challenging. Don&apos;t hesitate to seek support:</p>
       <ul>
         <li>Join support groups for cancer patients</li>
         <li>Consider counseling or therapy</li>
@@ -334,11 +334,11 @@ export const dummyResources: Resource[] = [
         <li>Signs of infection (redness, swelling, warmth)</li>
         <li>Difficulty breathing or chest pain</li>
         <li>Unusual bleeding or bruising</li>
-        <li>Severe fatigue that doesn't improve with rest</li>
+        <li>Severe fatigue that doesn&apos;t improve with rest</li>
       </ul>
       
       <h3>Remember</h3>
-      <p>Every person's experience with chemotherapy is different. While side effects can be challenging, they are often temporary and manageable with the right support and care. Focus on taking things one day at a time and remember that you're not alone in this journey.</p>
+      <p>Every person&apos;s experience with chemotherapy is different. While side effects can be challenging, they are often temporary and manageable with the right support and care. Focus on taking things one day at a time and remember that you&apos;re not alone in this journey.</p>
       
       <p><strong>Disclaimer:</strong> This information is for educational purposes only and should not replace professional medical advice. Always consult with your healthcare team about your specific situation and treatment plan.</p>
     `

@@ -30,7 +30,7 @@ interface LinePathProps {
  * 
  * The path draws progressively as the user scrolls, creating
  * a smooth visual effect that follows scroll progress.
- * Optimized with Framer Motion's useTransform for efficient animations.
+ * Optimized with Framer Motion&apos;s useTransform for efficient animations.
  * 
  * @param props - Component props
  * @returns An animated SVG path element
@@ -165,7 +165,7 @@ export default function LandingPage() {
                     Compassionate Cancer Support, Wherever You Are
                   </h1>
                   <p className="font-jakarta-sans relative z-10 text-lg lg:text-xl font-normal text-muted-foreground leading-relaxed">
-                    Living with cancer is not just a medical journey. It's an emotional one. Rwanda Cancer Relief offers counseling and culturally adapted resources to support patients and families through every step, accessible anytime, anywhere.
+                    Living with cancer is not just a medical journey. It&apos;s an emotional one. Rwanda Cancer Relief offers counseling and culturally adapted resources to support patients and families through every step, accessible anytime, anywhere.
                   </p>
                   
                   {/* CTA Buttons */}
@@ -475,7 +475,7 @@ export default function LandingPage() {
                         <div className="relative z-10 mt-3 space-y-3 text-center">
                           <h2 className="font-jakarta-sans text-xl font-semibold text-foreground transition">Always Here When You Need Us</h2>
                           <p className="font-jakarta-sans text-sm text-muted-foreground leading-relaxed">
-                            Life with cancer doesn't follow a schedule. That's why our counselors are available whenever you need support, day or night, wherever you are.
+                            Life with cancer doesn&apos;t follow a schedule. That&apos;s why our counselors are available whenever you need support, day or night, wherever you are.
                           </p>
                         </div>
                       </CardContent>
@@ -501,7 +501,7 @@ export default function LandingPage() {
                   
                   <div className="relative z-10 max-w-3xl mx-auto space-y-6">
                     <h2 className="font-jakarta-sans text-4xl lg:text-5xl font-semibold text-foreground">
-                      You're Not Alone on This Journey
+                      You&apos;re Not Alone on This Journey
                     </h2>
                     <p className="font-jakarta-sans text-lg lg:text-xl text-muted-foreground leading-relaxed">
                       Take the first step toward healing with the support of compassionate counselors who understand your experience.
@@ -540,7 +540,7 @@ export default function LandingPage() {
                   },
                   {
                     question: "How do I get started?",
-                    answer: "Simply create an account, answer a few short questions about your needs, and you'll be matched with a qualified counselor. You can then book a session or start chatting securely."
+                    answer: "Simply create an account, answer a few short questions about your needs, and you&apos;ll be matched with a qualified counselor. You can then book a session or start chatting securely."
                   },
                   {
                     question: "Is the counseling confidential?",
@@ -566,11 +566,11 @@ export default function LandingPage() {
                   },
                   {
                     question: "Can I choose or change my counselor?",
-                    answer: "Yes. You can request a new counselor if you feel you'd connect better with someone else. Our goal is to ensure you feel safe, understood, and supported."
+                    answer: "Yes. You can request a new counselor if you feel you&apos;d connect better with someone else. Our goal is to ensure you feel safe, understood, and supported."
                   },
                   {
                     question: "What if I need urgent help?",
-                    answer: "If you're in crisis or need immediate assistance, the platform will guide you to emergency contacts and local support centers where you can get help right away."
+                    answer: "If you&apos;re in crisis or need immediate assistance, the platform will guide you to emergency contacts and local support centers where you can get help right away."
                   }
                 ]}
                 className="max-w-7xl"

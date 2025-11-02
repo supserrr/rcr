@@ -105,7 +105,7 @@ export default function CounselorDashboard() {
     <div className="space-y-6">
       <AnimatedPageHeader
         title="Welcome back, Dr. Marie Claire"
-        description="Here's an overview of your patients and upcoming sessions"
+        description="Here&apos;s an overview of your patients and upcoming sessions"
       />
 
       {/* Stats Cards */}

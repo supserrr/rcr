@@ -13,10 +13,10 @@ import type { NextRequest } from 'next/server'
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
   
-  // For now, we'll allow all routes since authentication is handled client-side
+  // For now, we&apos;ll allow all routes since authentication is handled client-side
   // In a real app, this would check JWT tokens or session data from cookies/headers
   
-  // Public routes that don't require authentication
+  // Public routes that don&apos;t require authentication
   const publicRoutes = [
     '/',
     '/about',
