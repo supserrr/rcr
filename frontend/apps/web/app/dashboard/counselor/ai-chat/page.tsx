@@ -8,6 +8,8 @@ import { ChatThreadsSidebar } from '../../../../components/dashboard/shared/Chat
 import { ScrollArea } from '@workspace/ui/components/scroll-area';
 import { MessageLoading } from '@workspace/ui/components/ui/message-loading';
 import { Response } from '@/components/ui/response';
+import { Button } from '@workspace/ui/components/button';
+import { ArrowLeft, Menu } from 'lucide-react';
 
 interface Message {
   id: string;
@@ -22,6 +24,7 @@ export default function CounselorAIChatPage() {
   const [activeThreadId, setActiveThreadId] = useState<string | undefined>();
   const [message, setMessage] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
+  const [showSidebar, setShowSidebar] = useState(true); // Control sidebar visibility on mobile
   useEffect(() => {
     // Scroll to bottom when messages change
     const timer = setTimeout(() => {
@@ -103,31 +106,48 @@ export default function CounselorAIChatPage() {
 
   const handleThreadSelect = (threadId: string) => {
     setActiveThreadId(threadId);
+    setShowSidebar(false); // Hide sidebar on mobile when thread selected
     console.log('Selected thread:', threadId);
   };
 
   const handleNewThread = () => {
     setActiveThreadId(undefined);
+    setShowSidebar(false); // Hide sidebar on mobile when new thread created
     console.log('Creating new thread');
   };
 
   return (
     <div className="relative w-full flex -m-6" style={{ height: 'calc(100vh - 8rem + 3rem)', minHeight: '600px' }}>
       {/* Chat Threads Sidebar */}
-      <ChatThreadsSidebar
-        activeThreadId={activeThreadId}
-        onThreadSelect={handleThreadSelect}
-        onNewThread={handleNewThread}
-        className="flex-shrink-0"
-      />
+      <div className={`flex-shrink-0 ${showSidebar ? 'block' : 'hidden lg:block'}`}>
+        <ChatThreadsSidebar
+          activeThreadId={activeThreadId}
+          onThreadSelect={handleThreadSelect}
+          onNewThread={handleNewThread}
+        />
+      </div>
 
       {/* Main Chat Area */}
       <div className="relative flex-1 flex flex-col overflow-hidden">
+        {/* Mobile Header with Back Button */}
+        {!showSidebar && (
+          <div className="lg:hidden px-4 py-2 border-b bg-sidebar">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowSidebar(true)}
+              className="h-10"
+            >
+              <ArrowLeft className="h-5 w-5 mr-2" />
+              Back to Conversations
+            </Button>
+          </div>
+        )}
         {/* Main Content Area */}
-        <div className={`relative z-10 w-full flex flex-col items-center p-6 flex-1 overflow-hidden ${messages.length === 0 ? 'justify-center' : ''}`}>
+        <div className={`relative z-10 w-full flex flex-col items-center p-3 md:p-6 flex-1 overflow-hidden ${messages.length === 0 ? 'justify-center' : ''}`}>
           {/* Messages Display */}
           {messages.length > 0 ? (
-            <div className="w-full max-w-4xl flex-1 flex flex-col items-center overflow-hidden pl-12 mb-4">
+            <div className="w-full max-w-4xl flex-1 flex flex-col items-center overflow-hidden pl-0 md:pl-12 mb-4">
               <ScrollArea className="w-full flex-1 min-h-0">
               <div className="space-y-4 pr-4">
                 {messages.map((msg) => (
@@ -166,7 +186,7 @@ export default function CounselorAIChatPage() {
           ) : (
           <>
             {/* Top Content - Spiral and Text (shown when no messages) */}
-            <div className={`w-full max-w-4xl flex flex-col items-center pl-12 justify-center pt-24`}>
+            <div className={`w-full max-w-4xl flex flex-col items-center pl-0 md:pl-12 justify-center pt-8 md:pt-16`}>
             {/* Spiral Animation - Top */}
             <div className="flex justify-center items-center pb-10">
               <SpiralAnimation 
@@ -193,7 +213,7 @@ export default function CounselorAIChatPage() {
           )}
           
           {/* Bottom Content - AI Prompt Box */}
-          <div className={`w-full max-w-4xl pt-4 pb-4 pl-12 ${messages.length > 0 ? 'mt-auto' : ''}`}>
+          <div className={`w-full max-w-4xl pt-2 md:pt-4 pb-2 md:pb-4 pl-0 md:pl-12 ${messages.length > 0 ? 'mt-auto' : ''}`}>
             {/* Suggestion Chips */}
             {messages.length === 0 && (
             <div className="flex flex-wrap gap-3 justify-center mb-4">

@@ -116,13 +116,13 @@ export function ChatThreadsSidebar({
   };
 
   return (
-    <div className={cn("flex flex-col bg-gradient-to-br from-primary/5 via-background to-primary/10 rounded-r-3xl border-r border-primary/20 shadow-sm w-64 relative overflow-hidden", className)} style={{ height: '100%' }}>
+    <div className={cn("flex flex-col bg-gradient-to-br from-primary/5 via-background to-primary/10 rounded-r-3xl border-r border-primary/20 shadow-sm w-full lg:w-64 relative overflow-hidden", className)} style={{ height: '100%' }}>
       {/* Decorative gradient blobs */}
       <div className="absolute top-0 right-0 w-32 h-32 bg-primary/10 rounded-full blur-2xl -z-0"></div>
       <div className="absolute bottom-0 left-0 w-32 h-32 bg-primary/10 rounded-full blur-2xl -z-0"></div>
       
       {/* Header */}
-      <div className="p-4 border-b border-primary/20 space-y-3 relative z-10">
+      <div className="p-3 md:p-4 border-b border-primary/20 space-y-2 md:space-y-3 relative z-10">
         {/* New Chat Button */}
         <Button
           variant="default"
@@ -148,7 +148,7 @@ export function ChatThreadsSidebar({
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as typeof activeTab)} className="w-full">
-          <TabsList className="grid w-full grid-cols-3 h-9">
+          <TabsList className="grid w-full grid-cols-3 h-8 md:h-9">
             <TabsTrigger value="all" className="text-xs">All</TabsTrigger>
             <TabsTrigger value="recent" className="text-xs">Recent</TabsTrigger>
             <TabsTrigger value="archived" className="text-xs">Archived</TabsTrigger>
@@ -180,12 +180,12 @@ export function ChatThreadsSidebar({
             )}
           </div>
         ) : (
-          <div className="p-3 space-y-1">
+          <div className="p-2 md:p-3 space-y-1">
             {filteredThreads.map((thread) => (
               <div
                 key={thread.id}
                 className={cn(
-                  "group relative flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 cursor-pointer",
+                  "group relative flex items-center gap-2 md:gap-3 px-2 md:px-3 py-2 md:py-2.5 rounded-lg transition-all duration-200 cursor-pointer",
                   "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
                   activeThreadId === thread.id
                     ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-sm"
