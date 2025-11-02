@@ -15,7 +15,6 @@ interface SidebarContextProps {
   open: boolean;
   setOpen: React.Dispatch<React.SetStateAction<boolean>>;
   animate: boolean;
-  isControlled?: boolean;
 }
 
 const SidebarContext = createContext<SidebarContextProps | undefined>(
@@ -45,10 +44,9 @@ export const SidebarProvider = ({
 
   const open = openProp !== undefined ? openProp : openState;
   const setOpen = setOpenProp !== undefined ? setOpenProp : setOpenState;
-  const isControlled = openProp !== undefined;
 
   return (
-    <SidebarContext.Provider value={{ open, setOpen, animate, isControlled }}>
+    <SidebarContext.Provider value={{ open, setOpen, animate }}>
       {children}
     </SidebarContext.Provider>
   );
@@ -87,7 +85,7 @@ export const DesktopSidebar = ({
   children,
   ...props
 }: React.ComponentProps<typeof motion.div>) => {
-  const { open, setOpen, animate, isControlled = false } = useSidebar();
+  const { open, setOpen, animate } = useSidebar();
   return (
     <motion.div
       className={cn(
@@ -97,8 +95,8 @@ export const DesktopSidebar = ({
       animate={{
         width: animate ? (open ? "300px" : "80px") : "300px",
       }}
-      onMouseEnter={isControlled ? undefined : () => setOpen(true)}
-      onMouseLeave={isControlled ? undefined : () => setOpen(false)}
+      onMouseEnter={() => setOpen(true)}
+      onMouseLeave={() => setOpen(false)}
       {...props}
     >
       {children}

@@ -230,10 +230,9 @@ export function DashboardSidebar({
   setOpen: setOpenProp
 }: DashboardSidebarProps) {
   const [openState, setOpenState] = useState(true);
-  const isControlled = openProp !== undefined;
   
-  const open = isControlled ? openProp! : openState;
-  const setOpen = isControlled ? setOpenProp! : setOpenState;
+  const open = openProp !== undefined ? openProp! : openState;
+  const setOpen = setOpenProp !== undefined ? setOpenProp! : setOpenState;
   
   const filteredItems = navigationItems.filter(item => 
     item.roles.includes(userRole)
