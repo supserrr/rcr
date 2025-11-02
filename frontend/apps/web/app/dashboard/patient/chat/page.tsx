@@ -162,7 +162,7 @@ export default function PatientChatPage() {
       <div className="grid gap-4 md:gap-6 lg:grid-cols-4 h-[calc(100vh-280px)] md:h-[600px]">
         {/* Chat List */}
         <div className={`lg:col-span-1 ${showConversations ? 'block' : 'hidden lg:block'}`}>
-          <AnimatedCard delay={0.5} className="h-full flex flex-col">
+          <AnimatedCard delay={0.5} className="h-full flex flex-col w-full max-w-sm mx-auto lg:max-w-none lg:mx-0">
             <CardHeader className="p-3 md:p-6 pb-2 md:pb-3">
               <div className="flex items-center justify-between">
                 <h3 className="text-sm md:text-base font-semibold">Conversations</h3>
