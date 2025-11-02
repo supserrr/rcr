@@ -1,8 +1,6 @@
 'use client';
 
-import { Button } from "@workspace/ui/components/button";
 import { Card, CardContent } from '@workspace/ui/components/card';
-import { Badge } from '@workspace/ui/components/badge';
 import { Navbar } from "@workspace/ui/components/ui/mini-navbar";
 import { Footer } from '@workspace/ui/components/ui/footer';
 import { ThemeTogglerButton } from '@workspace/ui/components/animate-ui/components/buttons/theme-toggler';
@@ -12,10 +10,6 @@ import { UsersIcon } from '@workspace/ui/components/users';
 import { ShieldCheckIcon } from '@workspace/ui/components/shield-check';
 import { HandHeartIcon } from '@workspace/ui/components/hand-heart';
 import { 
-  IconClock, 
-  IconMapPin, 
-  IconPhone, 
-  IconMail, 
   IconAward, 
   IconTarget 
 } from '@tabler/icons-react';
@@ -243,7 +237,7 @@ export default function AboutPage() {
               Our Achievements
             </h2>
             <p className="font-jakarta-sans text-lg text-muted-foreground max-w-3xl mx-auto">
-              Since our founding, we've made significant progress in supporting cancer patients and advancing cancer care in Rwanda.
+              Since our founding, we&apos;ve made significant progress in supporting cancer patients and advancing cancer care in Rwanda.
             </p>
           </div>
           
