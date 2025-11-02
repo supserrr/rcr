@@ -370,7 +370,7 @@ export default function PatientChatPage() {
                         return (
                           <div
                             key={message.id}
-                            className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'}`}
+                            className={`flex flex-col ${isOwnMessage ? 'items-end' : 'items-start'}`}
                           >
                             <div
                               className={`max-w-[70%] rounded-lg p-3 ${
@@ -380,15 +380,15 @@ export default function PatientChatPage() {
                               }`}
                             >
                               <p className="text-sm">{message.content}</p>
-                              <p className={`text-xs mt-1 ${
-                                isOwnMessage ? 'text-primary-foreground/70' : 'text-muted-foreground'
-                              }`}>
-                                {new Date(message.timestamp).toLocaleTimeString([], { 
-                                  hour: '2-digit', 
-                                  minute: '2-digit' 
-                                })}
-                              </p>
                             </div>
+                            <p className={`text-xs mt-1 px-1 ${
+                              isOwnMessage ? 'text-primary/70' : 'text-muted-foreground'
+                            }`}>
+                              {new Date(message.timestamp).toLocaleTimeString([], { 
+                                hour: '2-digit', 
+                                minute: '2-digit' 
+                              })}
+                            </p>
                           </div>
                         );
                       })}

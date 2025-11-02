@@ -407,7 +407,7 @@ export default function CounselorChatPage() {
                         return (
                           <div
                             key={message.id}
-                            className={`flex ${isFromCounselor ? 'justify-end' : 'justify-start'}`}
+                            className={`flex flex-col ${isFromCounselor ? 'items-end' : 'items-start'}`}
                           >
                             <div
                               className={`max-w-[70%] rounded-lg p-3 ${
@@ -417,19 +417,19 @@ export default function CounselorChatPage() {
                               }`}
                             >
                               <p className="text-sm">{message.content}</p>
-                              <div className="flex items-center justify-between mt-1">
-                                <p className={`text-xs ${
-                                  isFromCounselor ? 'text-primary-foreground/70' : 'text-muted-foreground'
-                                }`}>
-                                  {new Date(message.timestamp).toLocaleTimeString([], { 
-                                    hour: '2-digit', 
-                                    minute: '2-digit' 
-                                  })}
-                                </p>
-                                {isFromCounselor && (
-                                  <CheckCircle className="h-3 w-3 text-primary-foreground/70" />
-                                )}
-                              </div>
+                            </div>
+                            <div className="flex items-center gap-1 mt-1 px-1">
+                              <p className={`text-xs ${
+                                isFromCounselor ? 'text-primary/70' : 'text-muted-foreground'
+                              }`}>
+                                {new Date(message.timestamp).toLocaleTimeString([], { 
+                                  hour: '2-digit', 
+                                  minute: '2-digit' 
+                                })}
+                              </p>
+                              {isFromCounselor && (
+                                <CheckCircle className="h-3 w-3 text-primary/70" />
+                              )}
                             </div>
                           </div>
                         );
