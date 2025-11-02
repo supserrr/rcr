@@ -33,7 +33,8 @@ import {
   User,
   Calendar,
   FileText,
-  Flag
+  Flag,
+  ArrowLeft
 } from 'lucide-react';
 import { dummyChats, dummyMessages, dummyPatients, dummyCounselors } from '../../../../lib/dummy-data';
 import { ProfileViewModal } from '@workspace/ui/components/profile-view-modal';
@@ -49,6 +50,7 @@ export default function CounselorChatPage() {
   const [isScheduleOpen, setIsScheduleOpen] = useState(false);
   const [selectedPatient, setSelectedPatient] = useState<any>(null);
   const currentCounselor = dummyCounselors[0]; // Dr. Marie Uwimana
+  const [showConversations, setShowConversations] = useState(true);
 
   // Check for chatId in URL query params on mount
   useEffect(() => {
@@ -187,7 +189,7 @@ export default function CounselorChatPage() {
 
       <div className="grid gap-6 lg:grid-cols-4 h-[calc(100vh-280px)] md:h-[600px]">
         {/* Chat List */}
-        <div className="hidden lg:col-span-1 lg:block">
+        <div className={`lg:col-span-1 ${showConversations ? 'block' : 'hidden lg:block'}`}>
           <AnimatedCard delay={0.5} className="h-full">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
@@ -245,7 +247,10 @@ export default function CounselorChatPage() {
                         className={`p-3 cursor-pointer hover:bg-primary/5 dark:hover:bg-primary/10 hover:border-primary/20 dark:hover:border-primary/30 hover:shadow-md dark:hover:shadow-lg dark:hover:shadow-primary/20 transition-all duration-200 border-b group ${
                           selectedChat === chat.id ? 'bg-muted dark:bg-muted/50' : ''
                         }`}
-                        onClick={() => setSelectedChat(chat.id)}
+                        onClick={() => {
+                          setSelectedChat(chat.id);
+                          setShowConversations(false);
+                        }}
                       >
                         <div className="flex items-center space-x-3">
                           <div className="relative">
@@ -289,7 +294,7 @@ export default function CounselorChatPage() {
         </div>
 
         {/* Chat Area */}
-        <div className="col-span-1 lg:col-span-3">
+        <div className={`col-span-1 lg:col-span-3 ${showConversations ? 'hidden lg:block' : 'block'}`}>
           <AnimatedCard delay={0.7} className="h-full flex flex-col">
             {activeChat ? (
               <>
@@ -297,6 +302,15 @@ export default function CounselorChatPage() {
                 <CardHeader className="pb-3 border-b relative">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-3">
+                      {/* Back Button for Mobile */}
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={() => setShowConversations(true)}
+                        className="lg:hidden mr-2"
+                      >
+                        <ArrowLeft className="h-5 w-5" />
+                      </Button>
                       <Avatar className="h-10 w-10">
                         <AvatarImage src={getPatientInfo(activeChat.participants[0] || '')?.avatar || ''} />
                         <AvatarFallback>
