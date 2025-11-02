@@ -116,7 +116,7 @@ export default function PatientAIChatPage() {
   };
 
   return (
-    <div className="relative w-full flex -m-6" style={{ height: 'calc(100vh - 8rem + 3rem)', minHeight: '600px' }}>
+    <div className="relative w-full h-[calc(100vh-200px)] flex">
       {/* Chat Threads Sidebar */}
       <div className={`flex-shrink-0 ${showSidebar ? 'block' : 'hidden lg:block'}`}>
         <ChatThreadsSidebar
