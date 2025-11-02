@@ -5,17 +5,13 @@ import { useRouter, usePathname } from 'next/navigation';
 import { PatientLayout } from '../../components/dashboard/layouts/PatientLayout';
 import { CounselorLayout } from '../../components/dashboard/layouts/CounselorLayout';
 import { AdminLayout } from '../../components/dashboard/layouts/AdminLayout';
-import { UserRole } from '../../lib/types';
 import { useAuth } from '../../components/auth/AuthProvider';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
-  params: Promise<{
-    role: UserRole;
-  }>;
 }
 
-export default function DashboardLayout({ children, params }: DashboardLayoutProps) {
+export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const router = useRouter();
   const pathname = usePathname();
   const { user, signOut, isLoading } = useAuth();

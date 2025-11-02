@@ -1,3 +1,4 @@
+import { Suspense } from "react"
 import { Ubuntu } from "next/font/google"
 
 import "@workspace/ui/globals.css"
@@ -9,6 +10,17 @@ const fontSans = Ubuntu({
   style: ["normal", "italic"],
   variable: "--font-sans",
 })
+
+/**
+ * Loading fallback for Providers Suspense boundary
+ */
+function ProvidersLoading() {
+  return (
+    <div className="min-h-screen flex items-center justify-center">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+    </div>
+  )
+}
 
 export default function RootLayout({
   children,
@@ -26,7 +38,9 @@ export default function RootLayout({
         className={`${fontSans.variable} font-sans antialiased overflow-x-hidden`}
         style={{ fontFamily: 'Ubuntu, ui-sans-serif, system-ui, sans-serif' }}
       >
-        <Providers>{children}</Providers>
+        <Suspense fallback={<ProvidersLoading />}>
+          <Providers>{children}</Providers>
+        </Suspense>
       </body>
     </html>
   )

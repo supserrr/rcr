@@ -10,7 +10,7 @@ import type { NextRequest } from 'next/server'
  * - Redirect logic for unauthenticated users
  * - Redirect logic for authenticated users trying to access auth pages
  */
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
   
   // For now, we'll allow all routes since authentication is handled client-side
