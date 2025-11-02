@@ -1,7 +1,6 @@
 "use client";
 
 import { cn } from "../../lib/utils";
-import Link, { LinkProps } from "next/link";
 import React, { useState, createContext, useContext } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Menu, X } from "lucide-react";
@@ -157,22 +156,17 @@ export const MobileSidebar = ({
 export const SidebarLink = ({
   link,
   className,
+  as: LinkComponent,
   ...props
 }: {
   link: Links;
   className?: string;
-  props?: LinkProps;
+  as?: React.ComponentType<React.AnchorHTMLAttributes<HTMLAnchorElement> & { href: string }>;
+  props?: React.AnchorHTMLAttributes<HTMLAnchorElement>;
 }) => {
   const { open, animate } = useSidebar();
-  return (
-    <Link
-      href={link.href}
-      className={cn(
-        "flex items-center justify-start gap-2 group/sidebar py-2",
-        className
-      )}
-      {...props}
-    >
+  const content = (
+    <>
       {link.icon}
       <motion.span
         animate={{
@@ -183,7 +177,34 @@ export const SidebarLink = ({
       >
         {link.label}
       </motion.span>
-    </Link>
+    </>
+  );
+
+  const linkClassName = cn(
+    "flex items-center justify-start gap-2 group/sidebar py-2",
+    className
+  );
+
+  if (LinkComponent) {
+    return (
+      <LinkComponent
+        href={link.href}
+        className={linkClassName}
+        {...props}
+      >
+        {content}
+      </LinkComponent>
+    );
+  }
+
+  return (
+    <a
+      href={link.href}
+      className={linkClassName}
+      {...props}
+    >
+      {content}
+    </a>
   );
 };
 
