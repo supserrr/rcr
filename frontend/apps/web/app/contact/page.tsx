@@ -3,7 +3,6 @@
 import { Button } from "@workspace/ui/components/button";
 import { Card, CardContent } from '@workspace/ui/components/card';
 import { Input } from '@workspace/ui/components/input';
-import { Badge } from '@workspace/ui/components/badge';
 import { Navbar } from "@workspace/ui/components/ui/mini-navbar";
 import { Footer } from '@workspace/ui/components/ui/footer';
 import { ThemeTogglerButton } from '@workspace/ui/components/animate-ui/components/buttons/theme-toggler';
@@ -61,7 +60,7 @@ export default function ContactPage() {
             Get in Touch
           </h1>
           <p className="font-jakarta-sans text-lg lg:text-xl text-muted-foreground max-w-4xl mx-auto leading-relaxed">
-            We're here to help and support you. Reach out to us for any questions, concerns, or support you may need on your journey.
+            We&apos;re here to help and support you. Reach out to us for any questions, concerns, or support you may need on your journey.
           </p>
         </div>
       </section>
@@ -81,7 +80,7 @@ export default function ContactPage() {
                     Send us a Message
                   </h2>
                   <p className="font-jakarta-sans text-lg text-muted-foreground max-w-2xl mx-auto">
-                    Fill out the form below and we'll get back to you as soon as possible.
+                    Fill out the form below and we&apos;ll get back to you as soon as possible.
                   </p>
                 </div>
 
@@ -175,7 +174,7 @@ export default function ContactPage() {
               Get in Touch
             </h2>
             <p className="font-jakarta-sans text-lg text-muted-foreground max-w-3xl mx-auto">
-              We're here to support you. Choose the most convenient way to reach us.
+              We&apos;re here to support you. Choose the most convenient way to reach us.
             </p>
           </div>
 
@@ -199,7 +198,7 @@ export default function ContactPage() {
                         Visit Our Office
                       </h3>
                       <p className="font-jakarta-sans text-muted-foreground">
-                        We're located in the heart of Kigali
+                        We&apos;re located in the heart of Kigali
                       </p>
                     </div>
                   </div>
@@ -287,7 +286,7 @@ export default function ContactPage() {
                         Office Hours
                       </h3>
                       <p className="font-jakarta-sans text-muted-foreground">
-                        We're available during these times
+                        We&apos;re available during these times
                       </p>
                     </div>
                   </div>
@@ -324,7 +323,7 @@ export default function ContactPage() {
               Need Immediate Support?
             </h2>
             <p className="font-jakarta-sans text-lg text-muted-foreground max-w-3xl mx-auto">
-              If you're experiencing a crisis or need immediate emotional support, please don't hesitate to reach out.
+              If you&apos;re experiencing a crisis or need immediate emotional support, please don&apos;t hesitate to reach out.
             </p>
           </div>
           
@@ -371,7 +370,7 @@ export default function ContactPage() {
                     Crisis Email Support
                   </h3>
                   <p className="font-jakarta-sans text-muted-foreground mb-6">
-                    Send us an urgent message and we'll respond within 2 hours.
+                    Send us an urgent message and we&apos;ll respond within 2 hours.
                   </p>
                   <Button 
                     asChild
