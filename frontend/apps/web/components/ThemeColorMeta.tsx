@@ -1,51 +1,35 @@
 "use client";
 
 import { useEffect } from "react";
+import { useTheme } from "next-themes";
 
 /**
- * Sets theme-color meta tag based on current DOM theme state
+ * Sets theme-color meta tag based on current theme from next-themes
  * for seamless iOS Safari overscroll area blending
  */
 export function ThemeColorMeta() {
+  const { resolvedTheme } = useTheme();
+
   useEffect(() => {
-    // Function to update theme-color based on current DOM state
-    const updateThemeColor = () => {
-      // Remove any existing theme-color meta tags
-      const existingTags = document.querySelectorAll('meta[name="theme-color"]');
-      existingTags.forEach(tag => tag.remove());
+    if (!resolvedTheme) return;
 
-      // Check if dark class is present on html element
-      const isDark = document.documentElement.classList.contains('dark');
-      
-      // Create theme-color meta tag based on current theme
-      const themeColorTag = document.createElement('meta');
-      themeColorTag.name = 'theme-color';
-      themeColorTag.content = isDark ? '#0f0f0f' : '#fafaf9';
-      
-      // Add to head
-      document.head.appendChild(themeColorTag);
-    };
+    // Remove any existing theme-color meta tags
+    const existingTags = document.querySelectorAll('meta[name="theme-color"]');
+    existingTags.forEach(tag => tag.remove());
 
-    // Initial update
-    updateThemeColor();
-
-    // Watch for class changes on html element
-    const observer = new MutationObserver(() => {
-      updateThemeColor();
-    });
-
-    observer.observe(document.documentElement, {
-      attributes: true,
-      attributeFilter: ['class'],
-    });
+    // Create theme-color meta tag based on current resolved theme
+    const themeColorTag = document.createElement('meta');
+    themeColorTag.name = 'theme-color';
+    themeColorTag.content = resolvedTheme === 'dark' ? '#0f0f0f' : '#fafaf9';
+    
+    // Add to head
+    document.head.appendChild(themeColorTag);
 
     // Cleanup
     return () => {
-      observer.disconnect();
-      const existingTags = document.querySelectorAll('meta[name="theme-color"]');
-      existingTags.forEach(tag => tag.remove());
+      themeColorTag.remove();
     };
-  }, []);
+  }, [resolvedTheme]);
 
   return null;
 }
