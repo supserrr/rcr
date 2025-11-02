@@ -9,7 +9,8 @@ import { ScrollArea } from '@workspace/ui/components/scroll-area';
 import { MessageLoading } from '@workspace/ui/components/ui/message-loading';
 import { Response } from '@/components/ui/response';
 import { Button } from '@workspace/ui/components/button';
-import { ArrowLeft, Menu } from 'lucide-react';
+import { Sheet, SheetContent, SheetTitle } from '@workspace/ui/components/sheet';
+import { Menu } from 'lucide-react';
 
 interface Message {
   id: string;
@@ -107,73 +108,79 @@ export default function PatientAIChatPage() {
 
   const handleThreadSelect = (threadId: string) => {
     setActiveThreadId(threadId);
+    setShowSidebar(false);
     console.log('Selected thread:', threadId);
   };
 
   const handleNewThread = () => {
     setActiveThreadId(undefined);
+    setShowSidebar(false);
     console.log('Creating new thread');
   };
 
   return (
-    <div className="relative w-full h-[calc(100vh-200px)] flex">
-      {/* Chat Threads Sidebar */}
-      <div className={`flex-shrink-0 ${showSidebar ? 'block' : 'hidden lg:block'}`}>
+    <div className="relative w-full h-[calc(100vh-200px)] flex flex-col md:flex-row">
+      {/* Desktop Chat Threads Sidebar */}
+      <div className="hidden lg:block flex-shrink-0">
         <ChatThreadsSidebar
           activeThreadId={activeThreadId}
-          onThreadSelect={handleThreadSelect}
-          onNewThread={handleNewThread}
+          onThreadSelect={(id) => setActiveThreadId(id)}
+          onNewThread={() => setActiveThreadId(undefined)}
         />
       </div>
+
+      {/* Mobile Sheet Drawer */}
+      <Sheet open={showSidebar} onOpenChange={setShowSidebar}>
+        <SheetContent side="left" className="w-80 p-0 gap-0 overflow-hidden">
+          <SheetTitle className="sr-only">Conversations</SheetTitle>
+          <div className="h-full w-full">
+            <ChatThreadsSidebar
+              activeThreadId={activeThreadId}
+              onThreadSelect={handleThreadSelect}
+              onNewThread={handleNewThread}
+            />
+          </div>
+        </SheetContent>
+      </Sheet>
 
       {/* Main Chat Area */}
       <div className="relative flex-1 flex flex-col overflow-hidden">
         {/* Mobile Header with Menu Toggle */}
-        <div className="lg:hidden px-4 py-2 border-b bg-sidebar">
+        <div className="lg:hidden px-2 pb-1">
           <Button
             variant="ghost"
-            size="sm"
-            onClick={() => setShowSidebar(!showSidebar)}
-            className="h-10"
+            size="icon"
+            onClick={() => setShowSidebar(true)}
+            className="h-7 w-7"
           >
-            {showSidebar ? (
-              <>
-                <ArrowLeft className="h-5 w-5 mr-2" />
-                Back to Chat
-              </>
-            ) : (
-              <>
-                <Menu className="h-5 w-5 mr-2" />
-                Conversations
-              </>
-            )}
+            <Menu className="h-4 w-4" />
           </Button>
         </div>
         {/* Main Content Area */}
-        <div className={`relative z-10 w-full flex flex-col items-center p-3 md:p-6 flex-1 overflow-hidden ${messages.length === 0 ? 'justify-center' : ''}`}>
+        <div className={`relative z-10 w-full flex flex-col items-center flex-1 overflow-hidden ${messages.length === 0 ? 'justify-center p-2 sm:p-3 md:p-6' : 'p-2 sm:p-3 md:p-6'}`}>
           {/* Messages Display */}
           {messages.length > 0 ? (
-            <div className="w-full max-w-4xl flex-1 flex flex-col items-center overflow-hidden pl-0 md:pl-12 mb-4">
+            <div className="w-full max-w-4xl flex-1 flex flex-col items-center overflow-hidden mb-4">
               <ScrollArea className="w-full flex-1 min-h-0">
-              <div className="space-y-4 pr-4">
+              <div className="space-y-3 sm:space-y-4 pr-2 sm:pr-4">
                 {messages.map((msg) => (
                   <div
                     key={msg.id}
                     className={`flex flex-col ${msg.sender === 'user' ? 'items-end' : 'items-start'}`}
                   >
                     <div
-                      className={`max-w-[70%] rounded-lg p-2 ${
+                      className={`max-w-[85%] sm:max-w-[75%] md:max-w-[70%] rounded-lg p-2.5 sm:p-3 ${
                         msg.sender === 'user'
                           ? 'bg-primary text-primary-foreground'
                           : 'bg-primary/10 text-primary border border-primary/20'
                       }`}
                     >
                       {msg.sender === 'ai' ? (
-                        <Response className="text-sm prose prose-sm max-w-none dark:prose-invert [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
+                        <Response className="text-sm sm:text-base prose prose-sm max-w-none dark:prose-invert [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
                           {msg.content}
                         </Response>
                       ) : (
-                        <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                        <p className="text-sm sm:text-base whitespace-pre-wrap break-words">{msg.content}</p>
                       )}
                     </div>
                     <p className={`text-xs mt-1 mx-2 ${
@@ -192,25 +199,25 @@ export default function PatientAIChatPage() {
           ) : (
           <>
             {/* Top Content - Spiral and Text (shown when no messages) */}
-            <div className={`w-full max-w-4xl flex flex-col items-center pl-0 md:pl-12 justify-center pt-8 md:pt-16`}>
+            <div className={`w-full max-w-4xl flex flex-col items-center justify-center pt-4 sm:pt-8 md:pt-16`}>
             {/* Spiral Animation - Top */}
-            <div className="flex justify-center items-center pb-8">
+            <div className="flex justify-center items-center pb-6 sm:pb-8">
               <SpiralAnimation 
                 totalDots={600}
                 dotColor="#8B5CF6" // Cancer purple theme
                 backgroundColor="transparent"
                 duration={4}
-                size={200}
+                size={150}
                 dotRadius={1.5}
               />
             </div>
             
             {/* Greeting Text - Below Spiral */}
-            <div className="text-center space-y-1 pb-8 -mt-4">
-              <h1 className="text-3xl font-bold text-foreground">
+            <div className="text-center space-y-1 pb-6 sm:pb-8 -mt-2">
+              <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-foreground px-4">
                 {greeting}
               </h1>
-              <p className="text-xl text-muted-foreground">
+              <p className="text-base sm:text-xl text-muted-foreground px-4">
                 {assistantMessage}
               </p>
             </div>
@@ -219,27 +226,27 @@ export default function PatientAIChatPage() {
           )}
           
           {/* Bottom Content - AI Prompt Box */}
-          <div className={`w-full max-w-4xl pt-2 md:pt-4 pb-2 md:pb-4 pl-0 md:pl-12 ${messages.length > 0 ? 'mt-auto' : ''}`}>
+          <div className={`w-full max-w-4xl pt-2 sm:pt-4 pb-2 sm:pb-4 ${messages.length > 0 ? 'mt-auto' : ''}`}>
             {/* Suggestion Chips */}
             {messages.length === 0 && (
-            <div className="flex flex-wrap gap-3 justify-center mb-4">
+            <div className="flex flex-wrap gap-2 sm:gap-3 justify-center mb-3 sm:mb-4 px-2">
               <button
                 onClick={() => setMessage('What support resources are available for cancer patients?')}
-                className="px-4 py-2 rounded-full bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20 hover:border-primary/40 transition-all duration-200 text-sm font-medium shadow-sm hover:shadow-md"
+                className="px-3 sm:px-4 py-2 rounded-full bg-primary/10 hover:bg-primary/20 active:bg-primary/30 text-primary border border-primary/20 hover:border-primary/40 transition-all duration-200 text-xs sm:text-sm font-medium shadow-sm hover:shadow-md touch-manipulation"
                 disabled={isLoading}
               >
                 What support resources are available?
               </button>
               <button
                 onClick={() => setMessage('How can I find a counselor near me?')}
-                className="px-4 py-2 rounded-full bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20 hover:border-primary/40 transition-all duration-200 text-sm font-medium shadow-sm hover:shadow-md"
+                className="px-3 sm:px-4 py-2 rounded-full bg-primary/10 hover:bg-primary/20 active:bg-primary/30 text-primary border border-primary/20 hover:border-primary/40 transition-all duration-200 text-xs sm:text-sm font-medium shadow-sm hover:shadow-md touch-manipulation"
                 disabled={isLoading}
               >
                 How can I find a counselor?
               </button>
               <button
                 onClick={() => setMessage('Tell me about financial assistance programs')}
-                className="px-4 py-2 rounded-full bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20 hover:border-primary/40 transition-all duration-200 text-sm font-medium shadow-sm hover:shadow-md"
+                className="px-3 sm:px-4 py-2 rounded-full bg-primary/10 hover:bg-primary/20 active:bg-primary/30 text-primary border border-primary/20 hover:border-primary/40 transition-all duration-200 text-xs sm:text-sm font-medium shadow-sm hover:shadow-md touch-manipulation"
                 disabled={isLoading}
               >
                 Tell me about financial assistance
@@ -250,7 +257,7 @@ export default function PatientAIChatPage() {
             <form onSubmit={(e) => {
               e.preventDefault();
               handleSubmit();
-            }}>
+            }} className="w-full">
               <PromptBox 
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}

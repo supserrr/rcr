@@ -56,8 +56,10 @@ export const PromptBox = React.forwardRef<HTMLTextAreaElement, React.TextareaHTM
       const selectionStart = textarea.selectionStart;
       const selectionEnd = textarea.selectionEnd;
       
+      const maxHeight = 200; // Maximum height in pixels before scrolling
       textarea.style.height = 'auto';
-      textarea.style.height = `${textarea.scrollHeight}px`;
+      const newHeight = Math.min(textarea.scrollHeight, maxHeight);
+      textarea.style.height = `${newHeight}px`;
       
       // Restore cursor position
       textarea.scrollTop = scrollTop;
@@ -85,7 +87,7 @@ export const PromptBox = React.forwardRef<HTMLTextAreaElement, React.TextareaHTM
         
         {imagePreview && ( <Dialog open={isImageDialogOpen} onOpenChange={setIsImageDialogOpen}> <div className="relative mb-1 w-fit rounded-[1rem] px-1 pt-1"> <button type="button" className="transition-transform" onClick={() => setIsImageDialogOpen(true)}> <img src={imagePreview} alt="Image preview" className="h-14.5 w-14.5 rounded-[1rem]" /> </button> <button onClick={handleRemoveImage} className="absolute right-2 top-2 z-10 flex h-4 w-4 items-center justify-center rounded-full bg-primary/10 text-primary transition-colors hover:bg-primary/20 hover:text-primary" aria-label="Remove image"> <XIcon className="h-4 w-4" /> </button> </div> <DialogContent> <img src={imagePreview} alt="Full size preview" className="w-full max-h-[95vh] object-contain rounded-[24px]" /> </DialogContent> </Dialog> )}
         
-        <textarea ref={internalTextareaRef} rows={1} value={props.value || ""} onChange={handleInputChange} onKeyDown={handleKeyDown} placeholder="Message..." className="w-full resize-none border-0 bg-transparent p-3 text-white placeholder:text-white/60 dark:text-white dark:placeholder:text-white/70 focus:ring-0 focus-visible:outline-none overflow-hidden" {...props} />
+        <textarea ref={internalTextareaRef} rows={1} value={props.value || ""} onChange={handleInputChange} onKeyDown={handleKeyDown} placeholder="Message..." className="w-full resize-none border-0 bg-transparent p-3 text-white placeholder:text-white/60 dark:text-white dark:placeholder:text-white/70 focus:ring-0 focus-visible:outline-none overflow-y-auto" {...props} />
         
         <div className="mt-0.5 p-1 pt-0">
           <TooltipProvider delayDuration={100}>
