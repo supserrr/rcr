@@ -10,6 +10,19 @@
     "next-devtools": {
       "command": "npx",
       "args": ["-y", "next-devtools-mcp@latest"]
+    },
+    "render": {
+      "url": "https://mcp.render.com/mcp",
+      "headers": {
+        "Authorization": "Bearer rnd_tSCPIsi691xIIjTuYKrKl1z2WIM7"
+      }
+    },
+    "supabase": {
+      "url": "https://mcp.supabase.com/mcp"
+    },
+    "assistant-ui": {
+      "command": "npx",
+      "args": ["-y", "@assistant-ui/mcp-docs-server"]
     }
   }
 }

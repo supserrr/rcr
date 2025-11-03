@@ -1,6 +1,7 @@
 import { Suspense } from "react"
 import { Ubuntu } from "next/font/google"
 import type { Metadata } from "next"
+import { SpeedInsights } from "@vercel/speed-insights/next"
 
 import "@workspace/ui/globals.css"
 import { Providers } from "@/components/providers"
@@ -44,6 +45,7 @@ export default function RootLayout({
         <Suspense fallback={<ProvidersLoading />}>
           <Providers>{children}</Providers>
         </Suspense>
+        <SpeedInsights />
       </body>
     </html>
   )
