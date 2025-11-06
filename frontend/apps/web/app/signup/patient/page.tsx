@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Eye, EyeOff } from 'lucide-react';
 import { AuthService } from '@/lib/auth';
 import { validateSignUpForm } from '@/lib/validations';
+import { createClient } from '@/lib/supabase/client';
 
 // --- HELPER COMPONENTS (ICONS) ---
 
@@ -132,9 +133,52 @@ export default function PatientSignUpPage() {
     }
   };
 
-  const handleGoogleSignUp = () => {
-    console.log("Continue with Google clicked");
-    alert("Continue with Google clicked");
+  const handleGoogleSignUp = async () => {
+    try {
+      setError(null);
+      setIsLoading(true);
+      
+      // Check if Supabase is configured
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+      const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+      
+      if (!supabaseUrl || !supabaseAnonKey) {
+        setError('Google Sign-Up is not configured. Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in your .env.local file.');
+        setIsLoading(false);
+        return;
+      }
+      
+      const supabase = createClient();
+      
+      // Determine role from the current path
+      const role = 'patient'; // This is the patient signup page
+      const redirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent('/onboarding/patient')}&role=${encodeURIComponent(role)}`;
+      
+      const { error: oauthError } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo,
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
+          },
+          // Pass role in user metadata
+          data: {
+            role: role,
+          },
+        },
+      });
+
+      if (oauthError) {
+        setError(oauthError.message || 'Google sign-up failed. Please try again.');
+        setIsLoading(false);
+      }
+      // If successful, the user will be redirected to Google's consent screen
+      // and then back to our callback route
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Google sign-up failed. Please try again.');
+      setIsLoading(false);
+    }
   };
 
   const handleSignIn = () => {

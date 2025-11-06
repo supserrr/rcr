@@ -20,6 +20,15 @@ export async function GET(request: Request) {
   const error = searchParams.get('error');
   const errorDescription = searchParams.get('error_description');
   
+  // Log all query parameters for debugging
+  console.log('OAuth callback received:', {
+    url: request.url,
+    code: code ? `${code.substring(0, 10)}...` : 'missing',
+    error,
+    errorDescription,
+    allParams: Object.fromEntries(searchParams.entries()),
+  });
+  
   // Check if OAuth provider returned an error
   if (error) {
     console.error('OAuth provider error:', {
@@ -57,21 +66,55 @@ export async function GET(request: Request) {
     next = '/';
   }
 
-  // Check if authorization code is present
-  if (!code) {
-    console.error('Missing authorization code in callback:', {
-      url: request.url,
-      searchParams: Object.fromEntries(searchParams.entries()),
-    });
-    
-    return NextResponse.redirect(
-      `${origin}/auth/auth-code-error?error=${encodeURIComponent('Missing authorization code. Please try signing in again.')}`
-    );
-  }
+  // Extract role from query parameters (passed from signup page)
+  const role = searchParams.get('role');
 
   try {
     const supabase = await createClient();
-    const { data, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
+    
+    // Check if we have a code to exchange, or if Supabase already created a session
+    let sessionData;
+    
+    if (code) {
+      // Exchange the authorization code for a session
+      const { data, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
+      
+      if (exchangeError) {
+        console.error('Failed to exchange code for session:', {
+          error: exchangeError.message,
+          status: exchangeError.status,
+          code: code.substring(0, 10) + '...', // Log partial code for debugging
+        });
+        
+        const errorMessage = exchangeError.message || 'Failed to complete authentication. Please try again.';
+        return NextResponse.redirect(
+          `${origin}/auth/auth-code-error?error=${encodeURIComponent(errorMessage)}`
+        );
+      }
+      
+      sessionData = data;
+    } else {
+      // No code provided - check if Supabase already created a session
+      // This can happen if Supabase handles the OAuth flow differently
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError || !session) {
+        console.error('Missing authorization code and no session found:', {
+          url: request.url,
+          searchParams: Object.fromEntries(searchParams.entries()),
+          sessionError: sessionError?.message,
+        });
+        
+        return NextResponse.redirect(
+          `${origin}/auth/auth-code-error?error=${encodeURIComponent('Missing authorization code. Please try signing in again.')}`
+        );
+      }
+      
+      // Use the existing session
+      sessionData = { session, user: session.user };
+    }
+    
+    const { data, error: exchangeError } = { data: sessionData, error: null };
 
     if (exchangeError) {
       console.error('Failed to exchange code for session:', {
@@ -95,6 +138,29 @@ export async function GET(request: Request) {
       return NextResponse.redirect(
         `${origin}/auth/auth-code-error?error=${encodeURIComponent('Authentication session not created. Please try again.')}`
       );
+    }
+
+    // If role is provided and user doesn't have a role set, update user metadata
+    if (role && data.user && (!data.user.user_metadata?.role || data.user.user_metadata.role === 'guest')) {
+      try {
+        // Update user metadata with role
+        const { error: updateError } = await supabase.auth.updateUser({
+          data: {
+            role: role,
+            ...data.user.user_metadata, // Preserve existing metadata
+          },
+        });
+
+        if (updateError) {
+          console.warn('Failed to update user role in metadata:', updateError);
+          // Don't fail the auth flow if role update fails
+        } else {
+          console.log('Successfully set user role to:', role);
+        }
+      } catch (updateErr) {
+        console.warn('Error updating user metadata with role:', updateErr);
+        // Don't fail the auth flow if role update fails
+      }
     }
 
     // Successfully authenticated, redirect to the intended destination

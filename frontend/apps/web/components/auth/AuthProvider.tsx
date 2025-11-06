@@ -72,60 +72,68 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
    * Also checks Supabase session for OAuth authentication
    */
   const checkAuth = async () => {
-    // First, check Supabase session (for OAuth) - only if Supabase is configured
-    if (supabaseClient) {
-      try {
-        const { data: { session }, error: sessionError } = await supabaseClient.auth.getSession();
-        
-        if (session && !sessionError) {
-      // User is authenticated via Supabase (OAuth)
-      // Convert Supabase user to our User type
-      const supabaseUser = session.user;
-      const userMetadata = supabaseUser.user_metadata || {};
+    try {
+      // First, check Supabase session (for OAuth) - only if Supabase is configured
+      if (supabaseClient) {
+        try {
+          const { data: { session }, error: sessionError } = await supabaseClient.auth.getSession();
+          
+          if (session && !sessionError) {
+            // User is authenticated via Supabase (OAuth)
+            // Convert Supabase user to our User type
+            const supabaseUser = session.user;
+            const userMetadata = supabaseUser.user_metadata || {};
+            
+            const currentUser: User = {
+              id: supabaseUser.id,
+              email: supabaseUser.email || '',
+              name: userMetadata.full_name || userMetadata.name || supabaseUser.email || '',
+              role: (userMetadata.role as UserRole) || 'guest',
+              avatar: userMetadata.avatar_url || supabaseUser.user_metadata?.avatar_url,
+              isVerified: supabaseUser.email_confirmed_at !== null,
+              createdAt: new Date(supabaseUser.created_at),
+              updatedAt: new Date(supabaseUser.updated_at || supabaseUser.created_at),
+            };
+            
+            setUser(currentUser);
+            AuthSession.setUser(currentUser);
+            AuthSession.setToken(session.access_token);
+            setIsLoading(false);
+            return;
+          }
+        } catch (error) {
+          // Supabase not configured or error, fall through to backend auth
+          console.warn('Supabase auth check failed, using backend auth:', error);
+        }
+      }
       
-      const currentUser: User = {
-        id: supabaseUser.id,
-        email: supabaseUser.email || '',
-        name: userMetadata.full_name || userMetadata.name || supabaseUser.email || '',
-        role: (userMetadata.role as UserRole) || 'guest',
-        avatar: userMetadata.avatar_url || supabaseUser.user_metadata?.avatar_url,
-        isVerified: supabaseUser.email_confirmed_at !== null,
-        createdAt: new Date(supabaseUser.created_at),
-        updatedAt: new Date(supabaseUser.updated_at || supabaseUser.created_at),
-      };
+      // Fallback to backend token-based auth
+      const token = AuthSession.getToken();
+      const userData = AuthSession.getUser();
       
+      if (token && userData) {
+        try {
+          // Verify token by getting current user from backend
+          const currentUser = await AuthService.getCurrentUser();
           setUser(currentUser);
           AuthSession.setUser(currentUser);
-          AuthSession.setToken(session.access_token);
-          setIsLoading(false);
-          return;
+        } catch (error) {
+          // Token is invalid, clear storage
+          console.error('Token verification failed:', error);
+          AuthSession.clear();
+          setUser(null);
         }
-      } catch (error) {
-        // Supabase not configured or error, fall through to backend auth
-        console.warn('Supabase auth check failed, using backend auth:', error);
-      }
-    }
-    
-    // Fallback to backend token-based auth
-    const token = AuthSession.getToken();
-    const userData = AuthSession.getUser();
-    
-    if (token && userData) {
-      try {
-        // Verify token by getting current user from backend
-        const currentUser = await AuthService.getCurrentUser();
-        setUser(currentUser);
-        AuthSession.setUser(currentUser);
-      } catch (error) {
-        // Token is invalid, clear storage
-        console.error('Token verification failed:', error);
-        AuthSession.clear();
+      } else {
         setUser(null);
       }
-    } else {
+    } catch (error) {
+      // Catch any unexpected errors during auth check
+      console.error('Unexpected error during auth check:', error);
       setUser(null);
+      AuthSession.clear();
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   };
 
   /**
@@ -206,49 +214,77 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Check auth on mount and when pathname changes
   useEffect(() => {
-    checkAuth();
+    let isMounted = true;
+    
+    const runCheckAuth = async () => {
+      try {
+        await checkAuth();
+      } catch (error) {
+        console.error('Error checking auth:', error);
+        if (isMounted) {
+          setUser(null);
+          setIsLoading(false);
+        }
+      }
+    };
+    
+    runCheckAuth();
     
     // Listen for Supabase auth state changes (for OAuth) - only if configured
+    let subscription: { unsubscribe: () => void } | null = null;
     if (supabaseClient) {
       try {
-        const { data: { subscription } } = supabaseClient.auth.onAuthStateChange((event, session) => {
+        const { data } = supabaseClient.auth.onAuthStateChange((event, session) => {
           if (event === 'SIGNED_IN' && session) {
             // User signed in via OAuth, refresh auth state
-            checkAuth();
+            runCheckAuth();
           } else if (event === 'SIGNED_OUT') {
             // User signed out, clear state
-            setUser(null);
-            AuthSession.clear();
+            if (isMounted) {
+              setUser(null);
+              AuthSession.clear();
+            }
           }
         });
-        
-        return () => {
-          subscription.unsubscribe();
-        };
+        subscription = data;
       } catch (error) {
         // Supabase not configured, no subscription needed
         console.warn('Supabase auth state listener not available:', error);
       }
     }
+    
+    return () => {
+      isMounted = false;
+      if (subscription) {
+        subscription.unsubscribe();
+      }
+    };
   }, [pathname, supabaseClient]);
 
-  // Handle route protection
+  // Handle route protection - only run after auth check is complete
   useEffect(() => {
+    // Don't redirect while loading - wait for auth check to complete
     if (isLoading) return;
 
     const isAuthRoute = pathname.startsWith('/signin') || pathname.startsWith('/signup');
     const isDashboardRoute = pathname.startsWith('/dashboard');
-    const isPublicRoute = ['/', '/about', '/contact', '/counselors', '/get-help'].includes(pathname);
+    const isPublicRoute = ['/', '/about', '/contact', '/counselors', '/get-help', '/onboarding'].includes(pathname) || pathname.startsWith('/onboarding');
 
+    // Allow unauthenticated users to access auth pages and public routes
     if (!isAuthenticated) {
-      // Redirect unauthenticated users from protected routes
+      // Only redirect unauthenticated users from protected routes (dashboard)
       if (isDashboardRoute) {
         router.push('/signin');
       }
-    } else {
-      // Redirect authenticated users away from auth pages
-      if (isAuthRoute) {
-        const dashboardRoute = getDashboardRoute(user!.role);
+      // Allow access to auth pages and public routes - no redirect needed
+      return;
+    }
+
+    // Authenticated users: redirect away from auth pages
+    if (isAuthenticated && isAuthRoute && user) {
+      const dashboardRoute = getDashboardRoute(user.role);
+      // Only redirect if we have a valid dashboard route (not '/')
+      if (dashboardRoute !== '/') {
         router.push(dashboardRoute);
       }
     }
