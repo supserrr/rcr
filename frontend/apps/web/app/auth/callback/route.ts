@@ -569,7 +569,7 @@ export async function GET(request: Request) {
                     const urlParams = new URLSearchParams(window.location.search);
                     const next = urlParams.get('next') || '/onboarding/patient';
                     const role = urlParams.get('role') || 'patient';
-                    const redirectPath = next.startsWith('/') ? next : `/onboarding/${role}`;
+                    const redirectPath = next.startsWith('/') ? next : '/onboarding/' + role;
                     window.location.replace(redirectPath);
                   }
                 }, 10000); // 10 second fallback
@@ -824,7 +824,7 @@ export async function GET(request: Request) {
                   // Try to redirect to onboarding anyway if we have a role
                   const urlParams = new URLSearchParams(window.location.search);
                   const role = urlParams.get('role') || 'patient';
-                  const next = urlParams.get('next') || `/onboarding/${role}`;
+                  const next = urlParams.get('next') || '/onboarding/' + role;
                   
                   showError(errorMessage);
                   setTimeout(() => {
@@ -846,89 +846,90 @@ export async function GET(request: Request) {
     }
     
     // Exchange the authorization code for a session
-    const { data, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
-    
-    if (exchangeError) {
-      console.error('Failed to exchange code for session:', {
-        error: exchangeError.message,
-        status: exchangeError.status,
-        code: code.substring(0, 10) + '...', // Log partial code for debugging
-      });
+    try {
+      const { data, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
       
-      const errorMessage = exchangeError.message || 'Failed to complete authentication. Please try again.';
-      return NextResponse.redirect(
-        `${origin}/auth/auth-code-error?error=${encodeURIComponent(errorMessage)}`
-      );
-    }
-    
-    if (!data.session) {
-      console.error('No session returned from code exchange:', {
-        hasData: !!data,
-        hasSession: !!data?.session,
-      });
-      
-      return NextResponse.redirect(
-        `${origin}/auth/auth-code-error?error=${encodeURIComponent('Authentication session not created. Please try again.')}`
-      );
-    }
-
-    // If role is provided and user doesn't have a role set, update user metadata
-    if (role && data.user && (!data.user.user_metadata?.role || data.user.user_metadata.role === 'guest')) {
-      try {
-        // Update user metadata with role
-        const { error: updateError } = await supabase.auth.updateUser({
-          data: {
-            role: role,
-            ...data.user.user_metadata, // Preserve existing metadata
-          },
+      if (exchangeError) {
+        console.error('Failed to exchange code for session:', {
+          error: exchangeError.message,
+          status: exchangeError.status,
+          code: code.substring(0, 10) + '...', // Log partial code for debugging
         });
+        
+        const errorMessage = exchangeError.message || 'Failed to complete authentication. Please try again.';
+        return NextResponse.redirect(
+          `${origin}/auth/auth-code-error?error=${encodeURIComponent(errorMessage)}`
+        );
+      }
+      
+      if (!data.session) {
+        console.error('No session returned from code exchange:', {
+          hasData: !!data,
+          hasSession: !!data?.session,
+        });
+        
+        return NextResponse.redirect(
+          `${origin}/auth/auth-code-error?error=${encodeURIComponent('Authentication session not created. Please try again.')}`
+        );
+      }
 
-        if (updateError) {
-          console.warn('Failed to update user role in metadata:', updateError);
+      // If role is provided and user doesn't have a role set, update user metadata
+      if (role && data.user && (!data.user.user_metadata?.role || data.user.user_metadata.role === 'guest')) {
+        try {
+          // Update user metadata with role
+          const { error: updateError } = await supabase.auth.updateUser({
+            data: {
+              role: role,
+              ...data.user.user_metadata, // Preserve existing metadata
+            },
+          });
+
+          if (updateError) {
+            console.warn('Failed to update user role in metadata:', updateError);
+            // Don't fail the auth flow if role update fails
+          } else {
+            console.log('Successfully set user role to:', role);
+          }
+        } catch (updateErr) {
+          console.warn('Error updating user metadata with role:', updateErr);
           // Don't fail the auth flow if role update fails
-        } else {
-          console.log('Successfully set user role to:', role);
         }
-      } catch (updateErr) {
-        console.warn('Error updating user metadata with role:', updateErr);
-        // Don't fail the auth flow if role update fails
       }
-    }
 
-    // Check if onboarding is complete
-    const userMetadata = data.user.user_metadata || {};
-    const onboardingCompleted = userMetadata.onboarding_completed === true;
-    const userRole = (userMetadata.role as string) || role || 'patient';
-    
-    // If onboarding is not complete, redirect to onboarding
-    // If "next" is already an onboarding route, use it; otherwise redirect to appropriate onboarding
-    let redirectPath = next;
-    if (!onboardingCompleted) {
-      // Determine onboarding route based on role
-      if (userRole === 'counselor') {
-        redirectPath = '/onboarding/counselor';
-      } else if (userRole === 'patient') {
-        redirectPath = '/onboarding/patient';
+      // Check if onboarding is complete
+      const userMetadata = data.user.user_metadata || {};
+      const onboardingCompleted = userMetadata.onboarding_completed === true;
+      const userRole = (userMetadata.role as string) || role || 'patient';
+      
+      // If onboarding is not complete, redirect to onboarding
+      // If "next" is already an onboarding route, use it; otherwise redirect to appropriate onboarding
+      let redirectPath = next;
+      if (!onboardingCompleted) {
+        // Determine onboarding route based on role
+        if (userRole === 'counselor') {
+          redirectPath = '/onboarding/counselor';
+        } else if (userRole === 'patient') {
+          redirectPath = '/onboarding/patient';
+        } else {
+          // Default to patient onboarding
+          redirectPath = '/onboarding/patient';
+        }
+      }
+
+      // Successfully authenticated, redirect to the intended destination
+      const forwardedHost = request.headers.get('x-forwarded-host');
+      const isLocalEnv = process.env.NODE_ENV === 'development';
+
+      if (isLocalEnv) {
+        // In development, use the origin directly
+        return NextResponse.redirect(`${origin}${redirectPath}`);
+      } else if (forwardedHost) {
+        // In production with load balancer, use the forwarded host
+        return NextResponse.redirect(`https://${forwardedHost}${redirectPath}`);
       } else {
-        // Default to patient onboarding
-        redirectPath = '/onboarding/patient';
+        // Fallback to origin
+        return NextResponse.redirect(`${origin}${redirectPath}`);
       }
-    }
-
-    // Successfully authenticated, redirect to the intended destination
-    const forwardedHost = request.headers.get('x-forwarded-host');
-    const isLocalEnv = process.env.NODE_ENV === 'development';
-
-    if (isLocalEnv) {
-      // In development, use the origin directly
-      return NextResponse.redirect(`${origin}${redirectPath}`);
-    } else if (forwardedHost) {
-      // In production with load balancer, use the forwarded host
-      return NextResponse.redirect(`https://${forwardedHost}${redirectPath}`);
-    } else {
-      // Fallback to origin
-      return NextResponse.redirect(`${origin}${redirectPath}`);
-    }
   } catch (error) {
     // Handle unexpected errors
     console.error('Unexpected error in OAuth callback:', error);
