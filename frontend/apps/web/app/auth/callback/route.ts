@@ -942,5 +942,14 @@ export async function GET(request: Request) {
         `${origin}/auth/auth-code-error?error=${encodeURIComponent(errorMessage)}`
       );
     }
+  } catch (error) {
+    // Handle unexpected errors at the top level
+    console.error('Unexpected error in OAuth callback:', error);
+    const errorMessage = error instanceof Error 
+      ? error.message 
+      : 'An unexpected error occurred during authentication.';
+    return NextResponse.redirect(
+      `${origin}/auth/auth-code-error?error=${encodeURIComponent(errorMessage)}`
+    );
   }
 }
