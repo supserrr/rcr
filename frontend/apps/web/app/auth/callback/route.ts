@@ -25,14 +25,16 @@ export async function GET(request: Request) {
   // Note: URL fragments (hash) are not sent to the server, so tokens in the hash
   // will be handled by the client-side page at /auth/callback
   
-  // Log all query parameters for debugging
-  console.log('OAuth callback received (server-side):', {
-    url: request.url,
-    code: code ? `${code.substring(0, 10)}...` : 'missing',
-    error,
-    errorDescription,
-    allParams: Object.fromEntries(searchParams.entries()),
-  });
+  // Log all query parameters for debugging (only in development)
+  if (process.env.NODE_ENV === 'development') {
+    console.log('OAuth callback received (server-side):', {
+      url: request.url,
+      code: code ? `${code.substring(0, 10)}...` : 'missing',
+      error,
+      errorDescription,
+      allParams: Object.fromEntries(searchParams.entries()),
+    });
+  }
   
   // Check if OAuth provider returned an error
   if (error) {
@@ -70,10 +72,8 @@ export async function GET(request: Request) {
             const hash = window.location.hash.substring(1);
             if (hash) {
               // Redirect to error page with message
-              const isProduction = process.env.NODE_ENV === 'production';
-              const errorMsg = isProduction
-                ? 'OAuth is not configured. Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in your Vercel project settings (Settings → Environment Variables).'
-                : 'OAuth is not configured. Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in your environment variables.';
+              // Note: process.env is not available in browser, so we'll use a generic message
+              const errorMsg = 'OAuth is not configured. Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in your environment variables.';
               window.location.href = '/auth/auth-code-error?error=' + encodeURIComponent(errorMsg);
             } else {
               window.location.href = '/auth/auth-code-error?error=' + encodeURIComponent('OAuth is not configured. Please contact support.');
@@ -123,10 +123,12 @@ export async function GET(request: Request) {
     
     if (existingSession && !sessionError) {
       // Session already exists - Supabase created it during OAuth flow
-      console.log('Session found without code exchange:', {
-        userId: existingSession.user.id,
-        email: existingSession.user.email,
-      });
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Session found without code exchange:', {
+          userId: existingSession.user.id,
+          email: existingSession.user.email,
+        });
+      }
       
       const data = { session: existingSession, user: existingSession.user };
       
@@ -174,19 +176,31 @@ export async function GET(request: Request) {
       }
 
       // Successfully authenticated, redirect to the intended destination
+      // Optimized for Vercel production deployment
       const forwardedHost = request.headers.get('x-forwarded-host');
-      const isLocalEnv = process.env.NODE_ENV === 'development';
+      const vercelUrl = process.env.VERCEL_URL;
+      const isProduction = process.env.NODE_ENV === 'production';
 
-      if (isLocalEnv) {
-        // In development, use the origin directly
-        return NextResponse.redirect(`${origin}${redirectPath}`);
-      } else if (forwardedHost) {
-        // In production with load balancer, use the forwarded host
-        return NextResponse.redirect(`https://${forwardedHost}${redirectPath}`);
+      // Determine the correct base URL for redirects
+      let baseUrl: string;
+      
+      if (isProduction) {
+        // In production, prioritize forwarded host (Vercel's load balancer)
+        if (forwardedHost) {
+          baseUrl = `https://${forwardedHost}`;
+        } else if (vercelUrl) {
+          // Fallback to VERCEL_URL if available
+          baseUrl = `https://${vercelUrl}`;
+        } else {
+          // Use origin as final fallback
+          baseUrl = origin;
+        }
       } else {
-        // Fallback to origin
-        return NextResponse.redirect(`${origin}${redirectPath}`);
+        // In development, use origin directly
+        baseUrl = origin;
       }
+
+      return NextResponse.redirect(`${baseUrl}${redirectPath}`);
     }
     
     // If no existing session, check if we have a code to exchange
@@ -194,7 +208,9 @@ export async function GET(request: Request) {
       // If we don't have a code, tokens might be in the URL fragment (hash)
       // URL fragments are not sent to the server, so we need to return HTML
       // that will extract tokens from the hash and set the session on the client side
-      console.log('No code found, returning client-side handler to extract tokens from URL fragment');
+      if (process.env.NODE_ENV === 'development') {
+        console.log('No code found, returning client-side handler to extract tokens from URL fragment');
+      }
       
       // Return HTML that will extract tokens from the hash and set the session
       const html = `
@@ -204,7 +220,7 @@ export async function GET(request: Request) {
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <title>Completing Authentication - Rwanda Cancer Relief</title>
-            <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" onload="window.supabaseLoaded = true"></script>
+            <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
             <style>
               * {
                 margin: 0;
@@ -534,13 +550,24 @@ export async function GET(request: Request) {
             <script>
               (async function() {
                 // Wait for Supabase library to load (with timeout)
+                // The CDN script exposes supabase as a global variable
                 let attempts = 0;
-                while (typeof supabase === 'undefined' && attempts < 50) {
+                let supabaseLib = null;
+                
+                // Wait for the library to load - check for the global supabase variable
+                // The UMD build exposes it as window.supabase
+                while (attempts < 50) {
+                  // Check if the library is available - UMD build exposes it as window.supabase
+                  if (typeof window.supabase !== 'undefined' && window.supabase && typeof window.supabase.createClient === 'function') {
+                    supabaseLib = window.supabase;
+                    break;
+                  }
+                  
                   await new Promise(resolve => setTimeout(resolve, 100));
                   attempts++;
                 }
                 
-                if (typeof supabase === 'undefined') {
+                if (!supabaseLib) {
                   console.error('Supabase library not loaded after 5 seconds');
                   const errorMsg = document.getElementById('errorMessage');
                   errorMsg.textContent = 'Authentication service failed to load. Please refresh the page.';
@@ -648,8 +675,8 @@ export async function GET(request: Request) {
                   statusText.textContent = 'Initializing authentication service...';
                   
                   // Initialize Supabase client
-                  const supabaseUrl = '${env.NEXT_PUBLIC_SUPABASE_URL || ''}';
-                  const supabaseAnonKey = '${env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''}';
+                  const supabaseUrl = '${supabaseUrl || ''}';
+                  const supabaseAnonKey = '${supabaseAnonKey || ''}';
                   
                   if (!supabaseUrl || !supabaseAnonKey) {
                     clearTimeout(timeout);
@@ -658,7 +685,7 @@ export async function GET(request: Request) {
                     return;
                   }
                   
-                  const { createClient } = supabase;
+                  const { createClient } = supabaseLib;
                   const supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
                     auth: {
                       persistSession: true,
@@ -917,19 +944,31 @@ export async function GET(request: Request) {
       }
 
       // Successfully authenticated, redirect to the intended destination
+      // Optimized for Vercel production deployment
       const forwardedHost = request.headers.get('x-forwarded-host');
-      const isLocalEnv = process.env.NODE_ENV === 'development';
+      const vercelUrl = process.env.VERCEL_URL;
+      const isProduction = process.env.NODE_ENV === 'production';
 
-      if (isLocalEnv) {
-        // In development, use the origin directly
-        return NextResponse.redirect(`${origin}${redirectPath}`);
-      } else if (forwardedHost) {
-        // In production with load balancer, use the forwarded host
-        return NextResponse.redirect(`https://${forwardedHost}${redirectPath}`);
+      // Determine the correct base URL for redirects
+      let baseUrl: string;
+      
+      if (isProduction) {
+        // In production, prioritize forwarded host (Vercel's load balancer)
+        if (forwardedHost) {
+          baseUrl = `https://${forwardedHost}`;
+        } else if (vercelUrl) {
+          // Fallback to VERCEL_URL if available
+          baseUrl = `https://${vercelUrl}`;
+        } else {
+          // Use origin as final fallback
+          baseUrl = origin;
+        }
       } else {
-        // Fallback to origin
-        return NextResponse.redirect(`${origin}${redirectPath}`);
+        // In development, use origin directly
+        baseUrl = origin;
       }
+
+      return NextResponse.redirect(`${baseUrl}${redirectPath}`);
     } catch (error) {
       // Handle unexpected errors
       console.error('Unexpected error in OAuth callback:', error);

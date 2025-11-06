@@ -29,6 +29,9 @@ export async function createClient() {
   
   const cookieStore = await cookies();
   
+  // Determine if we're in production
+  const isProduction = process.env.NODE_ENV === 'production';
+  
   return createServerClient(
     env.NEXT_PUBLIC_SUPABASE_URL,
     env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
@@ -39,7 +42,20 @@ export async function createClient() {
         },
         set(name: string, value: string, options: CookieOptions) {
           try {
-            cookieStore.set({ name, value, ...options });
+            // Production-ready cookie settings
+            cookieStore.set({ 
+              name, 
+              value, 
+              ...options,
+              // In production, use Secure flag for HTTPS
+              secure: isProduction,
+              // Use SameSite=Lax for better security and compatibility
+              sameSite: 'lax',
+              // HttpOnly is handled by Supabase automatically for auth cookies
+              httpOnly: options.httpOnly ?? true,
+              // Set path to root for all cookies
+              path: options.path ?? '/',
+            });
           } catch (error) {
             // The `set` method was called from a Server Component.
             // This can be ignored if you have middleware refreshing
@@ -48,7 +64,17 @@ export async function createClient() {
         },
         remove(name: string, options: CookieOptions) {
           try {
-            cookieStore.set({ name, value: '', ...options });
+            // Production-ready cookie removal
+            cookieStore.set({ 
+              name, 
+              value: '', 
+              ...options,
+              secure: isProduction,
+              sameSite: 'lax',
+              httpOnly: options.httpOnly ?? true,
+              path: options.path ?? '/',
+              maxAge: 0, // Expire immediately
+            });
           } catch (error) {
             // The `delete` method was called from a Server Component.
             // This can be ignored if you have middleware refreshing
