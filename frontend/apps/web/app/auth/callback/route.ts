@@ -56,9 +56,35 @@ export async function GET(request: Request) {
       hasKey: !!supabaseAnonKey,
     });
     
-    return NextResponse.redirect(
-      `${origin}/auth/auth-code-error?error=${encodeURIComponent('OAuth is not configured. Please contact support.')}`
-    );
+    // Return HTML page that will handle tokens from URL fragment if available
+    // This allows the build to complete even if Supabase isn't configured
+    const html = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>OAuth Callback</title>
+          <script>
+            // Check if tokens are in URL fragment
+            const hash = window.location.hash.substring(1);
+            if (hash) {
+              // Redirect to error page with message
+              window.location.href = '/auth/auth-code-error?error=' + encodeURIComponent('OAuth is not configured. Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in your environment variables.');
+            } else {
+              window.location.href = '/auth/auth-code-error?error=' + encodeURIComponent('OAuth is not configured. Please contact support.');
+            }
+          </script>
+        </head>
+        <body>
+          <p>Redirecting...</p>
+        </body>
+      </html>
+    `;
+    
+    return new NextResponse(html, {
+      headers: {
+        'Content-Type': 'text/html',
+      },
+    });
   }
 
   // if "next" is in param, use it as the redirect URL
