@@ -204,7 +204,7 @@ export async function GET(request: Request) {
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <title>Completing Authentication - Rwanda Cancer Relief</title>
-            <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+            <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" onload="window.supabaseLoaded = true"></script>
             <style>
               * {
                 margin: 0;
@@ -533,6 +533,21 @@ export async function GET(request: Request) {
             
             <script>
               (async function() {
+                // Wait for Supabase library to load (with timeout)
+                let attempts = 0;
+                while (typeof supabase === 'undefined' && attempts < 50) {
+                  await new Promise(resolve => setTimeout(resolve, 100));
+                  attempts++;
+                }
+                
+                if (typeof supabase === 'undefined') {
+                  console.error('Supabase library not loaded after 5 seconds');
+                  const errorMsg = document.getElementById('errorMessage');
+                  errorMsg.textContent = 'Authentication service failed to load. Please refresh the page.';
+                  errorMsg.classList.add('show');
+                  return;
+                }
+                
                 const loaderContainer = document.getElementById('loaderContainer');
                 const title = document.getElementById('title');
                 const statusText = document.getElementById('statusText');
@@ -642,7 +657,9 @@ export async function GET(request: Request) {
                   updateStep(2);
                   statusText.textContent = 'Creating your session...';
                   
-                  // Set the session using the tokens
+                  // Set the session using the tokens from hash
+                  // Supabase will handle token validation and session creation
+                  console.log('Setting session with tokens from hash...');
                   const { data: { session }, error: sessionError } = await supabaseClient.auth.setSession({
                     access_token: accessToken,
                     refresh_token: refreshToken || '',
@@ -651,6 +668,11 @@ export async function GET(request: Request) {
                   if (sessionError) {
                     clearTimeout(timeout);
                     console.error('Error setting session:', sessionError);
+                    console.error('Session error details:', {
+                      message: sessionError.message,
+                      status: sessionError.status,
+                      name: sessionError.name,
+                    });
                     showError(sessionError.message || 'Failed to create session. Please try again.');
                     setTimeout(() => {
                       window.location.href = '/signin';
@@ -661,6 +683,11 @@ export async function GET(request: Request) {
                   if (!session) {
                     clearTimeout(timeout);
                     console.error('No session created from tokens');
+                    console.error('Token details:', {
+                      hasAccessToken: !!accessToken,
+                      hasRefreshToken: !!refreshToken,
+                      accessTokenLength: accessToken?.length,
+                    });
                     showError('Failed to create session. Please try signing in again.');
                     setTimeout(() => {
                       window.location.href = '/signin';
@@ -668,9 +695,10 @@ export async function GET(request: Request) {
                     return;
                   }
                   
-                  console.log('Session set successfully:', {
+                  console.log('Session created successfully:', {
                     userId: session.user.id,
                     email: session.user.email,
+                    expiresAt: session.expires_at,
                   });
                   
                   updateStep(3);
