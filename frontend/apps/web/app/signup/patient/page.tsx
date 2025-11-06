@@ -163,10 +163,6 @@ export default function PatientSignUpPage() {
             access_type: 'offline',
             prompt: 'consent',
           },
-          // Pass role in user metadata
-          data: {
-            role: role,
-          },
         },
       });
 

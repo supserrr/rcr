@@ -147,10 +147,6 @@ export default function CounselorSignUpPage() {
             access_type: 'offline',
             prompt: 'consent',
           },
-          // Pass role in user metadata
-          data: {
-            role: role,
-          },
         },
       });
 
