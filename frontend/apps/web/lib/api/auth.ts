@@ -1,10 +1,10 @@
 /**
  * Authentication API service
  * 
- * Handles all authentication-related API calls
+ * Handles all authentication-related API calls using Supabase
  */
 
-import { api } from './client';
+import { createClient } from '@/lib/supabase/client';
 import type { User, SignInCredentials, SignUpCredentials } from '../auth';
 
 /**
@@ -59,32 +59,47 @@ export interface UserProfile {
  */
 export class AuthApi {
   /**
-   * Sign up a new user
+   * Sign up a new user using Supabase
    */
   static async signUp(credentials: SignUpCredentials): Promise<SignInResponse> {
-    const response = await api.post<{ user: UserProfile; tokens: { accessToken: string; refreshToken: string } }>(
-      '/auth/signup',
-      {
-        email: credentials.email,
-        password: credentials.password,
-        role: credentials.role,
-        fullName: credentials.name,
-      }
-    );
+    const supabase = createClient();
+    if (!supabase) {
+      throw new Error('Supabase is not configured. Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.');
+    }
 
-    // Handle case where email confirmation is required (no tokens)
-    if (!response.tokens || !response.tokens.accessToken) {
-      // Transform user profile to User type
-      const userMetadata = response.user.metadata || {};
+    // Sign up with Supabase
+    const { data, error } = await supabase.auth.signUp({
+      email: credentials.email,
+      password: credentials.password,
+      options: {
+        data: {
+          full_name: credentials.name,
+          role: credentials.role,
+        },
+      },
+    });
+
+    if (error) {
+      throw new Error(error.message || 'Failed to create account');
+    }
+
+    if (!data.user) {
+      throw new Error('Failed to create user account');
+    }
+
+    // Handle case where email confirmation is required (no session)
+    if (!data.session) {
+      // Transform user to User type
+      const userMetadata = data.user.user_metadata || {};
       const user: User = {
-        id: response.user.id,
-        email: response.user.email,
-        name: response.user.fullName || '',
-        role: response.user.role,
-        avatar: response.user.avatar,
-        isVerified: (userMetadata.isVerified as boolean) || false,
-        createdAt: userMetadata.createdAt ? new Date(userMetadata.createdAt as string) : new Date(),
-        updatedAt: userMetadata.updatedAt ? new Date(userMetadata.updatedAt as string) : new Date(),
+        id: data.user.id,
+        email: data.user.email || credentials.email,
+        name: userMetadata.full_name || credentials.name,
+        role: (userMetadata.role as User['role']) || credentials.role,
+        avatar: userMetadata.avatar_url,
+        isVerified: data.user.email_confirmed_at !== null,
+        createdAt: new Date(data.user.created_at),
+        updatedAt: new Date(data.user.updated_at || data.user.created_at),
       };
 
       // Return with empty tokens - user needs to confirm email
@@ -97,120 +112,137 @@ export class AuthApi {
       };
     }
 
-    // Store token
-    api.setAuthToken(response.tokens.accessToken);
-
-    // Transform user profile to User type
-    const userMetadata = response.user.metadata || {};
+    // Transform user to User type
+    const userMetadata = data.user.user_metadata || {};
     const user: User = {
-      id: response.user.id,
-      email: response.user.email,
-      name: response.user.fullName || '',
-      role: response.user.role,
-      avatar: response.user.avatar,
-      isVerified: (userMetadata.isVerified as boolean) || false,
-      createdAt: userMetadata.createdAt ? new Date(userMetadata.createdAt as string) : new Date(),
-      updatedAt: userMetadata.updatedAt ? new Date(userMetadata.updatedAt as string) : new Date(),
+      id: data.user.id,
+      email: data.user.email || credentials.email,
+      name: userMetadata.full_name || credentials.name,
+      role: (userMetadata.role as User['role']) || credentials.role,
+      avatar: userMetadata.avatar_url,
+      isVerified: data.user.email_confirmed_at !== null,
+      createdAt: new Date(data.user.created_at),
+      updatedAt: new Date(data.user.updated_at || data.user.created_at),
     };
 
     return {
       user,
-      tokens: response.tokens,
+      tokens: {
+        accessToken: data.session.access_token,
+        refreshToken: data.session.refresh_token,
+      },
     };
   }
 
   /**
-   * Sign in an existing user
+   * Sign in an existing user using Supabase
    */
   static async signIn(credentials: SignInCredentials): Promise<SignInResponse> {
-    const response = await api.post<{ user: UserProfile; tokens: { accessToken: string; refreshToken: string } }>(
-      '/auth/signin',
-      {
-        email: credentials.email,
-        password: credentials.password,
-      }
-    );
+    const supabase = createClient();
+    if (!supabase) {
+      throw new Error('Supabase is not configured. Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.');
+    }
 
-    // Store token
-    api.setAuthToken(response.tokens.accessToken);
+    // Sign in with Supabase
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: credentials.email,
+      password: credentials.password,
+    });
 
-    // Transform user profile to User type
-    const userMetadata = response.user.metadata || {};
+    if (error) {
+      throw new Error(error.message || 'Failed to sign in');
+    }
+
+    if (!data.user || !data.session) {
+      throw new Error('Failed to sign in - no user or session returned');
+    }
+
+    // Transform user to User type
+    const userMetadata = data.user.user_metadata || {};
     const user: User = {
-      id: response.user.id,
-      email: response.user.email,
-      name: response.user.fullName || response.user.email || '',
-      role: response.user.role,
-      avatar: response.user.avatar,
-      isVerified: (userMetadata.isVerified as boolean) ?? response.user.isVerified ?? false,
-      createdAt: response.user.createdAt ? new Date(response.user.createdAt) : new Date(),
-      updatedAt: response.user.updatedAt ? new Date(response.user.updatedAt) : new Date(),
+      id: data.user.id,
+      email: data.user.email || credentials.email,
+      name: userMetadata.full_name || data.user.email || '',
+      role: (userMetadata.role as User['role']) || 'patient',
+      avatar: userMetadata.avatar_url,
+      isVerified: data.user.email_confirmed_at !== null,
+      createdAt: new Date(data.user.created_at),
+      updatedAt: new Date(data.user.updated_at || data.user.created_at),
     };
 
     return {
       user,
-      tokens: response.tokens,
+      tokens: {
+        accessToken: data.session.access_token,
+        refreshToken: data.session.refresh_token,
+      },
     };
   }
 
   /**
-   * Sign out current user
+   * Sign out current user using Supabase
    */
   static async signOut(): Promise<void> {
-    try {
-      await api.post('/auth/signout');
-    } catch (error) {
-      // Continue with sign out even if API call fails
-      console.error('Sign out API call failed:', error);
-    } finally {
-      api.clearAuthToken();
+    const supabase = createClient();
+    if (supabase) {
+      await supabase.auth.signOut();
     }
   }
 
   /**
-   * Get current user profile
+   * Get current user profile using Supabase
    */
   static async getCurrentUser(): Promise<User> {
-    const response = await api.get<{ user: UserProfile }>('/auth/me');
+    const supabase = createClient();
+    if (!supabase) {
+      throw new Error('Supabase is not configured. Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.');
+    }
 
-    const userMetadata = response.user.metadata || {};
-    const user: User = {
-      id: response.user.id,
-      email: response.user.email,
-      name: response.user.fullName || response.user.email || '',
-      role: response.user.role,
-      avatar: response.user.avatar,
-      isVerified: (userMetadata.isVerified as boolean) ?? response.user.isVerified ?? false,
-      createdAt: response.user.createdAt ? new Date(response.user.createdAt) : new Date(),
-      updatedAt: response.user.updatedAt ? new Date(response.user.updatedAt) : new Date(),
+    const { data: { user }, error } = await supabase.auth.getUser();
+
+    if (error || !user) {
+      throw new Error(error?.message || 'Failed to get current user');
+    }
+
+    const userMetadata = user.user_metadata || {};
+    const userData: User = {
+      id: user.id,
+      email: user.email || '',
+      name: userMetadata.full_name || user.email || '',
+      role: (userMetadata.role as User['role']) || 'patient',
+      avatar: userMetadata.avatar_url,
+      isVerified: user.email_confirmed_at !== null,
+      createdAt: new Date(user.created_at),
+      updatedAt: new Date(user.updated_at || user.created_at),
       metadata: userMetadata,
     } as User & { metadata?: Record<string, unknown> };
 
-    return user;
+    return userData;
   }
 
   /**
-   * Refresh authentication token
+   * Refresh authentication token using Supabase
    */
   static async refreshToken(): Promise<RefreshTokenResponse> {
-    const refreshToken = localStorage.getItem('refresh-token');
-    if (!refreshToken) {
-      throw new Error('No refresh token available');
+    const supabase = createClient();
+    if (!supabase) {
+      throw new Error('Supabase is not configured. Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.');
     }
 
-    const response = await api.post<{ tokens: { accessToken: string; refreshToken: string } }>(
-      '/auth/refresh',
-      { refreshToken }
-    );
+    const { data: { session }, error } = await supabase.auth.refreshSession();
 
-    api.setAuthToken(response.tokens.accessToken);
-    localStorage.setItem('refresh-token', response.tokens.refreshToken);
+    if (error || !session) {
+      throw new Error(error?.message || 'Failed to refresh session');
+    }
 
-    return response.tokens;
+    return {
+      accessToken: session.access_token,
+      refreshToken: session.refresh_token,
+    };
   }
 
   /**
-   * Update user profile
+   * Update user profile using Supabase
    */
   static async updateProfile(data: {
     fullName?: string;
@@ -218,85 +250,178 @@ export class AuthApi {
     avatar?: string;
     metadata?: Record<string, unknown>;
   }): Promise<User> {
-    const response = await api.put<{ user: UserProfile }>(
-      '/auth/profile',
-      data
-    );
+    const supabase = createClient();
+    if (!supabase) {
+      throw new Error('Supabase is not configured. Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.');
+    }
 
-    const userMetadata = response.user.metadata || {};
-    const user: User = {
-      id: response.user.id,
-      email: response.user.email,
-      name: response.user.fullName || response.user.email || '',
-      role: response.user.role,
-      avatar: response.user.avatar,
-      isVerified: (userMetadata.isVerified as boolean) ?? response.user.isVerified ?? false,
-      createdAt: response.user.createdAt ? new Date(response.user.createdAt) : new Date(),
-      updatedAt: response.user.updatedAt ? new Date(response.user.updatedAt) : new Date(),
+    // Get current user first
+    const { data: { user: currentUser }, error: getUserError } = await supabase.auth.getUser();
+    if (getUserError || !currentUser) {
+      throw new Error(getUserError?.message || 'Failed to get current user');
+    }
+
+    // Update user metadata
+    const updateData: Record<string, unknown> = {
+      ...currentUser.user_metadata,
+      ...(data.fullName && { full_name: data.fullName }),
+      ...(data.phoneNumber && { phone_number: data.phoneNumber }),
+      ...(data.avatar && { avatar_url: data.avatar }),
+      ...(data.metadata && { ...data.metadata }),
+    };
+
+    const { data: { user }, error } = await supabase.auth.updateUser({
+      data: updateData,
+    });
+
+    if (error || !user) {
+      throw new Error(error?.message || 'Failed to update profile');
+    }
+
+    const userMetadata = user.user_metadata || {};
+    const userData: User = {
+      id: user.id,
+      email: user.email || '',
+      name: userMetadata.full_name || user.email || '',
+      role: (userMetadata.role as User['role']) || 'patient',
+      avatar: userMetadata.avatar_url,
+      isVerified: user.email_confirmed_at !== null,
+      createdAt: new Date(user.created_at),
+      updatedAt: new Date(user.updated_at || user.created_at),
       metadata: userMetadata,
     } as User & { metadata?: Record<string, unknown> };
 
-    return user;
+    return userData;
   }
 
   /**
-   * Upload profile image
+   * Upload profile image using Supabase Storage
    */
   static async uploadProfileImage(file: File): Promise<{ url: string; user: User }> {
-    const formData = new FormData();
-    formData.append('image', file);
+    const supabase = createClient();
+    if (!supabase) {
+      throw new Error('Supabase is not configured. Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.');
+    }
 
-    const response = await api.post<{ url: string; user: UserProfile }>(
-      '/auth/profile/upload',
-      formData
-    );
+    // Get current user
+    const { data: { user: currentUser }, error: getUserError } = await supabase.auth.getUser();
+    if (getUserError || !currentUser) {
+      throw new Error(getUserError?.message || 'Failed to get current user');
+    }
 
-    const userMetadata = response.user.metadata || {};
-    const user: User = {
-      id: response.user.id,
-      email: response.user.email,
-      name: response.user.fullName || response.user.email || '',
-      role: response.user.role,
-      avatar: response.url || response.user.avatar,
-      isVerified: (userMetadata.isVerified as boolean) ?? response.user.isVerified ?? false,
-      createdAt: response.user.createdAt ? new Date(response.user.createdAt) : new Date(),
-      updatedAt: response.user.updatedAt ? new Date(response.user.updatedAt) : new Date(),
+    // Upload file to Supabase Storage
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${currentUser.id}-${Date.now()}.${fileExt}`;
+    const filePath = `avatars/${fileName}`;
+
+    const { data: uploadData, error: uploadError } = await supabase.storage
+      .from('avatars')
+      .upload(filePath, file, {
+        cacheControl: '3600',
+        upsert: false,
+      });
+
+    if (uploadError) {
+      throw new Error(uploadError.message || 'Failed to upload image');
+    }
+
+    // Get public URL
+    const { data: { publicUrl } } = supabase.storage
+      .from('avatars')
+      .getPublicUrl(filePath);
+
+    // Update user metadata with avatar URL
+    const { data: { user }, error: updateError } = await supabase.auth.updateUser({
+      data: {
+        ...currentUser.user_metadata,
+        avatar_url: publicUrl,
+      },
+    });
+
+    if (updateError || !user) {
+      throw new Error(updateError?.message || 'Failed to update user profile');
+    }
+
+    const userMetadata = user.user_metadata || {};
+    const userData: User = {
+      id: user.id,
+      email: user.email || '',
+      name: userMetadata.full_name || user.email || '',
+      role: (userMetadata.role as User['role']) || 'patient',
+      avatar: publicUrl,
+      isVerified: user.email_confirmed_at !== null,
+      createdAt: new Date(user.created_at),
+      updatedAt: new Date(user.updated_at || user.created_at),
     };
 
     return {
-      url: response.url,
-      user,
+      url: publicUrl,
+      user: userData,
     };
   }
 
   /**
-   * Change password
+   * Change password using Supabase
    */
   static async changePassword(data: {
     currentPassword: string;
     newPassword: string;
   }): Promise<void> {
-    await api.post('/auth/change-password', data);
+    const supabase = createClient();
+    if (!supabase) {
+      throw new Error('Supabase is not configured. Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.');
+    }
+
+    // Update password with Supabase
+    const { error } = await supabase.auth.updateUser({
+      password: data.newPassword,
+    });
+
+    if (error) {
+      throw new Error(error.message || 'Failed to change password');
+    }
   }
 
   /**
-   * Request password reset
+   * Request password reset using Supabase
    */
   static async forgotPassword(email: string): Promise<void> {
-    await api.post('/auth/forgot-password', { email });
+    const supabase = createClient();
+    if (!supabase) {
+      throw new Error('Supabase is not configured. Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.');
+    }
+
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/auth/reset-password`,
+    });
+
+    if (error) {
+      throw new Error(error.message || 'Failed to send password reset email');
+    }
   }
 
   /**
-   * Reset password with token
+   * Reset password with token using Supabase
    */
   static async resetPassword(data: {
     token: string;
     password: string;
   }): Promise<void> {
-    // Note: Edge Function expects email field, but we don't have it in the token
-    // The token should contain the email, or we need to get it from the user
-    // For now, we'll pass an empty email and let the Edge Function handle it
-    await api.post('/auth/reset-password', { email: '', password: data.password, token: data.token });
+    const supabase = createClient();
+    if (!supabase) {
+      throw new Error('Supabase is not configured. Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.');
+    }
+
+    // Supabase handles password reset through the session
+    // The token is typically handled via URL hash or query params
+    // For now, we'll update the password if there's an active session
+    const { error } = await supabase.auth.updateUser({
+      password: data.password,
+    });
+
+    if (error) {
+      throw new Error(error.message || 'Failed to reset password');
+    }
   }
 }
 
