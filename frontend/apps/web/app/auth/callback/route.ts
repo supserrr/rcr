@@ -560,6 +560,19 @@ export async function GET(request: Request) {
                 };
                 
                 let currentStep = 0;
+                let redirectExecuted = false;
+                
+                // Fallback redirect - ensure we always redirect even if something fails
+                const fallbackRedirect = setTimeout(() => {
+                  if (!redirectExecuted) {
+                    console.warn('Fallback redirect triggered - something may have gone wrong');
+                    const urlParams = new URLSearchParams(window.location.search);
+                    const next = urlParams.get('next') || '/onboarding/patient';
+                    const role = urlParams.get('role') || 'patient';
+                    const redirectPath = next.startsWith('/') ? next : `/onboarding/${role}`;
+                    window.location.replace(redirectPath);
+                  }
+                }, 10000); // 10 second fallback
                 
                 function updateStep(stepNumber) {
                   Object.keys(steps).forEach((key, index) => {
@@ -718,30 +731,34 @@ export async function GET(request: Request) {
                   updateStep(3);
                   statusText.textContent = 'Setting up your account...';
                   
-                  // Get the role from query params if present
+                  // Get the role and next from query params
                   const urlParams = new URLSearchParams(window.location.search);
                   const role = urlParams.get('role');
+                  let next = urlParams.get('next') || '/';
                   
+                  // Update user metadata with role if provided (non-blocking with timeout)
+                  // This is done in parallel and won't block the redirect
                   if (role && (!session.user.user_metadata?.role || session.user.user_metadata.role === 'guest')) {
-                    try {
-                      // Update user metadata with role
-                      const { error: updateError } = await supabaseClient.auth.updateUser({
-                        data: {
-                          role: role,
-                          ...session.user.user_metadata,
-                        },
-                      });
-                      
-                      if (updateError) {
-                        console.warn('Failed to update user role in metadata:', updateError);
-                        // Don't fail the auth flow if role update fails
-                      } else {
-                        console.log('Successfully set user role to:', role);
+                    // Start the update but don't wait for it - redirect will happen regardless
+                    (async () => {
+                      try {
+                        console.log('Updating user role to:', role);
+                        const { error: updateError } = await supabaseClient.auth.updateUser({
+                          data: {
+                            role: role,
+                            ...session.user.user_metadata,
+                          },
+                        });
+                        
+                        if (updateError) {
+                          console.warn('Failed to update user role in metadata:', updateError);
+                        } else {
+                          console.log('Successfully set user role to:', role);
+                        }
+                      } catch (updateErr) {
+                        console.warn('Error updating user metadata with role:', updateErr);
                       }
-                    } catch (updateErr) {
-                      console.warn('Error updating user metadata with role:', updateErr);
-                      // Don't fail the auth flow if role update fails
-                    }
+                    })(); // Fire and forget - don't await
                   }
                   
                   // Check if onboarding is complete
@@ -749,12 +766,10 @@ export async function GET(request: Request) {
                   const onboardingCompleted = userMetadata.onboarding_completed === true;
                   const userRole = (userMetadata.role as string) || role || 'patient';
                   
-                  // Get the redirect destination from query params
-                  let next = urlParams.get('next') || '/';
-                  
-                  // If onboarding is not complete, redirect to onboarding
+                  // Determine redirect destination
+                  // Priority: 1) next param, 2) onboarding if not complete, 3) default
                   if (!onboardingCompleted) {
-                    // Determine onboarding route based on role
+                    // If onboarding is not complete, redirect to onboarding
                     if (userRole === 'counselor') {
                       next = '/onboarding/counselor';
                     } else if (userRole === 'patient') {
@@ -763,25 +778,59 @@ export async function GET(request: Request) {
                       // Default to patient onboarding
                       next = '/onboarding/patient';
                     }
+                  } else if (!next || next === '/') {
+                    // If onboarding is complete and no next param, go to dashboard
+                    if (userRole === 'counselor') {
+                      next = '/dashboard/counselor';
+                    } else if (userRole === 'patient') {
+                      next = '/dashboard/patient';
+                    } else {
+                      next = '/';
+                    }
                   }
+                  
+                  // Ensure next is a valid path
+                  if (!next.startsWith('/')) {
+                    next = '/';
+                  }
+                  
+                  console.log('Redirecting to:', next);
+                  console.log('User role:', userRole);
+                  console.log('Onboarding completed:', onboardingCompleted);
                   
                   clearTimeout(timeout);
                   updateStep(4);
                   showSuccess();
                   
-                  // Small delay to show success state
-                  await new Promise(resolve => setTimeout(resolve, 1000));
+                  // Small delay to show success state, then redirect
+                  await new Promise(resolve => setTimeout(resolve, 500));
+                  
+                  // Mark redirect as executed and clear fallback
+                  redirectExecuted = true;
+                  clearTimeout(fallbackRedirect);
                   
                   // Redirect to the intended destination
-                  window.location.href = next;
+                  console.log('Executing redirect to:', next);
+                  window.location.replace(next);
                 } catch (error) {
                   clearTimeout(timeout);
+                  clearTimeout(fallbackRedirect);
+                  redirectExecuted = true;
+                  
                   console.error('Unexpected error in auth callback:', error);
+                  console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace');
                   const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
+                  
+                  // Try to redirect to onboarding anyway if we have a role
+                  const urlParams = new URLSearchParams(window.location.search);
+                  const role = urlParams.get('role') || 'patient';
+                  const next = urlParams.get('next') || `/onboarding/${role}`;
+                  
                   showError(errorMessage);
                   setTimeout(() => {
-                    window.location.href = '/auth/auth-code-error?error=' + encodeURIComponent(errorMessage);
-                  }, 3000);
+                    // Try to redirect to onboarding even on error
+                    window.location.replace(next);
+                  }, 2000);
                 }
               })();
             </script>
