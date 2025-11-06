@@ -80,6 +80,19 @@ export class AuthApi {
     });
 
     if (error) {
+      // Provide more helpful error messages
+      if (error.message?.includes('Invalid API key') || error.message?.includes('JWT')) {
+        throw new Error(
+          'Invalid Supabase API key. Please check your NEXT_PUBLIC_SUPABASE_ANON_KEY environment variable. ' +
+          'Make sure it matches the anon/public key from your Supabase project settings.'
+        );
+      }
+      if (error.message?.includes('Invalid URL')) {
+        throw new Error(
+          'Invalid Supabase URL. Please check your NEXT_PUBLIC_SUPABASE_URL environment variable. ' +
+          'It should be in the format: https://your-project.supabase.co'
+        );
+      }
       throw new Error(error.message || 'Failed to create account');
     }
 

@@ -222,6 +222,8 @@ export class AdminApi {
 
   /**
    * Get user by ID using Supabase
+   * Note: This requires a database view or RPC function that exposes user data.
+   * Admin API methods require service role key which should not be exposed in frontend.
    */
   static async getUser(userId: string): Promise<AdminUser> {
     const supabase = createClient();
@@ -229,27 +231,40 @@ export class AdminApi {
       throw new Error('Supabase is not configured. Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.');
     }
 
-    const { data: user, error } = await supabase.auth.admin.getUserById(userId);
+    // Use a database view or RPC function instead of admin API
+    // For now, get user from auth.users via a database view
+    // You'll need to create a view like:
+    // CREATE VIEW public.user_profiles AS
+    // SELECT id, email, raw_user_meta_data->>'full_name' as full_name,
+    //        raw_user_meta_data->>'role' as role, email_confirmed_at IS NOT NULL as is_verified,
+    //        created_at, last_sign_in_at
+    // FROM auth.users;
+    
+    const { data: user, error } = await supabase
+      .from('user_profiles')
+      .select('*')
+      .eq('id', userId)
+      .single();
 
-    if (error || !user.user) {
-      throw new Error(error?.message || 'Failed to get user');
+    if (error || !user) {
+      throw new Error(error?.message || 'Failed to get user. Please create a user_profiles view in your database.');
     }
 
-    const userMetadata = user.user.user_metadata || {};
-
     return {
-      id: user.user.id,
-      email: user.user.email || '',
-      fullName: userMetadata.full_name as string | undefined,
-      role: (userMetadata.role as AdminUser['role']) || 'patient',
-      isVerified: user.user.email_confirmed_at !== null,
-      createdAt: user.user.created_at,
-      lastLogin: user.user.last_sign_in_at || undefined,
+      id: user.id,
+      email: user.email || '',
+      fullName: user.full_name,
+      role: (user.role as AdminUser['role']) || 'patient',
+      isVerified: user.is_verified || false,
+      createdAt: user.created_at,
+      lastLogin: user.last_sign_in_at || undefined,
     };
   }
 
   /**
    * List users using Supabase
+   * Note: This requires a database view or RPC function that exposes user data.
+   * Admin API methods require service role key which should not be exposed in frontend.
    */
   static async listUsers(params?: UserQueryParams): Promise<ListUsersResponse> {
     const supabase = createClient();
@@ -257,22 +272,57 @@ export class AdminApi {
       throw new Error('Supabase is not configured. Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.');
     }
 
-    // Note: This requires admin access. In production, you'd use Supabase Admin API
-    // For now, we'll use a database view or RPC function
-    // This is a simplified version - you may need to adjust based on your database schema
+    // Use a database view or RPC function instead of admin API
+    // You'll need to create a view like:
+    // CREATE VIEW public.user_profiles AS
+    // SELECT id, email, raw_user_meta_data->>'full_name' as full_name,
+    //        raw_user_meta_data->>'role' as role, email_confirmed_at IS NOT NULL as is_verified,
+    //        created_at, last_sign_in_at
+    // FROM auth.users;
+    
+    let query = supabase.from('user_profiles').select('*', { count: 'exact' });
+
+    if (params?.role) {
+      query = query.eq('role', params.role);
+    }
+    if (params?.isVerified !== undefined) {
+      query = query.eq('is_verified', params.isVerified);
+    }
+    if (params?.search) {
+      query = query.or(`email.ilike.%${params.search}%,full_name.ilike.%${params.search}%`);
+    }
 
     const limit = params?.limit || 50;
     const offset = params?.offset || 0;
+    query = query.range(offset, offset + limit - 1);
+    query = query.order('created_at', { ascending: false });
 
-    // Since we can't directly query auth.users, we'll need to use a database view
-    // or RPC function that exposes user data. For now, this is a placeholder.
-    // You'll need to create a database view or function that joins auth.users with user metadata.
+    const { data: users, error, count } = await query;
 
-    throw new Error('List users requires a database view or RPC function. Please implement a database view that exposes user data.');
+    if (error) {
+      throw new Error(error.message || 'Failed to list users. Please create a user_profiles view in your database.');
+    }
+
+    return {
+      users: (users || []).map(u => ({
+        id: u.id,
+        email: u.email || '',
+        fullName: u.full_name,
+        role: (u.role as AdminUser['role']) || 'patient',
+        isVerified: u.is_verified || false,
+        createdAt: u.created_at,
+        lastLogin: u.last_sign_in_at || undefined,
+      })),
+      total: count || 0,
+      limit,
+      offset,
+    };
   }
 
   /**
    * Update user role using Supabase
+   * Note: This requires a database function or Edge Function with service role key.
+   * Admin operations should be done server-side for security.
    */
   static async updateUserRole(
     userId: string,
@@ -283,39 +333,25 @@ export class AdminApi {
       throw new Error('Supabase is not configured. Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.');
     }
 
-    // Get current user metadata
-    const { data: currentUserData, error: getUserError } = await supabase.auth.admin.getUserById(userId);
-    if (getUserError || !currentUserData?.user) {
-      throw new Error(getUserError?.message || 'Failed to get user');
-    }
-
-    // Update user metadata with new role
-    const { data: { user }, error } = await supabase.auth.admin.updateUserById(userId, {
-      user_metadata: {
-        ...currentUserData.user.user_metadata,
-        role: data.role,
-      },
+    // Use a database function or Edge Function to update user role
+    // For now, we'll call an Edge Function that handles this server-side
+    // You'll need to create an Edge Function like: supabase/functions/update-user-role
+    
+    const { data: result, error } = await supabase.functions.invoke('update-user-role', {
+      body: { userId, role: data.role },
     });
 
-    if (error || !user) {
-      throw new Error(error?.message || 'Failed to update user role');
+    if (error || !result) {
+      throw new Error(error?.message || 'Failed to update user role. Please create an Edge Function for this operation.');
     }
 
-    const userMetadata = user.user_metadata || {};
-
-    return {
-      id: user.id,
-      email: user.email || '',
-      fullName: userMetadata.full_name as string | undefined,
-      role: (userMetadata.role as AdminUser['role']) || 'patient',
-      isVerified: user.email_confirmed_at !== null,
-      createdAt: user.created_at,
-      lastLogin: user.last_sign_in_at || undefined,
-    };
+    return result as AdminUser;
   }
 
   /**
    * Delete user using Supabase
+   * Note: This requires a database function or Edge Function with service role key.
+   * Admin operations should be done server-side for security.
    */
   static async deleteUser(userId: string): Promise<void> {
     const supabase = createClient();
@@ -323,10 +359,16 @@ export class AdminApi {
       throw new Error('Supabase is not configured. Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.');
     }
 
-    const { error } = await supabase.auth.admin.deleteUser(userId);
+    // Use a database function or Edge Function to delete user
+    // For now, we'll call an Edge Function that handles this server-side
+    // You'll need to create an Edge Function like: supabase/functions/delete-user
+    
+    const { error } = await supabase.functions.invoke('delete-user', {
+      body: { userId },
+    });
 
     if (error) {
-      throw new Error(error.message || 'Failed to delete user');
+      throw new Error(error.message || 'Failed to delete user. Please create an Edge Function for this operation.');
     }
   }
 }
