@@ -76,14 +76,14 @@ export class NotificationsApi {
    * Create a new notification
    */
   static async createNotification(data: CreateNotificationInput): Promise<Notification> {
-    return api.post<Notification>('/api/notifications', data);
+    return api.post<Notification>('/notifications', data);
   }
 
   /**
    * Get a notification by ID
    */
   static async getNotification(notificationId: string): Promise<Notification> {
-    return api.get<Notification>(`/api/notifications/${notificationId}`);
+    return api.get<Notification>(`/notifications/${notificationId}`);
   }
 
   /**
@@ -102,8 +102,8 @@ export class NotificationsApi {
 
     const queryString = queryParams.toString();
     const endpoint = queryString
-      ? `/api/notifications?${queryString}`
-      : '/api/notifications';
+      ? `/notifications?${queryString}`
+      : '/notifications';
     
     return api.get<ListNotificationsResponse>(endpoint);
   }
@@ -114,14 +114,14 @@ export class NotificationsApi {
   static async markNotificationsRead(
     data: MarkNotificationsReadInput
   ): Promise<void> {
-    return api.patch<void>('/api/notifications/read', data);
+    return api.post<void>('/notifications/read', data);
   }
 
   /**
    * Delete a notification
    */
   static async deleteNotification(notificationId: string): Promise<void> {
-    return api.delete<void>(`/api/notifications/${notificationId}`);
+    return api.delete<void>(`/notifications/${notificationId}`);
   }
 }
 

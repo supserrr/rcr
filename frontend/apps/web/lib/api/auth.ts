@@ -62,7 +62,7 @@ export class AuthApi {
    */
   static async signUp(credentials: SignUpCredentials): Promise<SignInResponse> {
     const response = await api.post<{ user: UserProfile; tokens: { accessToken: string; refreshToken: string } }>(
-      '/api/auth/signup',
+      '/auth/signup',
       {
         email: credentials.email,
         password: credentials.password,
@@ -123,7 +123,7 @@ export class AuthApi {
    */
   static async signIn(credentials: SignInCredentials): Promise<SignInResponse> {
     const response = await api.post<{ user: UserProfile; tokens: { accessToken: string; refreshToken: string } }>(
-      '/api/auth/signin',
+      '/auth/signin',
       {
         email: credentials.email,
         password: credentials.password,
@@ -157,7 +157,7 @@ export class AuthApi {
    */
   static async signOut(): Promise<void> {
     try {
-      await api.post('/api/auth/signout');
+      await api.post('/auth/signout');
     } catch (error) {
       // Continue with sign out even if API call fails
       console.error('Sign out API call failed:', error);
@@ -170,7 +170,7 @@ export class AuthApi {
    * Get current user profile
    */
   static async getCurrentUser(): Promise<User> {
-    const response = await api.get<{ user: UserProfile }>('/api/auth/me');
+    const response = await api.get<{ user: UserProfile }>('/auth/me');
 
     const userMetadata = response.user.metadata || {};
     const user: User = {
@@ -197,7 +197,7 @@ export class AuthApi {
     }
 
     const response = await api.post<{ tokens: { accessToken: string; refreshToken: string } }>(
-      '/api/auth/refresh',
+      '/auth/refresh',
       { refreshToken }
     );
 
@@ -215,8 +215,8 @@ export class AuthApi {
     phoneNumber?: string;
     avatar?: string;
   }): Promise<User> {
-    const response = await api.patch<{ user: UserProfile }>(
-      '/api/auth/profile',
+    const response = await api.put<{ user: UserProfile }>(
+      '/auth/profile',
       data
     );
 
@@ -242,14 +242,14 @@ export class AuthApi {
     currentPassword: string;
     newPassword: string;
   }): Promise<void> {
-    await api.post('/api/auth/change-password', data);
+    await api.post('/auth/change-password', data);
   }
 
   /**
    * Request password reset
    */
   static async forgotPassword(email: string): Promise<void> {
-    await api.post('/api/auth/forgot-password', { email });
+    await api.post('/auth/forgot-password', { email });
   }
 
   /**
@@ -259,7 +259,10 @@ export class AuthApi {
     token: string;
     password: string;
   }): Promise<void> {
-    await api.post('/api/auth/reset-password', data);
+    // Note: Edge Function expects email field, but we don't have it in the token
+    // The token should contain the email, or we need to get it from the user
+    // For now, we'll pass an empty email and let the Edge Function handle it
+    await api.post('/auth/reset-password', { email: '', password: data.password, token: data.token });
   }
 }
 

@@ -71,7 +71,7 @@ export default function CounselorChatPage() {
     sendMessage,
     selectChat,
     refreshChats,
-    socketConnected,
+    realtimeConnected,
   } = useChat({
     participantId: user?.id,
   });
@@ -155,7 +155,7 @@ export default function CounselorChatPage() {
         type: 'text',
       });
       setNewMessage('');
-      // Message will be added to messages via Socket.IO or hook
+      // Message will be added to messages via Realtime subscription
     } catch (error) {
       console.error('Error sending message:', error);
       toast.error(error instanceof Error ? error.message : 'Failed to send message');
@@ -279,8 +279,8 @@ export default function CounselorChatPage() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <h3 className="text-sm md:text-base font-semibold">Patient Conversations</h3>
-                  <div className="flex items-center gap-1" title={socketConnected ? 'Connected' : 'Disconnected'}>
-                    {socketConnected ? (
+                  <div className="flex items-center gap-1" title={realtimeConnected ? 'Realtime Connected' : 'Realtime Disconnected'}>
+                    {realtimeConnected ? (
                       <Wifi className="h-4 w-4 text-green-500" />
                     ) : (
                       <WifiOff className="h-4 w-4 text-red-500" />
@@ -428,7 +428,7 @@ export default function CounselorChatPage() {
                         </h3>
                         <div className="flex items-center gap-2">
                           <p className="text-sm text-muted-foreground">
-                            {socketConnected ? 'Online' : 'Offline'}
+                            {realtimeConnected ? 'Online' : 'Offline'}
                           </p>
                         </div>
                       </div>

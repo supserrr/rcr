@@ -129,14 +129,14 @@ export class SessionsApi {
    * Create a new session
    */
   static async createSession(data: CreateSessionInput): Promise<Session> {
-    return api.post<Session>('/api/sessions', data);
+    return api.post<Session>('/sessions', data);
   }
 
   /**
    * Get a session by ID
    */
   static async getSession(sessionId: string): Promise<Session> {
-    return api.get<Session>(`/api/sessions/${sessionId}`);
+    return api.get<Session>(`/sessions/${sessionId}`);
   }
 
   /**
@@ -154,7 +154,7 @@ export class SessionsApi {
     }
 
     const queryString = queryParams.toString();
-    const endpoint = queryString ? `/api/sessions?${queryString}` : '/api/sessions';
+    const endpoint = queryString ? `/sessions?${queryString}` : '/sessions';
     
     return api.get<ListSessionsResponse>(endpoint);
   }
@@ -166,7 +166,7 @@ export class SessionsApi {
     sessionId: string,
     data: UpdateSessionInput
   ): Promise<Session> {
-    return api.patch<Session>(`/api/sessions/${sessionId}`, data);
+    return api.put<Session>(`/sessions/${sessionId}`, data);
   }
 
   /**
@@ -176,7 +176,7 @@ export class SessionsApi {
     sessionId: string,
     data: RescheduleSessionInput
   ): Promise<Session> {
-    return api.post<Session>(`/api/sessions/${sessionId}/reschedule`, data);
+    return api.post<Session>(`/sessions/${sessionId}/reschedule`, data);
   }
 
   /**
@@ -186,7 +186,7 @@ export class SessionsApi {
     sessionId: string,
     data?: CancelSessionInput
   ): Promise<Session> {
-    return api.post<Session>(`/api/sessions/${sessionId}/cancel`, data || {});
+    return api.post<Session>(`/sessions/${sessionId}/cancel`, data || {});
   }
 
   /**
@@ -196,7 +196,7 @@ export class SessionsApi {
     sessionId: string,
     data?: CompleteSessionInput
   ): Promise<Session> {
-    return api.post<Session>(`/api/sessions/${sessionId}/complete`, data || {});
+    return api.post<Session>(`/sessions/${sessionId}/complete`, data || {});
   }
 
   /**
@@ -207,7 +207,7 @@ export class SessionsApi {
     apiType: 'react-sdk' | 'iframe' | 'lib-jitsi-meet' = 'react-sdk'
   ): Promise<JitsiRoomConfig> {
     return api.get<JitsiRoomConfig>(
-      `/api/sessions/${sessionId}/jitsi?apiType=${apiType}`
+      `/sessions/${sessionId}/jitsi-room?apiType=${apiType}`
     );
   }
 }

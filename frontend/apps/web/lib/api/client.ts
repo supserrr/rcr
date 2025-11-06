@@ -5,7 +5,14 @@
  * error handling, and request/response interceptors
  */
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:10000';
+// Supabase Edge Functions base URL
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const SUPABASE_FUNCTIONS_URL = SUPABASE_URL 
+  ? `${SUPABASE_URL}/functions/v1`
+  : (() => {
+      console.error('NEXT_PUBLIC_SUPABASE_URL is not set. Please configure it in .env.local');
+      return 'http://localhost:10000'; // Fallback for development only
+    })();
 
 /**
  * API response wrapper
@@ -77,7 +84,7 @@ async function request<T>(
     headers['Authorization'] = `Bearer ${token}`;
   }
 
-  const url = `${API_BASE_URL}${endpoint}`;
+  const url = `${SUPABASE_FUNCTIONS_URL}${endpoint}`;
 
   try {
     const response = await fetch(url, {
@@ -159,8 +166,8 @@ async function request<T>(
           stack: error.stack,
         });
         
-        const errorMessage = `Unable to connect to backend server at ${API_BASE_URL}. Please ensure:
-1. The backend server is running (check http://localhost:10000/health)
+        const errorMessage = `Unable to connect to backend server at ${SUPABASE_FUNCTIONS_URL}. Please ensure:
+1. The Supabase Edge Functions are deployed
 2. CORS is properly configured
 3. No browser extensions are blocking the request
 4. The frontend is running on http://localhost:3000`;
@@ -262,7 +269,7 @@ export async function upload<T>(
     headers['Authorization'] = `Bearer ${token}`;
   }
 
-  const url = `${API_BASE_URL}${endpoint}`;
+  const url = `${SUPABASE_FUNCTIONS_URL}${endpoint}`;
 
   const response = await fetch(url, {
     method: 'POST',

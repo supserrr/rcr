@@ -112,14 +112,14 @@ export class ChatApi {
    * Create a new chat
    */
   static async createChat(data: CreateChatInput): Promise<Chat> {
-    return api.post<Chat>('/api/chat', data);
+    return api.post<Chat>('/chat', data);
   }
 
   /**
    * Get a chat by ID
    */
   static async getChat(chatId: string): Promise<Chat> {
-    return api.get<Chat>(`/api/chat/${chatId}`);
+    return api.get<Chat>(`/chat/${chatId}`);
   }
 
   /**
@@ -137,7 +137,7 @@ export class ChatApi {
     }
 
     const queryString = queryParams.toString();
-    const endpoint = queryString ? `/api/chat?${queryString}` : '/api/chat';
+    const endpoint = queryString ? `/chat?${queryString}` : '/chat';
     
     return api.get<ListChatsResponse>(endpoint);
   }
@@ -146,7 +146,7 @@ export class ChatApi {
    * Send a message
    */
   static async sendMessage(data: SendMessageInput): Promise<Message> {
-    return api.post<Message>('/api/chat/messages', data);
+    return api.post<Message>(`/chat/${data.chatId}/messages`, { content: data.content, type: data.type, fileUrl: data.fileUrl });
   }
 
   /**
@@ -168,8 +168,8 @@ export class ChatApi {
 
     const queryString = queryParams.toString();
     const endpoint = queryString
-      ? `/api/chat/${chatId}/messages?${queryString}`
-      : `/api/chat/${chatId}/messages`;
+      ? `/chat/${chatId}/messages?${queryString}`
+      : `/chat/${chatId}/messages`;
     
     return api.get<ListMessagesResponse>(endpoint);
   }
@@ -181,7 +181,7 @@ export class ChatApi {
     chatId: string,
     data: MarkReadInput
   ): Promise<void> {
-    return api.post<void>(`/api/chat/${chatId}/read`, data);
+    return api.post<void>(`/chat/${chatId}/messages/read`, data);
   }
 }
 

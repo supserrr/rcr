@@ -116,8 +116,8 @@ export class AdminApi {
 
     const queryString = queryParams.toString();
     const endpoint = queryString
-      ? `/api/admin/analytics?${queryString}`
-      : '/api/admin/analytics';
+      ? `/admin/analytics?${queryString}`
+      : '/admin/analytics';
     
     return api.get<Analytics>(endpoint);
   }
@@ -126,7 +126,7 @@ export class AdminApi {
    * Get user by ID
    */
   static async getUser(userId: string): Promise<AdminUser> {
-    return api.get<AdminUser>(`/api/admin/users/${userId}`);
+    return api.get<AdminUser>(`/admin/users/${userId}`);
   }
 
   /**
@@ -145,8 +145,8 @@ export class AdminApi {
 
     const queryString = queryParams.toString();
     const endpoint = queryString
-      ? `/api/admin/users?${queryString}`
-      : '/api/admin/users';
+      ? `/admin/users?${queryString}`
+      : '/admin/users';
     
     return api.get<ListUsersResponse>(endpoint);
   }
@@ -158,14 +158,14 @@ export class AdminApi {
     userId: string,
     data: UpdateUserRoleInput
   ): Promise<AdminUser> {
-    return api.patch<AdminUser>(`/api/admin/users/${userId}/role`, data);
+    return api.put<AdminUser>(`/admin/users/${userId}/role`, data);
   }
 
   /**
    * Delete user
    */
   static async deleteUser(userId: string): Promise<void> {
-    return api.delete<void>(`/api/admin/users/${userId}`);
+    return api.delete<void>(`/admin/users/${userId}`);
   }
 }
 

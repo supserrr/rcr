@@ -4,7 +4,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { ChatApi, type Chat, type Message, type SendMessageInput, type CreateChatInput, type ChatQueryParams, type MessagesQueryParams } from '@/lib/api/chat';
-import { useSocket } from './useSocket';
+import { useChatMessages } from './useRealtime';
 import { ApiError } from '@/lib/api/client';
 
 export interface UseChatReturn {
@@ -19,7 +19,7 @@ export interface UseChatReturn {
   loadMessages: (chatId: string, params?: MessagesQueryParams) => Promise<void>;
   selectChat: (chatId: string) => void;
   refreshChats: () => Promise<void>;
-  socketConnected: boolean;
+  realtimeConnected: boolean;
 }
 
 export function useChat(params?: ChatQueryParams): UseChatReturn {
@@ -29,37 +29,51 @@ export function useChat(params?: ChatQueryParams): UseChatReturn {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [total, setTotal] = useState(0);
+  const [realtimeConnected, setRealtimeConnected] = useState(false);
 
-  // Socket.IO integration
-  const { socket, connected: socketConnected } = useSocket({
-    autoConnect: true,
-    listeners: {
-      newMessage: (data) => {
+  // Supabase Realtime integration for messages
+  useChatMessages(
+    currentChat?.id || null,
+    (message) => {
         // Add new message if it's for the current chat
-        if (currentChat && data.chatId === currentChat.id) {
+      if (currentChat && message.chat_id === currentChat.id) {
           setMessages((prev) => {
             // Check if message already exists
-            if (prev.some((m) => m.id === data.id)) {
+          if (prev.some((m) => m.id === message.id)) {
               return prev;
             }
-            return [...prev, data as any];
-          });
-        }
-        // Update chat list to show new message
-        // Note: refreshChats would need to be implemented if needed
-      },
-      messagesRead: (data) => {
-        // Update read status for messages
-        if (currentChat && data.chatId === currentChat.id) {
-          setMessages((prev) =>
-            prev.map((msg) =>
-              data.messageIds.includes(msg.id) ? { ...msg, isRead: true } : msg
-            )
-          );
-        }
-      },
+          // Transform Realtime message to Message type
+          const transformedMessage: Message = {
+            id: message.id,
+            chatId: message.chat_id,
+            senderId: message.sender_id,
+            content: message.content,
+            type: message.type as any,
+            fileUrl: message.file_url,
+            isRead: message.is_read,
+            createdAt: message.created_at,
+            updatedAt: message.created_at,
+          };
+          return [...prev, transformedMessage];
+        });
+        // Refresh chats to update last message
+        fetchChats();
+      }
     },
-  });
+    (error) => {
+      console.error('Realtime subscription error:', error);
+      setRealtimeConnected(false);
+    }
+  );
+
+  // Set connected state (Realtime is connected when subscribed)
+  useEffect(() => {
+    if (currentChat) {
+      setRealtimeConnected(true);
+    } else {
+      setRealtimeConnected(false);
+    }
+  }, [currentChat]);
 
   const fetchChats = useCallback(async () => {
     setLoading(true);
@@ -81,15 +95,8 @@ export function useChat(params?: ChatQueryParams): UseChatReturn {
     fetchChats();
   }, [fetchChats]);
 
-  // Join chat room when chat is selected
-  useEffect(() => {
-    if (currentChat && socket?.connected) {
-      socket.emit('joinChat', currentChat.id);
-      return () => {
-        socket.emit('leaveChat', currentChat.id);
-      };
-    }
-  }, [currentChat, socket]);
+  // Realtime subscription is handled by useChatMessages hook
+  // No need to manually join/leave rooms
 
   const createChat = useCallback(async (data: CreateChatInput): Promise<Chat> => {
     try {
@@ -156,7 +163,7 @@ export function useChat(params?: ChatQueryParams): UseChatReturn {
     loadMessages,
     selectChat,
     refreshChats: fetchChats,
-    socketConnected,
+    realtimeConnected,
   };
 }
 

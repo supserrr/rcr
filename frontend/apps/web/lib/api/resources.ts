@@ -108,7 +108,7 @@ export class ResourcesApi {
    * Create a new resource
    */
   static async createResource(data: CreateResourceInput): Promise<Resource> {
-    return api.post<Resource>('/api/resources', data);
+    return api.post<Resource>('/resources', data);
   }
 
   /**
@@ -118,14 +118,14 @@ export class ResourcesApi {
     file: File,
     data: Omit<CreateResourceInput, 'url'>
   ): Promise<Resource> {
-    return api.upload<Resource>('/api/resources', file, data);
+    return api.upload<Resource>('/resources', file, data);
   }
 
   /**
    * Get a resource by ID
    */
   static async getResource(resourceId: string): Promise<Resource> {
-    return api.get<Resource>(`/api/resources/${resourceId}`);
+    return api.get<Resource>(`/resources/${resourceId}`);
   }
 
   /**
@@ -147,7 +147,7 @@ export class ResourcesApi {
     }
 
     const queryString = queryParams.toString();
-    const endpoint = queryString ? `/api/resources?${queryString}` : '/api/resources';
+    const endpoint = queryString ? `/resources?${queryString}` : '/resources';
     
     return api.get<ListResourcesResponse>(endpoint);
   }
@@ -159,28 +159,28 @@ export class ResourcesApi {
     resourceId: string,
     data: UpdateResourceInput
   ): Promise<Resource> {
-    return api.patch<Resource>(`/api/resources/${resourceId}`, data);
+    return api.put<Resource>(`/resources/${resourceId}`, data);
   }
 
   /**
    * Delete a resource
    */
   static async deleteResource(resourceId: string): Promise<void> {
-    return api.delete<void>(`/api/resources/${resourceId}`);
+    return api.delete<void>(`/resources/${resourceId}`);
   }
 
   /**
    * Get download URL for a resource
    */
   static async getDownloadUrl(resourceId: string): Promise<DownloadUrlResponse> {
-    return api.get<DownloadUrlResponse>(`/api/resources/${resourceId}/download`);
+    return api.get<DownloadUrlResponse>(`/resources/${resourceId}/download`);
   }
 
   /**
    * Track resource view
    */
   static async trackView(resourceId: string): Promise<void> {
-    return api.post<void>(`/api/resources/${resourceId}/view`, { resourceId });
+    return api.post<void>(`/resources/${resourceId}/view`, { resourceId });
   }
 }
 
