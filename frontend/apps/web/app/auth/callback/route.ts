@@ -7,6 +7,7 @@
 
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { getOnboardingRoute } from '@/lib/auth';
 
 /**
  * OAuth callback handler
@@ -137,19 +138,39 @@ export async function GET(request: Request) {
         }
       }
 
+      // Check if onboarding is complete
+      const userMetadata = data.user.user_metadata || {};
+      const onboardingCompleted = userMetadata.onboarding_completed === true;
+      const userRole = (userMetadata.role as string) || role || 'patient';
+      
+      // If onboarding is not complete, redirect to onboarding
+      // If "next" is already an onboarding route, use it; otherwise redirect to appropriate onboarding
+      let redirectPath = next;
+      if (!onboardingCompleted) {
+        // Determine onboarding route based on role
+        if (userRole === 'counselor') {
+          redirectPath = '/onboarding/counselor';
+        } else if (userRole === 'patient') {
+          redirectPath = '/onboarding/patient';
+        } else {
+          // Default to patient onboarding
+          redirectPath = '/onboarding/patient';
+        }
+      }
+
       // Successfully authenticated, redirect to the intended destination
       const forwardedHost = request.headers.get('x-forwarded-host');
       const isLocalEnv = process.env.NODE_ENV === 'development';
 
       if (isLocalEnv) {
         // In development, use the origin directly
-        return NextResponse.redirect(`${origin}${next}`);
+        return NextResponse.redirect(`${origin}${redirectPath}`);
       } else if (forwardedHost) {
         // In production with load balancer, use the forwarded host
-        return NextResponse.redirect(`https://${forwardedHost}${next}`);
+        return NextResponse.redirect(`https://${forwardedHost}${redirectPath}`);
       } else {
         // Fallback to origin
-        return NextResponse.redirect(`${origin}${next}`);
+        return NextResponse.redirect(`${origin}${redirectPath}`);
       }
     }
     
@@ -273,8 +294,26 @@ export async function GET(request: Request) {
                     }
                   }
                   
+                  // Check if onboarding is complete
+                  const userMetadata = session.user.user_metadata || {};
+                  const onboardingCompleted = userMetadata.onboarding_completed === true;
+                  const userRole = (userMetadata.role as string) || role || 'patient';
+                  
                   // Get the redirect destination from query params
-                  const next = urlParams.get('next') || '/';
+                  let next = urlParams.get('next') || '/';
+                  
+                  // If onboarding is not complete, redirect to onboarding
+                  if (!onboardingCompleted) {
+                    // Determine onboarding route based on role
+                    if (userRole === 'counselor') {
+                      next = '/onboarding/counselor';
+                    } else if (userRole === 'patient') {
+                      next = '/onboarding/patient';
+                    } else {
+                      // Default to patient onboarding
+                      next = '/onboarding/patient';
+                    }
+                  }
                   
                   // Redirect to the intended destination
                   window.location.href = next;
@@ -346,19 +385,39 @@ export async function GET(request: Request) {
       }
     }
 
+    // Check if onboarding is complete
+    const userMetadata = data.user.user_metadata || {};
+    const onboardingCompleted = userMetadata.onboarding_completed === true;
+    const userRole = (userMetadata.role as string) || role || 'patient';
+    
+    // If onboarding is not complete, redirect to onboarding
+    // If "next" is already an onboarding route, use it; otherwise redirect to appropriate onboarding
+    let redirectPath = next;
+    if (!onboardingCompleted) {
+      // Determine onboarding route based on role
+      if (userRole === 'counselor') {
+        redirectPath = '/onboarding/counselor';
+      } else if (userRole === 'patient') {
+        redirectPath = '/onboarding/patient';
+      } else {
+        // Default to patient onboarding
+        redirectPath = '/onboarding/patient';
+      }
+    }
+
     // Successfully authenticated, redirect to the intended destination
     const forwardedHost = request.headers.get('x-forwarded-host');
     const isLocalEnv = process.env.NODE_ENV === 'development';
 
     if (isLocalEnv) {
       // In development, use the origin directly
-      return NextResponse.redirect(`${origin}${next}`);
+      return NextResponse.redirect(`${origin}${redirectPath}`);
     } else if (forwardedHost) {
       // In production with load balancer, use the forwarded host
-      return NextResponse.redirect(`https://${forwardedHost}${next}`);
+      return NextResponse.redirect(`https://${forwardedHost}${redirectPath}`);
     } else {
       // Fallback to origin
-      return NextResponse.redirect(`${origin}${next}`);
+      return NextResponse.redirect(`${origin}${redirectPath}`);
     }
   } catch (error) {
     // Handle unexpected errors

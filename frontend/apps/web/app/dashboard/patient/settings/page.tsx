@@ -95,7 +95,22 @@ export default function PatientSettingsPage() {
     currentModule: '',
     language: 'en',
     timezone: 'Africa/Kigali',
-    languages: ['English', 'Kinyarwanda']
+    languages: ['English', 'Kinyarwanda'],
+    // Onboarding data
+    age: '',
+    gender: '',
+    location: '',
+    cancerType: '',
+    diagnosisDate: '',
+    currentTreatment: '',
+    treatmentStage: '',
+    supportNeeds: [] as string[],
+    preferredLanguage: '',
+    familySupport: '',
+    consultationType: [] as string[],
+    availability: '',
+    specialRequests: '',
+    avatar_url: user?.avatar || ''
   });
 
   // Load user profile data
@@ -105,18 +120,35 @@ export default function PatientSettingsPage() {
 
       try {
         const currentUser = await AuthApi.getCurrentUser();
+        const metadata = currentUser.metadata || {};
+        
         setProfile(prev => ({
           ...prev,
           name: currentUser.name,
           email: currentUser.email,
-          phoneNumber: (currentUser as any).phoneNumber || '',
-          emergencyContact: (currentUser as any).emergencyContact || '',
-          dateOfBirth: (currentUser as any).dateOfBirth ? new Date((currentUser as any).dateOfBirth) : new Date(),
-          medicalHistory: (currentUser as any).medicalHistory || '',
-          currentModule: (currentUser as any).currentModule || '',
-          language: (currentUser as any).language || 'en',
-          timezone: (currentUser as any).timezone || 'Africa/Kigali',
-          languages: (currentUser as any).languages || ['English', 'Kinyarwanda']
+          phoneNumber: (currentUser as any).phoneNumber || metadata.phoneNumber || '',
+          emergencyContact: metadata.emergencyContact || '',
+          dateOfBirth: metadata.dateOfBirth ? new Date(metadata.dateOfBirth as string) : new Date(),
+          medicalHistory: metadata.medicalHistory || '',
+          currentModule: metadata.currentModule || '',
+          language: metadata.language || metadata.preferredLanguage || 'en',
+          timezone: metadata.timezone || 'Africa/Kigali',
+          languages: metadata.languages || (metadata.preferredLanguage ? [metadata.preferredLanguage] : ['English', 'Kinyarwanda']),
+          // Onboarding data from metadata
+          age: metadata.age || '',
+          gender: metadata.gender || '',
+          location: metadata.location || '',
+          cancerType: metadata.cancerType || '',
+          diagnosisDate: metadata.diagnosisDate || '',
+          currentTreatment: metadata.currentTreatment || '',
+          treatmentStage: metadata.treatmentStage || '',
+          supportNeeds: Array.isArray(metadata.supportNeeds) ? metadata.supportNeeds : [],
+          preferredLanguage: metadata.preferredLanguage || '',
+          familySupport: metadata.familySupport || '',
+          consultationType: Array.isArray(metadata.consultationType) ? metadata.consultationType : [],
+          availability: metadata.availability || '',
+          specialRequests: metadata.specialRequests || '',
+          avatar_url: currentUser.avatar || metadata.avatar_url || ''
         }));
       } catch (error) {
         console.error('Error loading profile:', error);
@@ -125,6 +157,7 @@ export default function PatientSettingsPage() {
           ...prev,
           name: user.name || '',
           email: user.email || '',
+          avatar_url: user.avatar || ''
         }));
       }
     };
@@ -140,13 +173,36 @@ export default function PatientSettingsPage() {
 
     setIsSaving(true);
     try {
-      // Update basic profile fields
+      // Update profile with all fields including onboarding data
       await AuthApi.updateProfile({
         fullName: profile.name,
         phoneNumber: profile.phoneNumber,
-        // Note: Additional fields like emergencyContact, medicalHistory, etc.
-        // are stored in user_metadata on the backend. The backend API should
-        // be updated to accept these fields in the updateProfile endpoint.
+        metadata: {
+          // Basic profile fields
+          phoneNumber: profile.phoneNumber,
+          emergencyContact: profile.emergencyContact,
+          dateOfBirth: profile.dateOfBirth instanceof Date ? profile.dateOfBirth.toISOString() : profile.dateOfBirth,
+          medicalHistory: profile.medicalHistory,
+          currentModule: profile.currentModule,
+          language: profile.language,
+          timezone: profile.timezone,
+          languages: profile.languages,
+          // Onboarding data
+          age: profile.age,
+          gender: profile.gender,
+          location: profile.location,
+          cancerType: profile.cancerType,
+          diagnosisDate: profile.diagnosisDate,
+          currentTreatment: profile.currentTreatment,
+          treatmentStage: profile.treatmentStage,
+          supportNeeds: profile.supportNeeds,
+          preferredLanguage: profile.preferredLanguage,
+          familySupport: profile.familySupport,
+          consultationType: profile.consultationType,
+          availability: profile.availability,
+          specialRequests: profile.specialRequests,
+          avatar_url: profile.avatar_url
+        }
       });
       
       setHasUnsavedChanges(false);
@@ -488,6 +544,41 @@ export default function PatientSettingsPage() {
 
                   <div className="grid gap-4 md:grid-cols-2">
                     <div className="space-y-2">
+                      <Label htmlFor="age">Age</Label>
+                      <Input
+                        id="age"
+                        value={profile.age}
+                        onChange={(e) => handleProfileChange('age', e.target.value)}
+                        placeholder="Enter your age"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="gender">Gender</Label>
+                      <Select value={profile.gender} onValueChange={(value) => handleProfileChange('gender', value)}>
+                        <SelectTrigger className="border-input focus:ring-primary/20">
+                          <SelectValue placeholder="Select gender" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="male">Male</SelectItem>
+                          <SelectItem value="female">Female</SelectItem>
+                          <SelectItem value="other">Other</SelectItem>
+                          <SelectItem value="prefer-not-to-say">Prefer not to say</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="location">Location</Label>
+                      <Input
+                        id="location"
+                        value={profile.location}
+                        onChange={(e) => handleProfileChange('location', e.target.value)}
+                        placeholder="e.g., Kigali, Rwanda"
+                      />
+                    </div>
+                    <div className="space-y-2">
                       <Label htmlFor="dateOfBirth">Date of Birth</Label>
                       <Input
                         id="dateOfBirth"
@@ -496,6 +587,9 @@ export default function PatientSettingsPage() {
                         onChange={(e) => handleProfileChange('dateOfBirth', new Date(e.target.value))}
                       />
                     </div>
+                  </div>
+
+                  <div className="grid gap-4 md:grid-cols-2">
                     <div className="space-y-2">
                       <Label htmlFor="currentModule">Current Module</Label>
                       <Input
@@ -504,6 +598,19 @@ export default function PatientSettingsPage() {
                         onChange={(e) => handleProfileChange('currentModule', e.target.value)}
                         placeholder="e.g., Coping with Anxiety"
                       />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="preferredLanguage">Preferred Language</Label>
+                      <Select value={profile.preferredLanguage} onValueChange={(value) => handleProfileChange('preferredLanguage', value)}>
+                        <SelectTrigger className="border-input focus:ring-primary/20">
+                          <SelectValue placeholder="Select language" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="en">English</SelectItem>
+                          <SelectItem value="fr">Français</SelectItem>
+                          <SelectItem value="rw">Kinyarwanda</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
                   </div>
 
@@ -516,6 +623,191 @@ export default function PatientSettingsPage() {
                       onChange={(e) => handleProfileChange('medicalHistory', e.target.value)}
                       placeholder="Describe your medical history and current health status..."
                     />
+                  </div>
+
+                  {/* Medical Information */}
+                  <div className="pt-4 border-t border-primary/10">
+                    <h4 className="text-base font-semibold text-foreground mb-4">Medical Information</h4>
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <div className="space-y-2">
+                        <Label htmlFor="cancerType">Cancer Type</Label>
+                        <Input
+                          id="cancerType"
+                          value={profile.cancerType}
+                          onChange={(e) => handleProfileChange('cancerType', e.target.value)}
+                          placeholder="e.g., Breast Cancer"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="diagnosisDate">Diagnosis Date</Label>
+                        <Input
+                          id="diagnosisDate"
+                          type="date"
+                          value={profile.diagnosisDate}
+                          onChange={(e) => handleProfileChange('diagnosisDate', e.target.value)}
+                        />
+                      </div>
+                    </div>
+                    <div className="grid gap-4 md:grid-cols-2 mt-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="currentTreatment">Current Treatment</Label>
+                        <Input
+                          id="currentTreatment"
+                          value={profile.currentTreatment}
+                          onChange={(e) => handleProfileChange('currentTreatment', e.target.value)}
+                          placeholder="e.g., Chemotherapy"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="treatmentStage">Treatment Stage</Label>
+                        <Select value={profile.treatmentStage} onValueChange={(value) => handleProfileChange('treatmentStage', value)}>
+                          <SelectTrigger className="border-input focus:ring-primary/20">
+                            <SelectValue placeholder="Select stage" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="early">Early Stage</SelectItem>
+                            <SelectItem value="intermediate">Intermediate Stage</SelectItem>
+                            <SelectItem value="advanced">Advanced Stage</SelectItem>
+                            <SelectItem value="remission">Remission</SelectItem>
+                            <SelectItem value="completed">Completed</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Support Information */}
+                  <div className="pt-4 border-t border-primary/10">
+                    <h4 className="text-base font-semibold text-foreground mb-4">Support Information</h4>
+                    <div className="space-y-2">
+                      <Label htmlFor="supportNeeds">Support Needs</Label>
+                      <div className="flex flex-wrap gap-2 mb-2">
+                        {profile.supportNeeds.map((need, index) => (
+                          <Badge
+                            key={index}
+                            variant="outline"
+                            className="px-3 py-1 border-primary/20 text-primary bg-primary/5 flex items-center gap-1"
+                          >
+                            {need}
+                            <button
+                              onClick={() => {
+                                const newNeeds = profile.supportNeeds.filter((_, i) => i !== index);
+                                handleProfileChange('supportNeeds', newNeeds);
+                              }}
+                              className="ml-1 hover:bg-primary/20 rounded-full p-0.5"
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          </Badge>
+                        ))}
+                      </div>
+                      <div className="flex gap-2">
+                        <Input
+                          placeholder="Add support need..."
+                          className="flex-1 border-input focus:ring-primary/20"
+                          onKeyPress={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              const input = e.currentTarget as HTMLInputElement;
+                              if (input.value.trim() && !profile.supportNeeds.includes(input.value.trim())) {
+                                handleProfileChange('supportNeeds', [...profile.supportNeeds, input.value.trim()]);
+                                input.value = '';
+                              }
+                            }
+                          }}
+                        />
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={(e) => {
+                            const input = (e.currentTarget.previousElementSibling as HTMLInputElement);
+                            if (input.value.trim() && !profile.supportNeeds.includes(input.value.trim())) {
+                              handleProfileChange('supportNeeds', [...profile.supportNeeds, input.value.trim()]);
+                              input.value = '';
+                            }
+                          }}
+                          className="border-primary/20 hover:bg-primary/10"
+                        >
+                          <Plus className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                    <div className="grid gap-4 md:grid-cols-2 mt-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="familySupport">Family Support</Label>
+                        <Select value={profile.familySupport} onValueChange={(value) => handleProfileChange('familySupport', value)}>
+                          <SelectTrigger className="border-input focus:ring-primary/20">
+                            <SelectValue placeholder="Select level" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="strong">Strong Support</SelectItem>
+                            <SelectItem value="moderate">Moderate Support</SelectItem>
+                            <SelectItem value="limited">Limited Support</SelectItem>
+                            <SelectItem value="none">No Support</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="availability">Availability</Label>
+                        <Input
+                          id="availability"
+                          value={profile.availability}
+                          onChange={(e) => handleProfileChange('availability', e.target.value)}
+                          placeholder="e.g., Weekdays 9am-5pm"
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-2 mt-4">
+                      <Label htmlFor="consultationType">Preferred Consultation Types</Label>
+                      <div className="flex flex-wrap gap-2 mb-2">
+                        {profile.consultationType.map((type, index) => (
+                          <Badge
+                            key={index}
+                            variant="outline"
+                            className="px-3 py-1 border-primary/20 text-primary bg-primary/5 flex items-center gap-1"
+                          >
+                            {type}
+                            <button
+                              onClick={() => {
+                                const newTypes = profile.consultationType.filter((_, i) => i !== index);
+                                handleProfileChange('consultationType', newTypes);
+                              }}
+                              className="ml-1 hover:bg-primary/20 rounded-full p-0.5"
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          </Badge>
+                        ))}
+                      </div>
+                      <div className="flex gap-2">
+                        <Select onValueChange={(value) => {
+                          if (!profile.consultationType.includes(value)) {
+                            handleProfileChange('consultationType', [...profile.consultationType, value]);
+                          }
+                        }}>
+                          <SelectTrigger className="flex-1 border-input focus:ring-primary/20">
+                            <SelectValue placeholder="Add consultation type" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="in-person">In-Person</SelectItem>
+                            <SelectItem value="video">Video Call</SelectItem>
+                            <SelectItem value="phone">Phone Call</SelectItem>
+                            <SelectItem value="chat">Chat</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    <div className="space-y-2 mt-4">
+                      <Label htmlFor="specialRequests">Special Requests or Notes</Label>
+                      <textarea
+                        id="specialRequests"
+                        className="w-full min-h-[100px] p-3 border rounded-md resize-none focus:ring-2 focus:ring-primary focus:border-transparent bg-background text-foreground border-input"
+                        value={profile.specialRequests}
+                        onChange={(e) => handleProfileChange('specialRequests', e.target.value)}
+                        placeholder="Any special requests or additional information..."
+                      />
+                    </div>
                   </div>
 
                   {/* Languages */}

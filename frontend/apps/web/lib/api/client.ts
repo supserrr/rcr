@@ -5,14 +5,8 @@
  * error handling, and request/response interceptors
  */
 
-// Supabase Edge Functions base URL
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const SUPABASE_FUNCTIONS_URL = SUPABASE_URL 
-  ? `${SUPABASE_URL}/functions/v1`
-  : (() => {
-      console.error('NEXT_PUBLIC_SUPABASE_URL is not set. Please configure it in .env.local');
-      return 'http://localhost:10000'; // Fallback for development only
-    })();
+// Backend API base URL
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 
 /**
  * API response wrapper
@@ -84,7 +78,12 @@ async function request<T>(
     headers['Authorization'] = `Bearer ${token}`;
   }
 
-  const url = `${SUPABASE_FUNCTIONS_URL}${endpoint}`;
+  // Add /api prefix if not already present (except for health check)
+  const normalizedEndpoint = endpoint.startsWith('/api/') || endpoint === '/health' 
+    ? endpoint 
+    : `/api${endpoint}`;
+  
+  const url = `${API_BASE_URL}${normalizedEndpoint}`;
 
   try {
     const response = await fetch(url, {
@@ -166,8 +165,8 @@ async function request<T>(
           stack: error.stack,
         });
         
-        const errorMessage = `Unable to connect to backend server at ${SUPABASE_FUNCTIONS_URL}. Please ensure:
-1. The Supabase Edge Functions are deployed
+        const errorMessage = `Unable to connect to backend server at ${API_BASE_URL}. Please ensure:
+1. The backend server is running
 2. CORS is properly configured
 3. No browser extensions are blocking the request
 4. The frontend is running on http://localhost:3000`;
@@ -200,12 +199,124 @@ export async function get<T>(endpoint: string): Promise<T> {
  */
 export async function post<T>(
   endpoint: string,
-  data?: unknown
+  data?: unknown,
+  options?: RequestInit
 ): Promise<T> {
-  return request<T>(endpoint, {
+  const token = getAuthToken();
+  
+  const headers: Record<string, string> = {
+    ...(options?.headers as Record<string, string> || {}),
+  };
+
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  // Don't set Content-Type for FormData - browser will set it with boundary
+  const isFormData = data instanceof FormData;
+  if (!isFormData) {
+    headers['Content-Type'] = 'application/json';
+  }
+
+  // Add /api prefix if not already present (except for health check)
+  const normalizedEndpoint = endpoint.startsWith('/api/') || endpoint === '/health' 
+    ? endpoint 
+    : `/api${endpoint}`;
+  
+  const url = `${API_BASE_URL}${normalizedEndpoint}`;
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers,
+      body: isFormData ? data as FormData : (data ? JSON.stringify(data) : undefined),
+      credentials: 'include',
+      ...options,
+    });
+
+    // Handle 401 Unauthorized - token expired or invalid
+    if (response.status === 401) {
+      clearAuthToken();
+      if (typeof window !== 'undefined') {
+        window.location.href = '/signin';
+      }
+      throw new ApiError('Authentication required', 401);
+    }
+
+    // Handle non-JSON responses
+    const contentType = response.headers.get('content-type');
+    if (!contentType || !contentType.includes('application/json')) {
+      if (!response.ok) {
+        throw new ApiError(
+          `Request failed: ${response.statusText}`,
+          response.status
+        );
+      }
+      return response.text() as unknown as T;
+    }
+
+    const responseData = await response.json();
+
+    if (!response.ok) {
+      let errorMessage = `Request failed: ${response.statusText}`;
+      
+      if (responseData.error) {
+        errorMessage = typeof responseData.error === 'string' ? responseData.error : responseData.error.message || errorMessage;
+      } else if (responseData.message) {
+        errorMessage = responseData.message;
+      } else if (responseData.data?.error) {
+        errorMessage = typeof responseData.data.error === 'string' ? responseData.data.error : responseData.data.error.message || errorMessage;
+      } else if (responseData.data?.message) {
+        errorMessage = responseData.data.message;
+      }
+      
+      throw new ApiError(
+        errorMessage,
+        response.status,
+        responseData
+      );
+    }
+
+    // Handle wrapped responses
+    if (responseData.success !== undefined && responseData.data !== undefined) {
+      return responseData.data as T;
+    }
+
+    return responseData as T;
+  } catch (error) {
+    if (error instanceof ApiError) {
+      throw error;
+    }
+
+    if (error instanceof TypeError) {
+      const isFetchError = error.message.includes('Failed to fetch') || error.message.includes('fetch');
+      
+      if (isFetchError) {
+        console.error('Fetch error details:', {
+          url,
     method: 'POST',
-    body: data ? JSON.stringify(data) : undefined,
-  });
+          error: error.message,
+          stack: error.stack,
+        });
+        
+        const errorMessage = `Unable to connect to backend server at ${API_BASE_URL}. Please ensure:
+1. The backend server is running
+2. CORS is properly configured
+3. No browser extensions are blocking the request
+4. The frontend is running on http://localhost:3000`;
+        
+        throw new ApiError(errorMessage, 0);
+      }
+      
+      throw new ApiError(error.message, 0);
+    }
+
+    if (error instanceof Error) {
+      throw new ApiError(error.message, 0);
+    }
+
+    throw new ApiError('Network error', 0);
+  }
 }
 
 /**
@@ -269,7 +380,7 @@ export async function upload<T>(
     headers['Authorization'] = `Bearer ${token}`;
   }
 
-  const url = `${SUPABASE_FUNCTIONS_URL}${endpoint}`;
+  const url = `${API_BASE_URL}${endpoint}`;
 
   const response = await fetch(url, {
     method: 'POST',

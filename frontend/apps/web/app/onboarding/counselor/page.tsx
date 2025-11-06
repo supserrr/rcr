@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Button } from "@workspace/ui/components/button";
 import { Input } from '@workspace/ui/components/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@workspace/ui/components/ui/avatar';
@@ -10,6 +11,8 @@ import { ArrowRight, ArrowLeft, Upload, Award, GraduationCap, MessageCircle, Vid
 import { FileTextIcon } from '@workspace/ui/components/file-text';
 import { UsersIcon } from '@workspace/ui/components/users';
 import { UploadIcon } from '@workspace/ui/components/upload';
+import { AuthApi } from '../../../lib/api/auth';
+import { toast } from 'sonner';
 
 /**
  * Counselor onboarding form data structure
@@ -55,7 +58,9 @@ interface CounselorOnboardingData {
  * Counselor onboarding page component
  */
 export default function CounselorOnboardingPage() {
+  const router = useRouter();
   const [currentStep, setCurrentStep] = useState(1);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState<CounselorOnboardingData>({
     licenseNumber: '',
     licenseExpiry: '',
@@ -120,14 +125,68 @@ export default function CounselorOnboardingPage() {
     setFormData(prev => ({ ...prev, profileImage: file, profileImagePreview: previewUrl }));
   };
 
-  const handleNext = () => {
+  const handleNext = async () => {
     if (currentStep < totalSteps) {
       setCurrentStep(currentStep + 1);
     } else {
       // Submit form and redirect to dashboard
-      console.log('Counselor onboarding submitted:', formData);
-      alert('Onboarding completed! Your application is under review. Redirecting to your dashboard...');
-      window.location.href = '/dashboard/counselor';
+      await handleSubmit();
+    }
+  };
+
+  const handleSubmit = async () => {
+    setIsSubmitting(true);
+    try {
+      // Upload profile image if provided
+      let avatarUrl: string | undefined;
+      if (formData.profileImage) {
+        try {
+          const uploadResult = await AuthApi.uploadProfileImage(formData.profileImage);
+          avatarUrl = uploadResult.url;
+          toast.success('Profile image uploaded successfully');
+        } catch (error) {
+          console.error('Error uploading profile image:', error);
+          toast.error('Failed to upload profile image. Continuing without image...');
+        }
+      }
+
+      // Update profile with onboarding data
+      const profileData: Record<string, unknown> = {
+        licenseNumber: formData.licenseNumber,
+        licenseExpiry: formData.licenseExpiry,
+        issuingAuthority: formData.issuingAuthority,
+        highestDegree: formData.highestDegree,
+        university: formData.university,
+        graduationYear: formData.graduationYear,
+        additionalCertifications: formData.additionalCertifications,
+        yearsOfExperience: formData.yearsOfExperience,
+        previousEmployers: formData.previousEmployers,
+        specializations: formData.specializations,
+        languages: formData.languages,
+        consultationTypes: formData.consultationTypes,
+        availability: formData.availability,
+        motivation: formData.motivation,
+        references: formData.references,
+        emergencyContact: formData.emergencyContact,
+        onboarding_completed: true, // Mark onboarding as complete
+        onboarding_completed_at: new Date().toISOString(),
+      };
+
+      if (avatarUrl) {
+        profileData.avatar_url = avatarUrl;
+      }
+
+      await AuthApi.updateProfile({
+        metadata: profileData,
+      });
+
+      toast.success('Onboarding completed! Your application is under review. Redirecting to your dashboard...');
+      router.push('/dashboard/counselor');
+    } catch (error) {
+      console.error('Error submitting onboarding:', error);
+      toast.error('Failed to complete onboarding. Please try again.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -655,10 +714,11 @@ export default function CounselorOnboardingPage() {
               )}
               <Button
                 onClick={handleNext}
+                disabled={isSubmitting}
                 className="flex items-center justify-center gap-2 w-full sm:w-auto"
               >
-                {currentStep === totalSteps ? 'Submit Application' : 'Next'}
-                <ArrowRight className="w-4 h-4" />
+                {isSubmitting ? 'Saving...' : currentStep === totalSteps ? 'Submit Application' : 'Next'}
+                {!isSubmitting && <ArrowRight className="w-4 h-4" />}
               </Button>
             </div>
           </div>

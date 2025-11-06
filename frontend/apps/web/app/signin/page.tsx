@@ -88,9 +88,9 @@ export default function SignInPageDemo() {
       
       const supabase = createClient();
       
-      // Get the current pathname to redirect back after OAuth
-      const currentPath = window.location.pathname;
-      const redirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent(currentPath)}`;
+      // Redirect to callback which will check onboarding status
+      // The callback will redirect to onboarding if not completed, or dashboard if completed
+      const redirectTo = `${window.location.origin}/auth/callback`;
       
       const { error: oauthError } = await supabase.auth.signInWithOAuth({
         provider: 'google',

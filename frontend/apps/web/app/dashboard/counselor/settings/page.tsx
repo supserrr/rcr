@@ -95,7 +95,24 @@ export default function CounselorSettingsPage() {
     location: '',
     language: 'en',
     timezone: 'Africa/Kigali',
-    languages: [] as string[]
+    languages: [] as string[],
+    // Onboarding data
+    licenseNumber: '',
+    licenseExpiry: '',
+    issuingAuthority: '',
+    highestDegree: '',
+    university: '',
+    graduationYear: '',
+    additionalCertifications: [] as string[],
+    yearsOfExperience: '',
+    previousEmployers: '',
+    specializations: [] as string[],
+    consultationTypes: [] as string[],
+    availability: '',
+    motivation: '',
+    references: '',
+    emergencyContact: '',
+    avatar_url: user?.avatar || ''
   });
 
   // Load user profile data
@@ -105,19 +122,38 @@ export default function CounselorSettingsPage() {
 
       try {
         const currentUser = await AuthApi.getCurrentUser();
+        const metadata = currentUser.metadata || {};
+        
         setProfile(prev => ({
           ...prev,
           name: currentUser.name,
           email: currentUser.email,
-          phoneNumber: (currentUser as any).phoneNumber || '',
-          specialty: (currentUser as any).specialty || '',
-          bio: (currentUser as any).bio || '',
-          credentials: (currentUser as any).credentials || '',
-          experience: (currentUser as any).experience || 0,
-          location: (currentUser as any).location || '',
-          language: (currentUser as any).language || 'en',
-          timezone: (currentUser as any).timezone || 'Africa/Kigali',
-          languages: (currentUser as any).languages || []
+          phoneNumber: (currentUser as any).phoneNumber || metadata.phoneNumber || '',
+          specialty: metadata.specialty || metadata.specializations?.[0] || '',
+          bio: metadata.bio || '',
+          credentials: metadata.credentials || '',
+          experience: metadata.experience || metadata.yearsOfExperience ? parseInt(metadata.yearsOfExperience as string) : 0,
+          location: metadata.location || '',
+          language: metadata.language || 'en',
+          timezone: metadata.timezone || 'Africa/Kigali',
+          languages: Array.isArray(metadata.languages) ? metadata.languages : [],
+          // Onboarding data from metadata
+          licenseNumber: metadata.licenseNumber || '',
+          licenseExpiry: metadata.licenseExpiry || '',
+          issuingAuthority: metadata.issuingAuthority || '',
+          highestDegree: metadata.highestDegree || '',
+          university: metadata.university || '',
+          graduationYear: metadata.graduationYear || '',
+          additionalCertifications: Array.isArray(metadata.additionalCertifications) ? metadata.additionalCertifications : [],
+          yearsOfExperience: metadata.yearsOfExperience || '',
+          previousEmployers: metadata.previousEmployers || '',
+          specializations: Array.isArray(metadata.specializations) ? metadata.specializations : [],
+          consultationTypes: Array.isArray(metadata.consultationTypes) ? metadata.consultationTypes : [],
+          availability: metadata.availability || '',
+          motivation: metadata.motivation || '',
+          references: metadata.references || '',
+          emergencyContact: metadata.emergencyContact || '',
+          avatar_url: currentUser.avatar || metadata.avatar_url || ''
         }));
       } catch (error) {
         console.error('Error loading profile:', error);
@@ -126,6 +162,7 @@ export default function CounselorSettingsPage() {
           ...prev,
           name: user.name || '',
           email: user.email || '',
+          avatar_url: user.avatar || ''
         }));
       }
     };
@@ -141,13 +178,39 @@ export default function CounselorSettingsPage() {
 
     setIsSaving(true);
     try {
-      // Update basic profile fields
+      // Update profile with all fields including onboarding data
       await AuthApi.updateProfile({
         fullName: profile.name,
         phoneNumber: profile.phoneNumber,
-        // Note: Additional fields like specialty, bio, credentials, etc.
-        // are stored in user_metadata on the backend. The backend API should
-        // be updated to accept these fields in the updateProfile endpoint.
+        metadata: {
+          // Basic profile fields
+          phoneNumber: profile.phoneNumber,
+          specialty: profile.specialty,
+          bio: profile.bio,
+          credentials: profile.credentials,
+          experience: profile.experience,
+          location: profile.location,
+          language: profile.language,
+          timezone: profile.timezone,
+          languages: profile.languages,
+          // Onboarding data
+          licenseNumber: profile.licenseNumber,
+          licenseExpiry: profile.licenseExpiry,
+          issuingAuthority: profile.issuingAuthority,
+          highestDegree: profile.highestDegree,
+          university: profile.university,
+          graduationYear: profile.graduationYear,
+          additionalCertifications: profile.additionalCertifications,
+          yearsOfExperience: profile.yearsOfExperience,
+          previousEmployers: profile.previousEmployers,
+          specializations: profile.specializations,
+          consultationTypes: profile.consultationTypes,
+          availability: profile.availability,
+          motivation: profile.motivation,
+          references: profile.references,
+          emergencyContact: profile.emergencyContact,
+          avatar_url: profile.avatar_url
+        }
       });
       
       setHasUnsavedChanges(false);
@@ -526,6 +589,292 @@ export default function CounselorSettingsPage() {
                         onChange={(e) => handleProfileChange('location', e.target.value)}
                         placeholder="City, Country"
                       />
+                    </div>
+
+                    {/* Professional Information */}
+                    <div className="pt-4 border-t border-primary/10">
+                      <h4 className="text-base font-semibold text-foreground mb-4">Professional Information</h4>
+                      <div className="grid gap-4 md:grid-cols-2">
+                        <div className="space-y-2">
+                          <Label htmlFor="licenseNumber">License Number</Label>
+                          <Input
+                            id="licenseNumber"
+                            value={profile.licenseNumber}
+                            onChange={(e) => handleProfileChange('licenseNumber', e.target.value)}
+                            placeholder="Enter license number"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="licenseExpiry">License Expiry Date</Label>
+                          <Input
+                            id="licenseExpiry"
+                            type="date"
+                            value={profile.licenseExpiry}
+                            onChange={(e) => handleProfileChange('licenseExpiry', e.target.value)}
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-2 mt-4">
+                        <Label htmlFor="issuingAuthority">Issuing Authority</Label>
+                        <Input
+                          id="issuingAuthority"
+                          value={profile.issuingAuthority}
+                          onChange={(e) => handleProfileChange('issuingAuthority', e.target.value)}
+                          placeholder="e.g., Rwanda Medical Council"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Education */}
+                    <div className="pt-4 border-t border-primary/10">
+                      <h4 className="text-base font-semibold text-foreground mb-4">Education</h4>
+                      <div className="grid gap-4 md:grid-cols-2">
+                        <div className="space-y-2">
+                          <Label htmlFor="highestDegree">Highest Degree</Label>
+                          <Input
+                            id="highestDegree"
+                            value={profile.highestDegree}
+                            onChange={(e) => handleProfileChange('highestDegree', e.target.value)}
+                            placeholder="e.g., PhD, Master's, Bachelor's"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="university">University</Label>
+                          <Input
+                            id="university"
+                            value={profile.university}
+                            onChange={(e) => handleProfileChange('university', e.target.value)}
+                            placeholder="University name"
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-2 mt-4">
+                        <Label htmlFor="graduationYear">Graduation Year</Label>
+                        <Input
+                          id="graduationYear"
+                          type="number"
+                          value={profile.graduationYear}
+                          onChange={(e) => handleProfileChange('graduationYear', e.target.value)}
+                          placeholder="e.g., 2020"
+                        />
+                      </div>
+                      <div className="space-y-2 mt-4">
+                        <Label htmlFor="additionalCertifications">Additional Certifications</Label>
+                        <div className="flex flex-wrap gap-2 mb-2">
+                          {profile.additionalCertifications.map((cert, index) => (
+                            <Badge
+                              key={index}
+                              variant="outline"
+                              className="px-3 py-1 border-primary/20 text-primary bg-primary/5 flex items-center gap-1"
+                            >
+                              {cert}
+                              <button
+                                onClick={() => {
+                                  const newCerts = profile.additionalCertifications.filter((_, i) => i !== index);
+                                  handleProfileChange('additionalCertifications', newCerts);
+                                }}
+                                className="ml-1 hover:bg-primary/20 rounded-full p-0.5"
+                              >
+                                <X className="h-3 w-3" />
+                              </button>
+                            </Badge>
+                          ))}
+                        </div>
+                        <div className="flex gap-2">
+                          <Input
+                            placeholder="Add certification..."
+                            className="flex-1 border-input focus:ring-primary/20"
+                            onKeyPress={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                const input = e.currentTarget as HTMLInputElement;
+                                if (input.value.trim() && !profile.additionalCertifications.includes(input.value.trim())) {
+                                  handleProfileChange('additionalCertifications', [...profile.additionalCertifications, input.value.trim()]);
+                                  input.value = '';
+                                }
+                              }
+                            }}
+                          />
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={(e) => {
+                              const input = (e.currentTarget.previousElementSibling as HTMLInputElement);
+                              if (input.value.trim() && !profile.additionalCertifications.includes(input.value.trim())) {
+                                handleProfileChange('additionalCertifications', [...profile.additionalCertifications, input.value.trim()]);
+                                input.value = '';
+                              }
+                            }}
+                            className="border-primary/20 hover:bg-primary/10"
+                          >
+                            <Plus className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Experience */}
+                    <div className="pt-4 border-t border-primary/10">
+                      <h4 className="text-base font-semibold text-foreground mb-4">Experience</h4>
+                      <div className="grid gap-4 md:grid-cols-2">
+                        <div className="space-y-2">
+                          <Label htmlFor="yearsOfExperience">Years of Experience</Label>
+                          <Input
+                            id="yearsOfExperience"
+                            type="number"
+                            value={profile.yearsOfExperience}
+                            onChange={(e) => handleProfileChange('yearsOfExperience', e.target.value)}
+                            placeholder="e.g., 5"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="previousEmployers">Previous Employers</Label>
+                          <Input
+                            id="previousEmployers"
+                            value={profile.previousEmployers}
+                            onChange={(e) => handleProfileChange('previousEmployers', e.target.value)}
+                            placeholder="List previous employers"
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-2 mt-4">
+                        <Label htmlFor="specializations">Specializations</Label>
+                        <div className="flex flex-wrap gap-2 mb-2">
+                          {profile.specializations.map((spec, index) => (
+                            <Badge
+                              key={index}
+                              variant="outline"
+                              className="px-3 py-1 border-primary/20 text-primary bg-primary/5 flex items-center gap-1"
+                            >
+                              {spec}
+                              <button
+                                onClick={() => {
+                                  const newSpecs = profile.specializations.filter((_, i) => i !== index);
+                                  handleProfileChange('specializations', newSpecs);
+                                }}
+                                className="ml-1 hover:bg-primary/20 rounded-full p-0.5"
+                              >
+                                <X className="h-3 w-3" />
+                              </button>
+                            </Badge>
+                          ))}
+                        </div>
+                        <div className="flex gap-2">
+                          <Input
+                            placeholder="Add specialization..."
+                            className="flex-1 border-input focus:ring-primary/20"
+                            onKeyPress={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                const input = e.currentTarget as HTMLInputElement;
+                                if (input.value.trim() && !profile.specializations.includes(input.value.trim())) {
+                                  handleProfileChange('specializations', [...profile.specializations, input.value.trim()]);
+                                  input.value = '';
+                                }
+                              }
+                            }}
+                          />
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={(e) => {
+                              const input = (e.currentTarget.previousElementSibling as HTMLInputElement);
+                              if (input.value.trim() && !profile.specializations.includes(input.value.trim())) {
+                                handleProfileChange('specializations', [...profile.specializations, input.value.trim()]);
+                                input.value = '';
+                              }
+                            }}
+                            className="border-primary/20 hover:bg-primary/10"
+                          >
+                            <Plus className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Professional Details */}
+                    <div className="pt-4 border-t border-primary/10">
+                      <h4 className="text-base font-semibold text-foreground mb-4">Professional Details</h4>
+                      <div className="space-y-2">
+                        <Label htmlFor="consultationTypes">Consultation Types</Label>
+                        <div className="flex flex-wrap gap-2 mb-2">
+                          {profile.consultationTypes.map((type, index) => (
+                            <Badge
+                              key={index}
+                              variant="outline"
+                              className="px-3 py-1 border-primary/20 text-primary bg-primary/5 flex items-center gap-1"
+                            >
+                              {type}
+                              <button
+                                onClick={() => {
+                                  const newTypes = profile.consultationTypes.filter((_, i) => i !== index);
+                                  handleProfileChange('consultationTypes', newTypes);
+                                }}
+                                className="ml-1 hover:bg-primary/20 rounded-full p-0.5"
+                              >
+                                <X className="h-3 w-3" />
+                              </button>
+                            </Badge>
+                          ))}
+                        </div>
+                        <div className="flex gap-2">
+                          <Select onValueChange={(value) => {
+                            if (!profile.consultationTypes.includes(value)) {
+                              handleProfileChange('consultationTypes', [...profile.consultationTypes, value]);
+                            }
+                          }}>
+                            <SelectTrigger className="flex-1 border-input focus:ring-primary/20">
+                              <SelectValue placeholder="Add consultation type" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="in-person">In-Person</SelectItem>
+                              <SelectItem value="video">Video Call</SelectItem>
+                              <SelectItem value="phone">Phone Call</SelectItem>
+                              <SelectItem value="chat">Chat</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                      <div className="space-y-2 mt-4">
+                        <Label htmlFor="availability">Availability</Label>
+                        <Input
+                          id="availability"
+                          value={profile.availability}
+                          onChange={(e) => handleProfileChange('availability', e.target.value)}
+                          placeholder="e.g., Weekdays 9am-5pm"
+                        />
+                      </div>
+                      <div className="space-y-2 mt-4">
+                        <Label htmlFor="motivation">Motivation Statement</Label>
+                        <textarea
+                          id="motivation"
+                          className="w-full min-h-[100px] p-3 border rounded-md resize-none focus:ring-2 focus:ring-primary focus:border-transparent bg-background text-foreground border-input"
+                          value={profile.motivation}
+                          onChange={(e) => handleProfileChange('motivation', e.target.value)}
+                          placeholder="Why you want to be a counselor..."
+                        />
+                      </div>
+                      <div className="space-y-2 mt-4">
+                        <Label htmlFor="references">References</Label>
+                        <textarea
+                          id="references"
+                          className="w-full min-h-[100px] p-3 border rounded-md resize-none focus:ring-2 focus:ring-primary focus:border-transparent bg-background text-foreground border-input"
+                          value={profile.references}
+                          onChange={(e) => handleProfileChange('references', e.target.value)}
+                          placeholder="Professional references..."
+                        />
+                      </div>
+                      <div className="space-y-2 mt-4">
+                        <Label htmlFor="emergencyContact">Emergency Contact</Label>
+                        <Input
+                          id="emergencyContact"
+                          value={profile.emergencyContact}
+                          onChange={(e) => handleProfileChange('emergencyContact', e.target.value)}
+                          placeholder="Emergency contact information"
+                        />
+                      </div>
                     </div>
 
                     {/* Professional Languages */}

@@ -51,6 +51,7 @@ export interface UserProfile {
   createdAt?: string;
   updatedAt?: string;
   metadata?: Record<string, unknown>;
+  onboardingCompleted?: boolean;
 }
 
 /**
@@ -182,7 +183,8 @@ export class AuthApi {
       isVerified: (userMetadata.isVerified as boolean) ?? response.user.isVerified ?? false,
       createdAt: response.user.createdAt ? new Date(response.user.createdAt) : new Date(),
       updatedAt: response.user.updatedAt ? new Date(response.user.updatedAt) : new Date(),
-    };
+      metadata: userMetadata,
+    } as User & { metadata?: Record<string, unknown> };
 
     return user;
   }
@@ -214,6 +216,7 @@ export class AuthApi {
     fullName?: string;
     phoneNumber?: string;
     avatar?: string;
+    metadata?: Record<string, unknown>;
   }): Promise<User> {
     const response = await api.put<{ user: UserProfile }>(
       '/auth/profile',
@@ -230,9 +233,40 @@ export class AuthApi {
       isVerified: (userMetadata.isVerified as boolean) ?? response.user.isVerified ?? false,
       createdAt: response.user.createdAt ? new Date(response.user.createdAt) : new Date(),
       updatedAt: response.user.updatedAt ? new Date(response.user.updatedAt) : new Date(),
-    };
+      metadata: userMetadata,
+    } as User & { metadata?: Record<string, unknown> };
 
     return user;
+  }
+
+  /**
+   * Upload profile image
+   */
+  static async uploadProfileImage(file: File): Promise<{ url: string; user: User }> {
+    const formData = new FormData();
+    formData.append('image', file);
+
+    const response = await api.post<{ url: string; user: UserProfile }>(
+      '/auth/profile/upload',
+      formData
+    );
+
+    const userMetadata = response.user.metadata || {};
+    const user: User = {
+      id: response.user.id,
+      email: response.user.email,
+      name: response.user.fullName || response.user.email || '',
+      role: response.user.role,
+      avatar: response.url || response.user.avatar,
+      isVerified: (userMetadata.isVerified as boolean) ?? response.user.isVerified ?? false,
+      createdAt: response.user.createdAt ? new Date(response.user.createdAt) : new Date(),
+      updatedAt: response.user.updatedAt ? new Date(response.user.updatedAt) : new Date(),
+    };
+
+    return {
+      url: response.url,
+      user,
+    };
   }
 
   /**

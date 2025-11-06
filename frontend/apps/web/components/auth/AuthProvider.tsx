@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useEffect, useState, useMemo } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import { AuthService, AuthSession, User, UserRole, getDashboardRoute, ROLES } from '@/lib/auth';
+import { AuthService, AuthSession, User, UserRole, getDashboardRoute, getOnboardingRoute, isOnboardingComplete, ROLES } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/client';
 
 /**
@@ -86,11 +86,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               isVerified: supabaseUser.email_confirmed_at !== null,
               createdAt: new Date(supabaseUser.created_at),
               updatedAt: new Date(supabaseUser.updated_at || supabaseUser.created_at),
+              metadata: userMetadata,
             };
             
             setUser(currentUser);
             AuthSession.setUser(currentUser);
             AuthSession.setToken(session.access_token);
+            
+            // Check onboarding status and redirect if needed
+            if (currentUser && currentUser.role !== 'guest' && currentUser.role !== 'admin') {
+              const onboardingComplete = isOnboardingComplete(currentUser);
+              if (!onboardingComplete && !pathname.startsWith('/onboarding')) {
+                const onboardingRoute = getOnboardingRoute(currentUser.role);
+                router.push(onboardingRoute);
+                setIsLoading(false);
+                return;
+              }
+            }
+            
             setIsLoading(false);
             return;
           }
@@ -110,6 +123,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const currentUser = await AuthService.getCurrentUser();
           setUser(currentUser);
           AuthSession.setUser(currentUser);
+          
+          // Check onboarding status and redirect if needed
+          if (currentUser && currentUser.role !== 'guest' && currentUser.role !== 'admin') {
+            const onboardingComplete = isOnboardingComplete(currentUser);
+            if (!onboardingComplete && !pathname.startsWith('/onboarding')) {
+              const onboardingRoute = getOnboardingRoute(currentUser.role);
+              router.push(onboardingRoute);
+              return;
+            }
+          }
         } catch (error) {
           // Token is invalid, clear storage
           console.error('Token verification failed:', error);
@@ -167,6 +190,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       AuthSession.setUser(result.user);
       
       setUser(result.user);
+      
+      // Check onboarding status and redirect accordingly
+      if (result.user.role !== 'guest' && result.user.role !== 'admin') {
+        const onboardingComplete = isOnboardingComplete(result.user);
+        if (!onboardingComplete) {
+          // Redirect to onboarding if not completed
+          const onboardingRoute = getOnboardingRoute(result.user.role);
+          router.push(onboardingRoute);
+          return;
+        }
+      }
       
       // Redirect to appropriate dashboard
       const dashboardRoute = getDashboardRoute(result.user.role);
@@ -298,10 +332,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     // Authenticated users: redirect away from auth pages
     if (isAuthenticated && isAuthRoute && user) {
+      // Check onboarding status first
+      if (user.role !== 'guest' && user.role !== 'admin') {
+        const onboardingComplete = isOnboardingComplete(user);
+        if (!onboardingComplete) {
+          // Redirect to onboarding if not completed
+          const onboardingRoute = getOnboardingRoute(user.role);
+          router.push(onboardingRoute);
+          return;
+        }
+      }
+      
+      // Redirect to dashboard if onboarding is complete
       const dashboardRoute = getDashboardRoute(user.role);
       // Only redirect if we have a valid dashboard route (not '/')
       if (dashboardRoute !== '/') {
         router.push(dashboardRoute);
+      }
+    }
+    
+    // Check if user is trying to access dashboard without completing onboarding
+    if (isAuthenticated && isDashboardRoute && user) {
+      if (user.role !== 'guest' && user.role !== 'admin') {
+        const onboardingComplete = isOnboardingComplete(user);
+        if (!onboardingComplete) {
+          // Redirect to onboarding if not completed
+          const onboardingRoute = getOnboardingRoute(user.role);
+          router.push(onboardingRoute);
+          return;
+        }
       }
     }
   }, [isAuthenticated, isLoading, pathname, user, router]);

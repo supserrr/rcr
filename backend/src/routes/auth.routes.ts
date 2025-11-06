@@ -5,6 +5,7 @@
  */
 
 import { Router } from 'express';
+import multer from 'multer';
 import * as authController from '../controllers/auth.controller';
 import { authenticate } from '../middleware/auth.middleware';
 import { validate } from '../middleware/validation.middleware';
@@ -17,6 +18,22 @@ import {
   forgotPasswordSchema,
   resetPasswordSchema,
 } from '../schemas/auth.schema';
+
+// Configure multer for file uploads
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 2 * 1024 * 1024, // 2MB max
+  },
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png'];
+    if (allowedTypes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Invalid file type. Only JPG and PNG images are allowed'));
+    }
+  },
+});
 
 const router = Router();
 
@@ -78,6 +95,17 @@ router.post('/forgot-password', validate(forgotPasswordSchema), authController.f
  * Reset password using reset token (public endpoint)
  */
 router.post('/reset-password', validate(resetPasswordSchema), authController.resetPassword);
+
+/**
+ * POST /api/auth/profile/upload
+ * Upload profile image (requires authentication)
+ */
+router.post(
+  '/profile/upload',
+  authenticate,
+  upload.single('image'),
+  authController.uploadProfileImage
+);
 
 export default router;
 

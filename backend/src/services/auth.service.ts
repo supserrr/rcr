@@ -301,9 +301,13 @@ export async function updateProfile(
   try {
     const { fullName, phoneNumber, metadata } = input;
 
-    // Update user metadata using admin client
+    // Get current user metadata first
     const supabaseAdmin = getSupabaseServiceClient();
-    const updateData: Record<string, unknown> = {};
+    const { data: { user: currentUser } } = await supabaseAdmin.auth.admin.getUserById(userId);
+    
+    const updateData: Record<string, unknown> = {
+      ...(currentUser?.user_metadata || {}),
+    };
 
     if (fullName !== undefined) {
       updateData.full_name = fullName;

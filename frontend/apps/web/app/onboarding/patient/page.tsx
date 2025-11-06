@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Button } from "@workspace/ui/components/button";
 import { Input } from '@workspace/ui/components/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@workspace/ui/components/ui/avatar';
@@ -10,6 +11,8 @@ import { Calendar, MapPin, ArrowRight, ArrowLeft, MessageCircle, Video, Phone } 
 import { HeartIcon } from '@workspace/ui/components/heart';
 import { FileTextIcon } from '@workspace/ui/components/file-text';
 import { UsersIcon } from '@workspace/ui/components/users';
+import { AuthApi } from '../../../lib/api/auth';
+import { toast } from 'sonner';
 
 /**
  * Patient onboarding form data structure
@@ -43,7 +46,9 @@ interface PatientOnboardingData {
  * Patient onboarding page component
  */
 export default function PatientOnboardingPage() {
+  const router = useRouter();
   const [currentStep, setCurrentStep] = useState(1);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState<PatientOnboardingData>({
     age: '',
     gender: '',
@@ -105,14 +110,65 @@ export default function PatientOnboardingPage() {
     }));
   };
 
-  const handleNext = () => {
+  const handleNext = async () => {
     if (currentStep < totalSteps) {
       setCurrentStep(currentStep + 1);
     } else {
       // Submit form and redirect to dashboard
-      console.log('Patient onboarding submitted:', formData);
-      alert('Onboarding completed! Redirecting to your dashboard...');
-      window.location.href = '/dashboard/patient';
+      await handleSubmit();
+    }
+  };
+
+  const handleSubmit = async () => {
+    setIsSubmitting(true);
+    try {
+      // Upload profile image if provided
+      let avatarUrl: string | undefined;
+      if (formData.profileImage) {
+        try {
+          const uploadResult = await AuthApi.uploadProfileImage(formData.profileImage);
+          avatarUrl = uploadResult.url;
+          toast.success('Profile image uploaded successfully');
+        } catch (error) {
+          console.error('Error uploading profile image:', error);
+          toast.error('Failed to upload profile image. Continuing without image...');
+        }
+      }
+
+      // Update profile with onboarding data
+      const profileData: Record<string, unknown> = {
+        age: formData.age,
+        gender: formData.gender,
+        location: formData.location,
+        cancerType: formData.cancerType,
+        diagnosisDate: formData.diagnosisDate,
+        currentTreatment: formData.currentTreatment,
+        treatmentStage: formData.treatmentStage,
+        supportNeeds: formData.supportNeeds,
+        preferredLanguage: formData.preferredLanguage,
+        familySupport: formData.familySupport,
+        consultationType: formData.consultationType,
+        availability: formData.availability,
+        specialRequests: formData.specialRequests,
+        onboarding_completed: true, // Mark onboarding as complete
+        onboarding_completed_at: new Date().toISOString(),
+      };
+
+      if (avatarUrl) {
+        profileData.avatar_url = avatarUrl;
+      }
+
+      await AuthApi.updateProfile({
+        metadata: profileData,
+      });
+
+      toast.success('Onboarding completed! Redirecting to your dashboard...');
+      router.push('/dashboard/patient');
+    } catch (error) {
+      console.error('Error submitting onboarding:', error);
+      toast.error('Failed to complete onboarding. Please try again.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -479,10 +535,11 @@ export default function PatientOnboardingPage() {
 
             <Button
               onClick={handleNext}
+              disabled={isSubmitting}
               className="flex items-center justify-center gap-2 w-full sm:w-auto order-1 sm:order-2"
             >
-              {currentStep === totalSteps ? 'Complete Setup' : 'Next'}
-              <ArrowRight className="w-4 h-4" />
+              {isSubmitting ? 'Saving...' : currentStep === totalSteps ? 'Complete Setup' : 'Next'}
+              {!isSubmitting && <ArrowRight className="w-4 h-4" />}
             </Button>
           </div>
         </CardContent>

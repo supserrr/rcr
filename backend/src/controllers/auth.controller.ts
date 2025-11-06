@@ -6,8 +6,9 @@
 
 import { Request, Response, NextFunction } from 'express';
 import * as authService from '../services/auth.service';
+import * as storageService from '../services/storage.service';
 import { AppError } from '../middleware/error.middleware';
-import { logError } from '../utils/logger';
+import { logError, logInfo } from '../utils/logger';
 
 /**
  * Sign up a new user
@@ -197,6 +198,76 @@ export async function resetPassword(
     res.status(200).json({
       success: true,
       message: 'Password reset successfully',
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * Upload profile image
+ * POST /api/auth/profile/upload
+ */
+export async function uploadProfileImage(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    if (!req.user) {
+      throw new AppError('User not authenticated', 401);
+    }
+
+    const file = (req as any).file;
+    if (!file) {
+      throw new AppError('No file uploaded', 400);
+    }
+
+    // Validate file type
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png'];
+    if (!allowedTypes.includes(file.mimetype)) {
+      throw new AppError('Invalid file type. Only JPG and PNG images are allowed', 400);
+    }
+
+    // Validate file size (2MB max)
+    const maxSize = 2 * 1024 * 1024; // 2MB
+    if (file.size > maxSize) {
+      throw new AppError('File size too large. Maximum size is 2MB', 400);
+    }
+
+    // Upload to Supabase Storage
+    const userId = req.user.id;
+    const fileExtension = file.originalname.split('.').pop() || 'jpg';
+    const fileName = `${userId}-${Date.now()}.${fileExtension}`;
+    // Store in user's folder: profiles/{userId}/{fileName}
+    const filePath = `${userId}/${fileName}`;
+
+    const uploadResult = await storageService.uploadFile({
+      bucket: 'avatars',
+      path: filePath,
+      file: file.buffer,
+      contentType: file.mimetype,
+      metadata: {
+        userId,
+        uploadedAt: new Date().toISOString(),
+      },
+    });
+
+    // Update user profile with avatar URL
+    const user = await authService.updateProfile(userId, {
+      metadata: {
+        avatar_url: uploadResult.publicUrl,
+      },
+    });
+
+    logInfo('Profile image uploaded successfully', { userId, url: uploadResult.publicUrl });
+
+    res.status(200).json({
+      success: true,
+      data: {
+        url: uploadResult.publicUrl,
+        user,
+      },
     });
   } catch (error) {
     next(error);

@@ -21,6 +21,7 @@ export interface User {
   isVerified: boolean
   createdAt: Date
   updatedAt: Date
+  metadata?: Record<string, unknown>
 }
 
 export interface AuthState {
@@ -115,6 +116,34 @@ export function getDashboardRoute(userRole: UserRole): string {
     default:
       return '/'
   }
+}
+
+/**
+ * Get the appropriate onboarding route for a user role
+ */
+export function getOnboardingRoute(userRole: UserRole): string {
+  switch (userRole) {
+    case ROLES.PATIENT:
+      return '/onboarding/patient'
+    case ROLES.COUNSELOR:
+      return '/onboarding/counselor'
+    default:
+      return '/onboarding/patient'
+  }
+}
+
+/**
+ * Check if user has completed onboarding
+ */
+export function isOnboardingComplete(user: User | null): boolean {
+  if (!user) return false;
+  
+  // Check if onboarding_completed flag exists in user metadata
+  // We'll check this from the user object's metadata
+  // For now, we'll check if the user has any onboarding data
+  // This will be set when onboarding is completed
+  const metadata = (user as any).metadata || {};
+  return metadata.onboarding_completed === true;
 }
 
 /**
@@ -230,6 +259,7 @@ export class AuthService {
     fullName?: string;
     phoneNumber?: string;
     avatar?: string;
+    metadata?: Record<string, unknown>;
   }): Promise<User> {
     return AuthApi.updateProfile(data);
   }
