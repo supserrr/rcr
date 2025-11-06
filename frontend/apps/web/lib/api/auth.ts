@@ -134,15 +134,16 @@ export class AuthApi {
     api.setAuthToken(response.tokens.accessToken);
 
     // Transform user profile to User type
+    const userMetadata = response.user.metadata || {};
     const user: User = {
       id: response.user.id,
       email: response.user.email,
-      name: response.user.fullName,
+      name: response.user.fullName || response.user.email || '',
       role: response.user.role,
       avatar: response.user.avatar,
-      isVerified: response.user.isVerified,
-      createdAt: new Date(response.user.createdAt),
-      updatedAt: new Date(response.user.updatedAt),
+      isVerified: (userMetadata.isVerified as boolean) ?? response.user.isVerified ?? false,
+      createdAt: response.user.createdAt ? new Date(response.user.createdAt) : new Date(),
+      updatedAt: response.user.updatedAt ? new Date(response.user.updatedAt) : new Date(),
     };
 
     return {
@@ -171,15 +172,16 @@ export class AuthApi {
   static async getCurrentUser(): Promise<User> {
     const response = await api.get<{ user: UserProfile }>('/api/auth/me');
 
+    const userMetadata = response.user.metadata || {};
     const user: User = {
       id: response.user.id,
       email: response.user.email,
-      name: response.user.fullName,
+      name: response.user.fullName || response.user.email || '',
       role: response.user.role,
       avatar: response.user.avatar,
-      isVerified: response.user.isVerified,
-      createdAt: new Date(response.user.createdAt),
-      updatedAt: new Date(response.user.updatedAt),
+      isVerified: (userMetadata.isVerified as boolean) ?? response.user.isVerified ?? false,
+      createdAt: response.user.createdAt ? new Date(response.user.createdAt) : new Date(),
+      updatedAt: response.user.updatedAt ? new Date(response.user.updatedAt) : new Date(),
     };
 
     return user;
@@ -218,15 +220,16 @@ export class AuthApi {
       data
     );
 
+    const userMetadata = response.user.metadata || {};
     const user: User = {
       id: response.user.id,
       email: response.user.email,
-      name: response.user.fullName,
+      name: response.user.fullName || response.user.email || '',
       role: response.user.role,
       avatar: response.user.avatar,
-      isVerified: response.user.isVerified,
-      createdAt: new Date(response.user.createdAt),
-      updatedAt: new Date(response.user.updatedAt),
+      isVerified: (userMetadata.isVerified as boolean) ?? response.user.isVerified ?? false,
+      createdAt: response.user.createdAt ? new Date(response.user.createdAt) : new Date(),
+      updatedAt: response.user.updatedAt ? new Date(response.user.updatedAt) : new Date(),
     };
 
     return user;
