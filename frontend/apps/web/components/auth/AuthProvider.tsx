@@ -63,35 +63,109 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   /**
    * Check authentication status from storage and verify with backend
    * Also checks Supabase session for OAuth authentication
+   * Optimized with timeout to prevent infinite loading
    */
   const checkAuth = async () => {
-    try {
-      // First, check Supabase session (for OAuth) - only if Supabase is configured
-      if (supabaseClient) {
-        try {
-          const { data: { session }, error: sessionError } = await supabaseClient.auth.getSession();
-          
-          if (session && !sessionError) {
-            // User is authenticated via Supabase (OAuth)
-            // Convert Supabase user to our User type
-            const supabaseUser = session.user;
-            const userMetadata = supabaseUser.user_metadata || {};
+    // Set a timeout to prevent infinite loading (3 seconds max)
+    const timeoutPromise = new Promise<void>((resolve) => {
+      setTimeout(() => {
+        resolve();
+      }, 3000);
+    });
+
+    const authCheckPromise = (async () => {
+      try {
+        // First, check Supabase session (for OAuth) - only if Supabase is configured
+        if (supabaseClient) {
+          try {
+            // Use Promise.race to timeout Supabase call if it takes too long
+            // Increased timeout to 5 seconds to allow OAuth sessions to be available
+            const sessionPromise = supabaseClient.auth.getSession();
+            const sessionResult = await Promise.race([
+              sessionPromise,
+              new Promise<{ data: { session: null }; error: null }>((resolve) => 
+                setTimeout(() => resolve({ data: { session: null }, error: null }), 5000)
+              )
+            ]);
             
-            const currentUser: User = {
-              id: supabaseUser.id,
-              email: supabaseUser.email || '',
-              name: userMetadata.full_name || userMetadata.name || supabaseUser.email || '',
-              role: (userMetadata.role as UserRole) || 'guest',
-              avatar: userMetadata.avatar_url || supabaseUser.user_metadata?.avatar_url,
-              isVerified: supabaseUser.email_confirmed_at !== null,
-              createdAt: new Date(supabaseUser.created_at),
-              updatedAt: new Date(supabaseUser.updated_at || supabaseUser.created_at),
-              metadata: userMetadata,
-            };
+            const { data: { session }, error: sessionError } = sessionResult;
+            
+            if (session && !sessionError) {
+              // User is authenticated via Supabase (OAuth)
+              // Convert Supabase user to our User type
+              const supabaseUser = session.user;
+              const userMetadata = supabaseUser.user_metadata || {};
+              
+              const currentUser: User = {
+                id: supabaseUser.id,
+                email: supabaseUser.email || '',
+                name: userMetadata.full_name || userMetadata.name || supabaseUser.email || '',
+                role: (userMetadata.role as UserRole) || 'guest',
+                avatar: userMetadata.avatar_url || supabaseUser.user_metadata?.avatar_url,
+                isVerified: supabaseUser.email_confirmed_at !== null,
+                createdAt: new Date(supabaseUser.created_at),
+                updatedAt: new Date(supabaseUser.updated_at || supabaseUser.created_at),
+                metadata: userMetadata,
+              };
+              
+              setUser(currentUser);
+              AuthSession.setUser(currentUser);
+              AuthSession.setToken(session.access_token);
+              
+              // Check onboarding status and redirect if needed
+              // Only redirect if not already on onboarding page to prevent loops
+              if (currentUser && currentUser.role !== 'guest' && currentUser.role !== 'admin') {
+                const onboardingComplete = isOnboardingComplete(currentUser);
+                // Check if we're already on the correct onboarding route
+                const expectedOnboardingRoute = getOnboardingRoute(currentUser.role);
+                const isOnCorrectOnboardingRoute = pathname === expectedOnboardingRoute;
+                
+                if (!onboardingComplete && !pathname.startsWith('/onboarding')) {
+                  // Not on onboarding page, redirect to appropriate onboarding
+                  const onboardingRoute = getOnboardingRoute(currentUser.role);
+                  router.push(onboardingRoute);
+                  setIsLoading(false);
+                  return;
+                } else if (!onboardingComplete && pathname.startsWith('/onboarding') && !isOnCorrectOnboardingRoute) {
+                  // On wrong onboarding route, redirect to correct one
+                  const onboardingRoute = getOnboardingRoute(currentUser.role);
+                  router.push(onboardingRoute);
+                  setIsLoading(false);
+                  return;
+                }
+                // If already on correct onboarding route, don't redirect
+              }
+              
+              setIsLoading(false);
+              return;
+            }
+          } catch (error) {
+            // Supabase not configured or error, fall through to backend auth
+            if (process.env.NODE_ENV === 'development') {
+              console.warn('Supabase auth check failed, using backend auth:', error);
+            }
+          }
+        }
+        
+        // Fallback to backend token-based auth
+        const token = AuthSession.getToken();
+        const userData = AuthSession.getUser();
+        
+        if (token && userData) {
+          try {
+            // Verify token by getting current user from backend with timeout
+            const currentUserPromise = AuthService.getCurrentUser();
+            const timeoutPromise = new Promise<never>((_, reject) => 
+              setTimeout(() => reject(new Error('Auth check timeout')), 2000)
+            );
+            
+            const currentUser = await Promise.race([
+              currentUserPromise,
+              timeoutPromise
+            ]);
             
             setUser(currentUser);
             AuthSession.setUser(currentUser);
-            AuthSession.setToken(session.access_token);
             
             // Check onboarding status and redirect if needed
             if (currentUser && currentUser.role !== 'guest' && currentUser.role !== 'admin') {
@@ -99,57 +173,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               if (!onboardingComplete && !pathname.startsWith('/onboarding')) {
                 const onboardingRoute = getOnboardingRoute(currentUser.role);
                 router.push(onboardingRoute);
-                setIsLoading(false);
                 return;
               }
             }
-            
-            setIsLoading(false);
-            return;
-          }
-        } catch (error) {
-          // Supabase not configured or error, fall through to backend auth
-          console.warn('Supabase auth check failed, using backend auth:', error);
-        }
-      }
-      
-      // Fallback to backend token-based auth
-      const token = AuthSession.getToken();
-      const userData = AuthSession.getUser();
-      
-      if (token && userData) {
-        try {
-          // Verify token by getting current user from backend
-          const currentUser = await AuthService.getCurrentUser();
-          setUser(currentUser);
-          AuthSession.setUser(currentUser);
-          
-          // Check onboarding status and redirect if needed
-          if (currentUser && currentUser.role !== 'guest' && currentUser.role !== 'admin') {
-            const onboardingComplete = isOnboardingComplete(currentUser);
-            if (!onboardingComplete && !pathname.startsWith('/onboarding')) {
-              const onboardingRoute = getOnboardingRoute(currentUser.role);
-              router.push(onboardingRoute);
-              return;
+          } catch (error) {
+            // Token is invalid or timeout, clear storage
+            if (process.env.NODE_ENV === 'development') {
+              console.error('Token verification failed:', error);
             }
+            AuthSession.clear();
+            setUser(null);
           }
-        } catch (error) {
-          // Token is invalid, clear storage
-          console.error('Token verification failed:', error);
-          AuthSession.clear();
+        } else {
+          // No token or user data - user is not authenticated
           setUser(null);
         }
-      } else {
+      } catch (error) {
+        // Catch any unexpected errors during auth check
+        if (process.env.NODE_ENV === 'development') {
+          console.error('Unexpected error during auth check:', error);
+        }
         setUser(null);
+        AuthSession.clear();
+      } finally {
+        setIsLoading(false);
       }
-    } catch (error) {
-      // Catch any unexpected errors during auth check
-      console.error('Unexpected error during auth check:', error);
-      setUser(null);
-      AuthSession.clear();
-    } finally {
-      setIsLoading(false);
-    }
+    })();
+
+    // Race between auth check and timeout
+    await Promise.race([authCheckPromise, timeoutPromise]);
+    
+    // If we're still loading after timeout, set loading to false
+    setIsLoading(false);
   };
 
   /**
