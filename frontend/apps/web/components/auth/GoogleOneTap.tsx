@@ -123,7 +123,12 @@ export function GoogleOneTap() {
     <Script
       src="https://accounts.google.com/gsi/client"
       async
-      onReady={initializeGoogleOneTap}
+      onReady={() => {
+        // Call async function without awaiting (onReady expects void return)
+        initializeGoogleOneTap().catch((error) => {
+          console.error('Error initializing Google One Tap:', error);
+        });
+      }}
     />
   );
 }
