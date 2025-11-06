@@ -14,13 +14,8 @@ import { createClient as createSupabaseClient, SupabaseClient } from '@supabase/
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-// Only throw error in production or if explicitly required
-// In development, we'll allow undefined values to prevent build errors
-if (process.env.NODE_ENV === 'production' && (!supabaseUrl || !supabaseAnonKey)) {
-  throw new Error(
-    'Missing Supabase environment variables. Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in your .env.local file.'
-  );
-}
+// Don't throw error at module evaluation time - this prevents build errors
+// The error will be thrown at runtime when createClient() is called if needed
 
 /**
  * Singleton Supabase client instance
@@ -42,12 +37,32 @@ export function createClient(): SupabaseClient {
     return supabaseClientInstance;
   }
 
-  // Provide fallback values if not set (for development)
-  const url = supabaseUrl || 'https://placeholder.supabase.co';
-  const key = supabaseAnonKey || 'placeholder-key';
+  // Check for environment variables at runtime, not at module evaluation time
+  // This prevents build errors when env vars aren't available during build
+  if (!supabaseUrl || !supabaseAnonKey) {
+    // In production, throw error at runtime
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error(
+        'Missing Supabase environment variables. Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in your environment variables.'
+      );
+    }
+    // In development/build, use placeholder values
+    const url = 'https://placeholder.supabase.co';
+    const key = 'placeholder-key';
+    
+    supabaseClientInstance = createSupabaseClient(url, key, {
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: true,
+      },
+    });
+    
+    return supabaseClientInstance;
+  }
   
-  // Create and cache the client instance
-  supabaseClientInstance = createSupabaseClient(url, key, {
+  // Create and cache the client instance with actual credentials
+  supabaseClientInstance = createSupabaseClient(supabaseUrl, supabaseAnonKey, {
     auth: {
       persistSession: true,
       autoRefreshToken: true,
