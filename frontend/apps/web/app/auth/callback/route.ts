@@ -657,13 +657,27 @@ export async function GET(request: Request) {
                   updateStep(2);
                   statusText.textContent = 'Creating your session...';
                   
-                  // Set the session using the tokens from hash
-                  // Supabase will handle token validation and session creation
-                  console.log('Setting session with tokens from hash...');
-                  const { data: { session }, error: sessionError } = await supabaseClient.auth.setSession({
-                    access_token: accessToken,
-                    refresh_token: refreshToken || '',
-                  });
+                  // When detectSessionInUrl is true, Supabase automatically extracts tokens from hash
+                  // and creates a session. However, this happens asynchronously during client initialization.
+                  // We need to wait a moment for Supabase to process the hash, then check/get the session.
+                  
+                  // Wait a brief moment for Supabase to auto-detect tokens from hash
+                  await new Promise(resolve => setTimeout(resolve, 100));
+                  
+                  // Try to get the session (Supabase should have auto-extracted from hash by now)
+                  let { data: { session }, error: sessionError } = await supabaseClient.auth.getSession();
+                  
+                  // If no session yet, manually set it using tokens from hash
+                  // This is a fallback in case automatic detection didn't work
+                  if (!session && accessToken) {
+                    console.log('Automatic detection failed, manually setting session with tokens from hash...');
+                    ({ data: { session }, error: sessionError } = await supabaseClient.auth.setSession({
+                      access_token: accessToken,
+                      refresh_token: refreshToken || '',
+                    }));
+                  } else if (session) {
+                    console.log('Session automatically detected from URL hash by Supabase');
+                  }
                   
                   if (sessionError) {
                     clearTimeout(timeout);
