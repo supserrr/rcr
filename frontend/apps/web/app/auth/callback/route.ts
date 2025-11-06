@@ -930,17 +930,16 @@ export async function GET(request: Request) {
         // Fallback to origin
         return NextResponse.redirect(`${origin}${redirectPath}`);
       }
-  } catch (error) {
-    // Handle unexpected errors
-    console.error('Unexpected error in OAuth callback:', error);
-    
-    const errorMessage = error instanceof Error 
-      ? error.message 
-      : 'An unexpected error occurred during authentication.';
-    
-    return NextResponse.redirect(
-      `${origin}/auth/auth-code-error?error=${encodeURIComponent(errorMessage)}`
-    );
+    } catch (error) {
+      // Handle unexpected errors
+      console.error('Unexpected error in OAuth callback:', error);
+      
+      const errorMessage = error instanceof Error 
+        ? error.message 
+        : 'An unexpected error occurred during authentication.';
+      
+      return NextResponse.redirect(
+        `${origin}/auth/auth-code-error?error=${encodeURIComponent(errorMessage)}`
+      );
+    }
   }
-}
-
