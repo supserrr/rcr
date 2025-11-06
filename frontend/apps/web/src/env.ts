@@ -39,13 +39,17 @@ export const env = createEnv({
    * Next.js requires the NEXT_PUBLIC_ prefix for client-side variables.
    * This is enforced both at type-level and at runtime.
    * 
-   * Supabase variables are optional during build to allow deployments to proceed,
+   * Most variables are optional during build to allow deployments to proceed,
    * but should be set for full functionality. They will be validated at runtime
-   * when Supabase client is created.
+   * when features are accessed.
    */
   client: {
     NEXT_PUBLIC_SUPABASE_URL: z.string().url().optional(),
     NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(1).optional(),
+    NEXT_PUBLIC_API_URL: z.string().url().optional(),
+    NEXT_PUBLIC_SOCKET_URL: z.string().url().optional(),
+    NEXT_PUBLIC_GOOGLE_CLIENT_ID: z.string().min(1).optional(),
+    NEXT_PUBLIC_ASSISTANT_API_URL: z.string().url().optional(),
   },
   
   /**
@@ -61,6 +65,10 @@ export const env = createEnv({
     NODE_ENV: process.env.NODE_ENV,
     NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
     NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
+    NEXT_PUBLIC_SOCKET_URL: process.env.NEXT_PUBLIC_SOCKET_URL,
+    NEXT_PUBLIC_GOOGLE_CLIENT_ID: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID,
+    NEXT_PUBLIC_ASSISTANT_API_URL: process.env.NEXT_PUBLIC_ASSISTANT_API_URL,
   },
   
   /**

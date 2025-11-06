@@ -27,21 +27,25 @@ let supabaseClientInstance: SupabaseClient | null = null;
  * Uses validated environment variables from @t3-oss/env-core which ensures
  * all required variables are present and properly typed.
  * 
- * @returns The singleton Supabase client instance
- * @throws Error if Supabase environment variables are not configured
+ * @returns The singleton Supabase client instance, or null if not configured
  */
-export function createClient(): SupabaseClient {
+export function createClient(): SupabaseClient | null {
   // Return existing instance if it exists
   if (supabaseClientInstance) {
     return supabaseClientInstance;
   }
   
   // Validate that Supabase environment variables are set
+  // During build time, these may not be available, so return null gracefully
   if (!env.NEXT_PUBLIC_SUPABASE_URL || !env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
-    throw new Error(
-      'Supabase is not configured. Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in your environment variables. ' +
-      'For Vercel deployments, add these in Settings → Environment Variables.'
-    );
+    // Only log warning in development, not during build
+    if (typeof window !== 'undefined') {
+      console.warn(
+        'Supabase is not configured. Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in your environment variables. ' +
+        'For Vercel deployments, add these in Settings → Environment Variables.'
+      );
+    }
+    return null;
   }
   
   // Create and cache the client instance with validated credentials

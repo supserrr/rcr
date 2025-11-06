@@ -102,6 +102,13 @@ export async function GET(request: Request) {
   try {
     const supabase = await createClient();
     
+    if (!supabase) {
+      const errorMessage = 'Supabase is not configured. Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in your environment variables.';
+      return NextResponse.redirect(
+        `${origin}/auth/auth-code-error?error=${encodeURIComponent(errorMessage)}`
+      );
+    }
+    
     // First, try to get the session (Supabase might have already created it)
     // This is important because Supabase OAuth might create the session before redirecting
     const { data: { session: existingSession }, error: sessionError } = await supabase.auth.getSession();

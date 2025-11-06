@@ -62,6 +62,10 @@ export function GoogleOneTap() {
     }
     
     const supabase = createClient();
+    if (!supabase) {
+      // Silently skip if not configured (optional feature)
+      return;
+    }
     
     console.log('Initializing Google One Tap');
     const [nonce, hashedNonce] = await generateNonce();

@@ -87,6 +87,10 @@ export default function SignInPageDemo() {
       }
       
       const supabase = createClient();
+      if (!supabase) {
+        setError('Google Sign-In is not configured. Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in your .env.local file.');
+        return;
+      }
       
       // Redirect to callback which will check onboarding status
       // The callback will redirect to onboarding if not completed, or dashboard if completed

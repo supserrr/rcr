@@ -134,6 +134,11 @@ export default function CounselorSignUpPage() {
       }
       
       const supabase = createClient();
+      if (!supabase) {
+        setError('Google Sign-Up is not configured. Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in your .env.local file.');
+        setIsLoading(false);
+        return;
+      }
       
       // Determine role from the current path
       const role = 'counselor'; // This is the counselor signup page

@@ -18,15 +18,13 @@ import { env } from '@/src/env';
  * Uses validated environment variables from @t3-oss/env-core which ensures
  * all required variables are present and properly typed.
  * 
- * @throws Error if Supabase environment variables are not configured
+ * @returns The Supabase client instance, or null if not configured
  */
 export async function createClient() {
   // Validate that Supabase environment variables are set
+  // During build time, these may not be available, so return null gracefully
   if (!env.NEXT_PUBLIC_SUPABASE_URL || !env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
-    throw new Error(
-      'Supabase is not configured. Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in your environment variables. ' +
-      'For Vercel deployments, add these in Settings → Environment Variables.'
-    );
+    return null;
   }
   
   const cookieStore = await cookies();
