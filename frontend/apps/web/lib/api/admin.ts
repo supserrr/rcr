@@ -269,47 +269,127 @@ export class AdminApi {
       throw new Error('Supabase is not configured. Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.');
     }
 
-    const { data, error } = await supabase.functions.invoke('admin', {
-      method: 'POST',
-      body: {
-        action: 'listUsers',
-        limit: params?.limit,
-        offset: params?.offset,
-        role: params?.role,
-        isVerified: params?.isVerified,
-        search: params?.search,
-      },
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
+    const {
+      data: { user: currentUser },
+      error: currentUserError,
+    } = await supabase.auth.getUser();
 
-    if (error) {
-      throw new Error(error.message || 'Failed to list users');
+    if (currentUserError) {
+      throw new Error(currentUserError.message || 'Failed to determine current user');
     }
 
-    // The Edge Function returns { success: true, data: { users: [...], total, count, limit, offset } }
-    if (!data || !data.success || !data.data) {
-      throw new Error(data?.error?.message || 'Failed to list users');
+    if (!currentUser) {
+      throw new Error('User not authenticated');
     }
 
-    const response = data.data;
+    const currentRole = (currentUser.user_metadata?.role as AdminUser['role']) || 'patient';
+    const limit = params?.limit ?? 50;
+    const offset = params?.offset ?? 0;
+
+    if (currentRole === 'admin') {
+      const { data, error } = await supabase.functions.invoke('admin', {
+        method: 'POST',
+        body: {
+          action: 'listUsers',
+          limit,
+          offset,
+          role: params?.role,
+          isVerified: params?.isVerified,
+          search: params?.search,
+        },
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (error) {
+        throw new Error(error.message || 'Failed to list users');
+      }
+
+      if (!data || !data.success || !data.data) {
+        throw new Error(data?.error?.message || 'Failed to list users');
+      }
+
+      const response = data.data;
+
+      return {
+        users: (response.users || []).map((u: any) => ({
+          id: u.id,
+          email: u.email || '',
+          fullName: u.fullName || u.full_name,
+          role: (u.role as AdminUser['role']) || 'patient',
+          isVerified: u.isVerified || u.is_verified || false,
+          createdAt: u.createdAt || u.created_at,
+          lastLogin: u.lastLogin || u.last_login || undefined,
+          ...(u.metadata ? { metadata: u.metadata } : {}),
+        })),
+        total: response.total || response.count || 0,
+        limit: response.limit || limit,
+        offset: response.offset || offset,
+      };
+    }
+
+    // Non-admin users query the public.profiles table directly
+    let profileQuery = supabase
+      .from('profiles')
+      .select(
+        'id,full_name,role,is_verified,metadata,specialty,experience_years,availability,avatar_url,assigned_counselor_id,created_at,updated_at',
+        { count: 'exact' },
+      );
+
+    if (params?.role) {
+      profileQuery = profileQuery.eq('role', params.role);
+    }
+
+    if (params?.isVerified !== undefined) {
+      profileQuery = profileQuery.eq('is_verified', params.isVerified);
+    }
+
+    if (params?.search) {
+      const searchTerm = `%${params.search}%`;
+      profileQuery = profileQuery.or(
+        `full_name.ilike.${searchTerm},metadata->>email.ilike.${searchTerm},metadata->>contact_email.ilike.${searchTerm}`,
+      );
+    }
+
+    profileQuery = profileQuery
+      .order(params?.role === 'counselor' ? 'full_name' : 'created_at', { ascending: true })
+      .range(offset, offset + limit - 1);
+
+    const { data: profiles, error: profilesError, count } = await profileQuery;
+
+    if (profilesError) {
+      throw new Error(profilesError.message || 'Failed to list users');
+    }
+
     return {
-      users: (response.users || []).map((u: any) => ({
-        id: u.id,
-        email: u.email || '',
-        fullName: u.fullName || u.full_name,
-        role: (u.role as AdminUser['role']) || 'patient',
-        isVerified: u.isVerified || u.is_verified || false,
-        createdAt: u.createdAt || u.created_at,
-        lastLogin: u.lastLogin || u.last_login || undefined,
+      users: (profiles || []).map((profile) => ({
+        id: profile.id,
+        email:
+          (profile.metadata?.email as string | undefined) ||
+          (profile.metadata?.contact_email as string | undefined) ||
+          '',
+        fullName: profile.full_name || '',
+        role: (profile.role as AdminUser['role']) || 'patient',
+        isVerified: !!profile.is_verified,
+        createdAt: profile.created_at || new Date().toISOString(),
+        lastLogin: profile.updated_at || undefined,
+        // Spread profile metadata for downstream consumers that expect additional fields.
+        ...(profile.metadata ? { metadata: profile.metadata } : {}),
+        ...(profile.specialty ? { specialty: profile.specialty } : {}),
+        ...(profile.experience_years ? { experience: profile.experience_years } : {}),
+        ...(profile.availability ? { availability: profile.availability } : {}),
+        ...(profile.avatar_url ? { avatarUrl: profile.avatar_url } : {}),
       })),
-      total: response.total || response.count || 0,
-      limit: response.limit || params?.limit || 50,
-      offset: response.offset || params?.offset || 0,
+      total: count ?? (profiles?.length ?? 0),
+      limit,
+      offset,
     };
   }
 
+   * Update user role using Supabase Edge Function
+   * Uses the admin Edge Function with service role key
+   */
   /**
    * Update user role using Supabase Edge Function
    * Uses the admin Edge Function with service role key
