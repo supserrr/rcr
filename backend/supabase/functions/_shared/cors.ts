@@ -17,7 +17,20 @@ export interface CorsOptions {
 const defaultOptions: CorsOptions = {
   origin: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  allowedHeaders: [
+    'Content-Type',
+    'Authorization',
+    'X-Client-Info',
+    'apikey',
+    'X-Supabase-Api-Version',
+    'Accept',
+    'Accept-Language',
+    'Accept-Encoding',
+    'Range',
+    'Prefer',
+    'Content-Profile',
+    'Accept-Profile',
+  ],
   credentials: true,
 };
 

@@ -201,10 +201,10 @@ export class SessionsApi {
     }
     if (params?.type) {
       query = query.eq('type', params.type);
-    }
+        }
     if (params?.dateFrom) {
       query = query.gte('date', params.dateFrom);
-        }
+    }
     if (params?.dateTo) {
       query = query.lte('date', params.dateTo);
     }

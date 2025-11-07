@@ -115,14 +115,14 @@ export default function CounselorSignUpPage() {
       
       // Only redirect if there's a session (email confirmation disabled)
       if (result.token && result.token !== '') {
-        // Store auth data in localStorage
-        localStorage.setItem('auth-token', result.token);
-        localStorage.setItem('user-data', JSON.stringify(result.user));
-        localStorage.setItem('user-role', result.user.role);
+      // Store auth data in localStorage
+      localStorage.setItem('auth-token', result.token);
+      localStorage.setItem('user-data', JSON.stringify(result.user));
+      localStorage.setItem('user-role', result.user.role);
 
         // Redirect to onboarding after a short delay to show the message
         setTimeout(() => {
-          router.push('/onboarding/counselor');
+      router.push('/onboarding/counselor');
         }, 2000);
       }
     } catch (err) {

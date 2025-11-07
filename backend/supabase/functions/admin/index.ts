@@ -15,6 +15,23 @@ import { corsResponse, handleCorsPreflight } from '../_shared/cors.ts';
 import { requireAuth, requireRole } from '../_shared/auth.ts';
 import { successResponse, errorResponse } from '../_shared/types.ts';
 
+const corsOptions = {
+  allowedHeaders: [
+    'Content-Type',
+    'Authorization',
+    'X-Client-Info',
+    'apikey',
+    'X-Supabase-Api-Version',
+    'Accept',
+    'Accept-Language',
+    'Accept-Encoding',
+    'Range',
+    'Prefer',
+    'Content-Profile',
+    'Accept-Profile',
+  ],
+};
+
 /**
  * Get analytics
  */
@@ -43,13 +60,15 @@ async function handleGetAnalytics(request: Request): Promise<Response> {
         resources: resourcesCount.count || 0,
       })),
       { status: 200 },
-      request
+      request,
+      corsOptions
     );
   } catch (error) {
     return corsResponse(
       JSON.stringify(errorResponse('Authentication required', error instanceof Error ? error.message : 'Unknown error')),
       { status: 401 },
-      request
+      request,
+      corsOptions
     );
   }
 }
@@ -82,7 +101,8 @@ async function handleListUsers(request: Request, params?: { limit?: number; offs
       return corsResponse(
         JSON.stringify(errorResponse('Failed to list users', error.message)),
         { status: 500 },
-        request
+        request,
+        corsOptions
       );
     }
 
@@ -124,13 +144,15 @@ async function handleListUsers(request: Request, params?: { limit?: number; offs
         offset: Number(offset) 
       })),
       { status: 200 },
-      request
+      request,
+      corsOptions
     );
   } catch (error) {
     return corsResponse(
       JSON.stringify(errorResponse('Authentication required', error instanceof Error ? error.message : 'Unknown error')),
       { status: 401 },
-      request
+      request,
+      corsOptions
     );
   }
 }
@@ -150,7 +172,8 @@ async function handleGetUser(request: Request, userId: string): Promise<Response
       return corsResponse(
         JSON.stringify(errorResponse('User not found', error?.message || 'User does not exist')),
         { status: 404 },
-        request
+        request,
+        corsOptions
       );
     }
 
@@ -165,13 +188,15 @@ async function handleGetUser(request: Request, userId: string): Promise<Response
         updatedAt: targetUser.updated_at,
       })),
       { status: 200 },
-      request
+      request,
+      corsOptions
     );
   } catch (error) {
     return corsResponse(
       JSON.stringify(errorResponse('Authentication required', error instanceof Error ? error.message : 'Unknown error')),
       { status: 401 },
-      request
+      request,
+      corsOptions
     );
   }
 }
@@ -201,7 +226,8 @@ async function handleUpdateUserRole(request: Request, userId: string, body?: any
       return corsResponse(
         JSON.stringify(errorResponse('Invalid role', 'Role must be patient, counselor, or admin')),
         { status: 400 },
-        request
+        request,
+        corsOptions
       );
     }
 
@@ -212,7 +238,8 @@ async function handleUpdateUserRole(request: Request, userId: string, body?: any
       return corsResponse(
         JSON.stringify(errorResponse('User not found', getUserError?.message || 'User does not exist')),
         { status: 404 },
-        request
+        request,
+        corsOptions
       );
     }
 
@@ -228,7 +255,8 @@ async function handleUpdateUserRole(request: Request, userId: string, body?: any
       return corsResponse(
         JSON.stringify(errorResponse('Failed to update user role', error?.message || 'Update failed')),
         { status: 500 },
-        request
+        request,
+        corsOptions
       );
     }
 
@@ -243,13 +271,15 @@ async function handleUpdateUserRole(request: Request, userId: string, body?: any
         updatedAt: updatedUser.updated_at,
       })),
       { status: 200 },
-      request
+      request,
+      corsOptions
     );
   } catch (error) {
     return corsResponse(
       JSON.stringify(errorResponse('Authentication required', error instanceof Error ? error.message : 'Unknown error')),
       { status: 401 },
-      request
+      request,
+      corsOptions
     );
   }
 }
@@ -266,7 +296,8 @@ async function handleDeleteUser(request: Request, userId: string): Promise<Respo
       return corsResponse(
         JSON.stringify(errorResponse('Cannot delete yourself', 'You cannot delete your own account')),
         { status: 400 },
-        request
+        request,
+        corsOptions
       );
     }
 
@@ -278,20 +309,23 @@ async function handleDeleteUser(request: Request, userId: string): Promise<Respo
       return corsResponse(
         JSON.stringify(errorResponse('Failed to delete user', error.message)),
         { status: 500 },
-        request
+        request,
+        corsOptions
       );
     }
 
     return corsResponse(
       JSON.stringify(successResponse(null, 'User deleted successfully')),
       { status: 200 },
-      request
+      request,
+      corsOptions
     );
   } catch (error) {
     return corsResponse(
       JSON.stringify(errorResponse('Authentication required', error instanceof Error ? error.message : 'Unknown error')),
       { status: 401 },
-      request
+      request,
+      corsOptions
     );
   }
 }
@@ -300,9 +334,9 @@ async function handleDeleteUser(request: Request, userId: string): Promise<Respo
  * Main handler
  */
 serve(async (request: Request) => {
-  const corsResponse = handleCorsPreflight(request);
-  if (corsResponse) {
-    return corsResponse;
+  const preflightResponse = handleCorsPreflight(request, corsOptions);
+  if (preflightResponse) {
+    return preflightResponse;
   }
 
   const url = new URL(request.url);
@@ -331,18 +365,18 @@ serve(async (request: Request) => {
 
     // Use pathname-based routing (for direct HTTP calls)
     if (!action) {
-      const pathParts = path.split('/').filter(Boolean);
-      const resource = pathParts.length > 0 && pathParts[0] !== '' ? pathParts[0] : null;
+    const pathParts = path.split('/').filter(Boolean);
+    const resource = pathParts.length > 0 && pathParts[0] !== '' ? pathParts[0] : null;
       resourceId = pathParts.length > 1 ? pathParts[1] : null;
       const pathAction = pathParts.length > 2 ? pathParts[2] : null;
 
-      if (method === 'GET' && path === '/analytics') {
-        return await handleGetAnalytics(request);
-      }
+    if (method === 'GET' && path === '/analytics') {
+      return await handleGetAnalytics(request);
+    }
 
-      if (method === 'GET' && resource === 'users' && !resourceId) {
-        return await handleListUsers(request);
-      }
+    if (method === 'GET' && resource === 'users' && !resourceId) {
+      return await handleListUsers(request);
+    }
 
       if (method === 'GET' && resource === 'users' && resourceId && !pathAction) {
         return await handleGetUser(request, resourceId);
@@ -373,7 +407,8 @@ serve(async (request: Request) => {
         return corsResponse(
           JSON.stringify(errorResponse('Bad request', 'User ID is required')),
           { status: 400 },
-          request
+          request,
+          corsOptions
         );
       }
       return await handleGetUser(request, resourceId);
@@ -384,7 +419,8 @@ serve(async (request: Request) => {
         return corsResponse(
           JSON.stringify(errorResponse('Bad request', 'User ID is required')),
           { status: 400 },
-          request
+          request,
+          corsOptions
         );
       }
       return await handleUpdateUserRole(request, resourceId, body);
@@ -395,7 +431,8 @@ serve(async (request: Request) => {
         return corsResponse(
           JSON.stringify(errorResponse('Bad request', 'User ID is required')),
           { status: 400 },
-          request
+          request,
+          corsOptions
         );
       }
       return await handleDeleteUser(request, resourceId);
@@ -404,14 +441,16 @@ serve(async (request: Request) => {
     return corsResponse(
       JSON.stringify(errorResponse('Not found', 'The requested endpoint does not exist')),
       { status: 404 },
-      request
+      request,
+      corsOptions
     );
   } catch (error) {
     console.error('Request error:', error);
     return corsResponse(
       JSON.stringify(errorResponse('Internal server error', error instanceof Error ? error.message : 'Unknown error')),
       { status: 500 },
-      request
+      request,
+      corsOptions
     );
   }
 });
