@@ -387,12 +387,9 @@ export class AdminApi {
     };
   }
 
-   * Update user role using Supabase Edge Function
-   * Uses the admin Edge Function with service role key
-   */
   /**
-   * Update user role using Supabase Edge Function
-   * Uses the admin Edge Function with service role key
+   * Update user role using Supabase Edge Function.
+   * Uses the admin Edge Function with service role key.
    */
   static async updateUserRole(
     userId: string,
