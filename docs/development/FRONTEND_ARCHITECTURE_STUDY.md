@@ -146,7 +146,7 @@ rwanda-cancer-relief/
 ### 3. Component Architecture
 
 **Shared UI Package** (`@workspace/ui`):
-Located at `frontend/packages/ui/src/components/` with 111+ components
+Located at `packages/ui/src/components/` with 111+ components
 
 **Core Components**:
 - **Form Components**: Input, Textarea, Select, Checkbox, Switch, Label
@@ -240,7 +240,7 @@ Located at `frontend/packages/ui/src/components/` with 111+ components
 
 ### 5. Styling System
 
-**Theme Configuration** (`frontend/packages/ui/src/styles/globals.css`):
+**Theme Configuration** (`packages/ui/src/styles/globals.css`):
 
 **Color Palette** - Cancer Purple Theme:
 - Primary: `oklch(0.55 0.18 300)` - Rich cancer purple
@@ -362,7 +362,7 @@ Located at `frontend/packages/ui/src/components/` with 111+ components
 pnpm dev                    # Start all apps
 pnpm build                  # Build all packages
 pnpm lint                   # Lint all code
-cd frontend/apps/web && pnpm dev  # Start web app only
+cd apps/web && pnpm dev  # Start web app only
 ```
 
 **Next.js Configuration**:

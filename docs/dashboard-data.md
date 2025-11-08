@@ -26,7 +26,9 @@ A seed script is provided for local/demo environments:
 ```bash
 SUPABASE_URL=... \
 SUPABASE_SERVICE_ROLE_KEY=... \
-pnpm --filter web seed:dashboard
+pnpm seed:dashboard
+# or run within the web workspace
+pnpm --filter @apps/web seed:dashboard
 ```
 
 The script populates:
@@ -45,7 +47,9 @@ Run the dashboard test script to ensure views and tables are reachable:
 ```bash
 SUPABASE_URL=... \
 SUPABASE_SERVICE_ROLE_KEY=... \
-pnpm --filter web test:dashboard-data
+pnpm test:dashboard-data
+# or run within the web workspace
+pnpm --filter @apps/web test:dashboard-data
 ```
 
 The script checks that:
@@ -73,10 +77,10 @@ For local development you can also supply `NEXT_PUBLIC_SUPABASE_DEV_URL` and `NE
 
 Refer to:
 
-- `frontend/apps/web/lib/api/progress.ts`
-- `frontend/apps/web/lib/api/sessions.ts`
-- `frontend/apps/web/lib/api/resources.ts`
-- `frontend/apps/web/lib/api/admin.ts`
+- `apps/web/lib/api/progress.ts`
+- `apps/web/lib/api/sessions.ts`
+- `apps/web/lib/api/resources.ts`
+- `apps/web/lib/api/admin.ts`
 
 for implementation details.
 

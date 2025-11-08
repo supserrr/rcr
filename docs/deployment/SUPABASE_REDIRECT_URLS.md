@@ -145,12 +145,12 @@ After configuring the redirect URLs:
 
 Your application uses the following redirect URLs in the code:
 
-### Sign In Page (`frontend/apps/web/app/signin/page.tsx`)
+### Sign In Page (`apps/web/app/signin/page.tsx`)
 ```typescript
 const redirectTo = `${window.location.origin}/auth/callback`;
 ```
 
-### Sign Up Pages (`frontend/apps/web/app/signup/*/page.tsx`)
+### Sign Up Pages (`apps/web/app/signup/*/page.tsx`)
 ```typescript
 const redirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent('/onboarding/patient')}&role=${encodeURIComponent(role)}`;
 ```

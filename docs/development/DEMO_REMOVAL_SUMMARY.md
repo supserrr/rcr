@@ -21,9 +21,9 @@ Removed all demo pages and related code from the Rwanda Cancer Relief frontend a
 ### Files Modified
 
 #### Configuration Files
-- `frontend/apps/web/middleware.ts`
+- `apps/web/middleware.ts`
   - Removed `/dashboard-demo` from public routes list
-- `frontend/apps/web/components/auth/AuthProvider.tsx`
+- `apps/web/components/auth/AuthProvider.tsx`
   - Removed `/dashboard-demo` from public routes list
 
 #### Documentation Files
@@ -32,7 +32,7 @@ Removed all demo pages and related code from the Rwanda Cancer Relief frontend a
   - Removed references to 23 component demos
   - Removed AI & interactive demo listings
 
-- `frontend/apps/web/DASHBOARD_README.md`
+- `apps/web/DASHBOARD_README.md`
   - Updated access instructions (removed dashboard-demo reference)
   - Updated project structure (removed dashboard-demo folder reference)
 

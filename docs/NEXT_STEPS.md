@@ -61,9 +61,9 @@
 - [ ] Verify email/notification service (if configured)
 
 **Files to check:**
-- `backend/.env`
-- `frontend/apps/web/.env.local`
-- `backend/docs/SUPABASE_SETUP.md`
+- Legacy backend env notes: `docs/legacy/backend/ENV_SECRETS.md`
+- `apps/web/.env.local`
+- `docs/legacy/backend/SUPABASE_SETUP.md`
 
 ### 4. Documentation Updates
 **Priority: Medium**
@@ -79,7 +79,7 @@
 ### 5. Deployment Preparation
 **Priority: High**
 
-- [ ] Review deployment configuration (`backend/render.yaml`)
+- [ ] Review legacy deployment notes (`docs/legacy/backend/RENDER_DEPLOYMENT.md`)
 - [ ] Set up production environment variables
 - [ ] Configure CORS for production domain
 - [ ] Set up production Supabase project
@@ -89,8 +89,8 @@
 - [ ] Prepare deployment checklist
 
 **Files to review:**
-- `backend/docs/DEPLOYMENT.md`
-- `backend/render.yaml`
+- `docs/legacy/backend/DEPLOYMENT.md`
+- Legacy Render deployment notes: `docs/legacy/backend/RENDER_DEPLOYMENT.md`
 - `vercel.json` (for frontend)
 
 ### 6. Security & Performance
@@ -137,31 +137,25 @@
 ## Quick Start Commands
 
 ```bash
-# Start backend
-cd backend && npm run dev
-
 # Start frontend
-cd frontend/apps/web && pnpm dev
+cd apps/web && pnpm dev
+
+# Legacy backend scripts have been archived. See docs/legacy/backend/ for historical reference.
 
 # Run tests
-cd backend && npm test
-cd frontend/apps/web && pnpm test:integration
+cd apps/web && pnpm test:integration
 
-# Check environment
-cd backend && npm run verify-supabase
 ```
 
 ## Access Points
 
 - **Frontend:** http://localhost:3000
-- **Backend API:** http://localhost:10000
-- **Health Check:** http://localhost:10000/health
-- **API Root:** http://localhost:10000/api
+- Legacy REST API reference: `docs/legacy/backend/API_DOCUMENTATION.md`
 
 ## Getting Help
 
-- Backend docs: `backend/docs/`
-- Frontend docs: `frontend/apps/web/docs/`
-- API docs: `backend/docs/API_DOCUMENTATION.md`
-- Testing guide: `backend/docs/API_TESTING.md`
+- Backend docs: `docs/legacy/backend/`
+- Frontend docs: `apps/web/docs/`
+- API docs: `docs/legacy/backend/API_DOCUMENTATION.md`
+- Testing guide: `docs/legacy/backend/API_TESTING.md`
 

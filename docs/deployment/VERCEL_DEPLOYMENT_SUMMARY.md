@@ -9,9 +9,9 @@ Successfully prepared the Rwanda Cancer Relief frontend application for Vercel d
 ### 1. Configuration Files Created
 
 **vercel.json**
-- Configured for monorepo with `frontend/apps/web` as root directory
+- Configured for monorepo with `apps/web` as root directory
 - Build command: `pnpm build --filter=web`
-- Output directory: `frontend/apps/web/.next`
+- Output directory: `apps/web/.next`
 - Framework: Next.js
 
 **ENV_EXAMPLE.md**
@@ -25,7 +25,7 @@ Successfully prepared the Rwanda Cancer Relief frontend application for Vercel d
 - Troubleshooting section
 - Cost estimation
 
-**frontend/apps/web/.vercelignore**
+**apps/web/.vercelignore**
 - Configured to ignore development files
 - Excludes documentation and cache
 
@@ -178,7 +178,7 @@ The application is now ready to deploy to Vercel. All TypeScript errors have bee
 1. Vercel detects Next.js framework
 2. Runs `pnpm install` from root
 3. Executes `pnpm build --filter=web`
-4. Outputs from `frontend/apps/web/.next`
+4. Outputs from `apps/web/.next`
 5. Deploys using Next.js serverless functions
 
 ### Dependencies

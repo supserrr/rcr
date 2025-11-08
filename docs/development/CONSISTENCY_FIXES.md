@@ -21,18 +21,18 @@ Fixed all inconsistencies in the frontend codebase to ensure components with the
 - Added comprehensive JSDoc documentation
 
 **Files Updated**:
-- `frontend/apps/web/components/auth/AuthProvider.tsx` - Merged all functionality
-- `frontend/apps/web/app/dashboard/counselor/ai-chat/page.tsx` - Updated import
-- `frontend/apps/web/app/dashboard/patient/ai-chat/page.tsx` - Updated import
-- `frontend/apps/web/app/dashboard/counselor/resources/page.tsx` - Updated import
-- `frontend/apps/web/app/counselors/page.tsx` - Updated import
-- `frontend/apps/web/app/dashboard/admin/resources-review/page.tsx` - Updated import
-- `frontend/apps/web/app/dashboard/counselor/sessions/session/[sessionId]/page.tsx` - Updated import
-- `frontend/apps/web/app/dashboard/patient/sessions/session/[sessionId]/page.tsx` - Updated import
+- `apps/web/components/auth/AuthProvider.tsx` - Merged all functionality
+- `apps/web/app/dashboard/counselor/ai-chat/page.tsx` - Updated import
+- `apps/web/app/dashboard/patient/ai-chat/page.tsx` - Updated import
+- `apps/web/app/dashboard/counselor/resources/page.tsx` - Updated import
+- `apps/web/app/counselors/page.tsx` - Updated import
+- `apps/web/app/dashboard/admin/resources-review/page.tsx` - Updated import
+- `apps/web/app/dashboard/counselor/sessions/session/[sessionId]/page.tsx` - Updated import
+- `apps/web/app/dashboard/patient/sessions/session/[sessionId]/page.tsx` - Updated import
 
 **Files Deleted**:
-- `frontend/apps/web/components/auth/auth-provider.tsx`
-- `frontend/apps/web/hooks/use-auth.ts`
+- `apps/web/components/auth/auth-provider.tsx`
+- `apps/web/hooks/use-auth.ts`
 
 **AuthProvider API**:
 ```typescript
@@ -71,25 +71,25 @@ interface AuthContextType {
 - Updated documentation reference
 
 **Files Deleted**:
-- `frontend/apps/web/components/dashboard/shared/Sidebar.tsx`
+- `apps/web/components/dashboard/shared/Sidebar.tsx`
 
 **Files Updated**:
-- `frontend/apps/web/DASHBOARD_README.md` - Updated sidebar reference
+- `apps/web/DASHBOARD_README.md` - Updated sidebar reference
 
 ### 3. Hook Duplicates Removed
 
 **Problem**: Duplicate `use-mobile` hook files existed:
 - `hooks/use-mobile.ts` - Duplicate
 - `hooks/use-mobile.tsx` - Duplicate
-- `frontend/packages/ui/src/hooks/use-mobile.ts` - Correct implementation
+- `packages/ui/src/hooks/use-mobile.ts` - Correct implementation
 
 **Solution**:
 - Removed both duplicate files from web app
 - Confirmed all imports use the shared UI package version
 
 **Files Deleted**:
-- `frontend/apps/web/hooks/use-mobile.ts`
-- `frontend/apps/web/hooks/use-mobile.tsx`
+- `apps/web/hooks/use-mobile.ts`
+- `apps/web/hooks/use-mobile.tsx`
 
 ### 4. Layout Pattern Verification
 

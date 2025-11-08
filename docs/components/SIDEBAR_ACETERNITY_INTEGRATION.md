@@ -7,8 +7,8 @@ The Aceternity sidebar component has been successfully integrated into the Rwand
 ## Component Location
 
 The sidebar component has been added to:
-- **Shared UI Package**: `frontend/packages/ui/src/components/ui/sidebar-aceternity.tsx`
-- **Demo Component**: `frontend/apps/web/components/ui/sidebar-aceternity-demo.tsx`
+- **Shared UI Package**: `packages/ui/src/components/ui/sidebar-aceternity.tsx`
+- **Demo Component**: `apps/web/components/ui/sidebar-aceternity-demo.tsx`
 
 ## Project Structure Support
 
@@ -100,7 +100,7 @@ The component supports Next.js Link component via the `as` prop:
 ### Demo Component
 
 A complete demo component is available at:
-`frontend/apps/web/components/ui/sidebar-aceternity-demo.tsx`
+`apps/web/components/ui/sidebar-aceternity-demo.tsx`
 
 You can import and use it directly:
 

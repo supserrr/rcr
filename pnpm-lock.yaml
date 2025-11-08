@@ -39,10 +39,13 @@ importers:
     devDependencies:
       '@workspace/eslint-config':
         specifier: workspace:*
-        version: link:frontend/packages/eslint-config
+        version: link:packages/eslint-config
       '@workspace/typescript-config':
         specifier: workspace:*
-        version: link:frontend/packages/typescript-config
+        version: link:packages/typescript-config
+      eslint:
+        specifier: ^9.32.0
+        version: 9.32.0(jiti@2.6.1)
       prettier:
         specifier: ^3.6.2
         version: 3.6.2
@@ -56,7 +59,7 @@ importers:
         specifier: 5.7.3
         version: 5.7.3
 
-  frontend/apps/web:
+  apps/web:
     dependencies:
       '@ai-sdk/react':
         specifier: ^2.0.76
@@ -294,7 +297,7 @@ importers:
         specifier: ^5.9.2
         version: 5.9.2
 
-  frontend/packages/eslint-config:
+  packages/eslint-config:
     devDependencies:
       '@eslint/js':
         specifier: ^9.32.0
@@ -336,9 +339,9 @@ importers:
         specifier: ^8.39.0
         version: 8.39.0(eslint@9.32.0(jiti@2.6.1))(typescript@5.9.2)
 
-  frontend/packages/typescript-config: {}
+  packages/typescript-config: {}
 
-  frontend/packages/ui:
+  packages/ui:
     dependencies:
       '@ai-sdk/react':
         specifier: ^2.0.76

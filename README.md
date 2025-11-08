@@ -6,14 +6,14 @@ A monorepo for Rwanda Cancer Relief project containing multiple applications and
 
 ### Frontend
 
-- **frontend/apps/web** - Main public-facing website with cancer services information
-- **frontend/packages/ui** - Shared UI component library built with shadcn/ui
-- **frontend/packages/eslint-config** - Shared ESLint configurations
-- **frontend/packages/typescript-config** - Shared TypeScript configurations
+- **apps/web** - Main public-facing website with cancer services information
+- **packages/ui** - Shared UI component library built with shadcn/ui
+- **packages/eslint-config** - Shared ESLint configurations
+- **packages/typescript-config** - Shared TypeScript configurations
 
 ### Backend
 
-- **backend/** - Backend services and API (coming soon)
+- Historical backend documentation now lives under `docs/legacy/backend/`
 
 ## Documentation
 
@@ -50,7 +50,7 @@ Run the web app:
 
 ```bash
 # Web app (runs on http://localhost:3000)
-cd frontend/apps/web && pnpm dev
+cd apps/web && pnpm dev
 ```
 
 Build all apps:
@@ -64,20 +64,20 @@ pnpm build
 To add components to your app, run the following command at the root of your app:
 
 ```bash
-pnpm dlx shadcn@latest add button -c frontend/web
+pnpm dlx shadcn@latest add button -c apps/web
 ```
 
-This will place the ui components in the `shared/ui/src/components` directory.
+This will place the UI components in the `packages/ui/src/components` directory.
 
 ### Adding AI Components
 ```bash
-cd frontend/web
+cd apps/web
 npx ai-elements@latest
 ```
 
 ### Adding ElevenLabs Components
 ```bash
-cd frontend/web
+cd apps/web
 npx shadcn@latest add https://ui.elevenlabs.io/r/orb.json
 ```
 

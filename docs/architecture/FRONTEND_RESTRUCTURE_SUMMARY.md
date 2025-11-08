@@ -6,7 +6,7 @@ Successfully restructured the frontend based on industry standards and authentic
 ## 🏗️ **New Industry-Standard Structure**
 
 ```
-frontend/apps/web/
+apps/web/
 ├── app/
 │   ├── (auth)/                 # Authentication routes group
 │   │   ├── layout.tsx         # Auth-specific layout

@@ -25,9 +25,9 @@ Vercel should auto-detect these settings from `vercel.json`:
 
 ```json
 {
-  "rootDirectory": "frontend/apps/web",
+  "rootDirectory": "apps/web",
   "buildCommand": "pnpm build --filter=web",
-  "outputDirectory": "frontend/apps/web/.next",
+  "outputDirectory": "apps/web/.next",
   "framework": "nextjs",
   "installCommand": "pnpm install"
 }
@@ -35,9 +35,9 @@ Vercel should auto-detect these settings from `vercel.json`:
 
 **Verify Settings:**
 - Framework Preset: **Next.js**
-- Root Directory: **frontend/apps/web**
+- Root Directory: **apps/web**
 - Build Command: **pnpm build --filter=web**
-- Output Directory: **frontend/apps/web/.next**
+- Output Directory: **apps/web/.next**
 
 ### 3. Configure Environment Variables
 
@@ -175,7 +175,7 @@ Vercel automatically handles:
 
 The build output is located at:
 ```
-frontend/apps/web/.next/
+apps/web/.next/
 ```
 
 This is configured in `vercel.json`.

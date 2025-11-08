@@ -1,0 +1,17 @@
+-- Migration: Seed Data
+-- Description: Reference file for seed data structure
+-- Created: 2024
+-- 
+-- IMPORTANT: This file is for reference only. 
+-- All users must sign up through the real authentication system.
+-- All profiles, sessions, resources, and other data are created through real user interactions.
+--
+-- This file is maintained for documentation purposes to show the database structure,
+-- but should NOT be used to create test accounts or seed data.
+--
+-- In production:
+-- - Users sign up via /api/auth/signup
+-- - Profiles are automatically created when users sign up
+-- - All data is created through real user interactions via the API
+--
+-- No seed data is needed as all data comes from real authenticated users.
