@@ -1,4 +1,36 @@
 import { streamText, UIMessage, convertToModelMessages } from 'ai';
+import { buildKnowledgeContext } from '@/lib/ai/knowledge-base';
+
+/**
+ * Extracts the textual content from a UIMessage.
+ *
+ * @param message - Message to extract text from.
+ * @returns Plain-text representation.
+ */
+function extractTextFromMessage(message: UIMessage): string {
+  if (!message.content) {
+    return '';
+  }
+
+  return message.content
+    .map((part) => {
+      if (typeof part === 'string') {
+        return part;
+      }
+
+      if ('text' in part && typeof part.text === 'string') {
+        return part.text;
+      }
+
+      if ('value' in part && typeof part.value === 'string') {
+        return part.value;
+      }
+
+      return '';
+    })
+    .filter(Boolean)
+    .join('\n');
+}
 
 /**
  * API route for AI chat functionality.
@@ -20,6 +52,12 @@ export async function POST(req: Request) {
     model: string; 
     webSearch: boolean;
   } = await req.json();
+
+  const latestUserMessage = [...messages].reverse().find((message) => message.role === 'user');
+  const latestUserText = latestUserMessage ? extractTextFromMessage(latestUserMessage) : '';
+  const { context: knowledgeContext } = latestUserText
+    ? await buildKnowledgeContext(latestUserText)
+    : { context: '' };
 
   // Check if Assistant UI Cloud API is configured
   const assistantApiUrl = process.env.NEXT_PUBLIC_ASSISTANT_API_URL;
@@ -95,11 +133,23 @@ export async function POST(req: Request) {
     process.env.OPENAI_BASE_URL = fallbackBaseUrl;
   }
 
+  const systemInstructions: string[] = [
+    'You are the Rwanda Cancer Relief virtual assistant. You provide precise, compassionate, and actionable guidance about the Rwanda Cancer Relief platform, its features, configuration, and workflows.',
+    'Use only the approved platform knowledge provided in the context below or the conversation history. If the user asks about anything that is not covered, clearly state that the information is unavailable and offer next steps or suggest where they can learn more.',
+    'Cite the relevant documentation file in parentheses (for example: docs/README.md) whenever you rely on specific context sections. Keep answers concise, structured, and written in active voice.',
+  ];
+
+  if (knowledgeContext) {
+    systemInstructions.push(
+      'Authoritative Context:\n' +
+        knowledgeContext,
+    );
+  }
+
   const result = streamText({
     model: webSearch ? 'perplexity/sonar' : model,
     messages: convertToModelMessages(messages),
-    system:
-      'You are a helpful assistant that can answer questions and help with tasks',
+    system: systemInstructions.join('\n\n'),
   });
 
   return result.toUIMessageStreamResponse({

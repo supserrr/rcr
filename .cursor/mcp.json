@@ -23,6 +23,14 @@
         "-y",
         "@assistant-ui/mcp-docs-server"
       ]
+    },
+    "ai-elements": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "mcp-remote",
+        "https://registry.ai-sdk.dev/api/mcp"
+      ]
     }
   }
 }
