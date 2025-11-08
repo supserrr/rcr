@@ -21,20 +21,30 @@ import { env } from '@/src/env';
  * @returns The Supabase client instance, or null if not configured
  */
 export async function createClient() {
-  // Validate that Supabase environment variables are set
-  // During build time, these may not be available, so return null gracefully
-  if (!env.NEXT_PUBLIC_SUPABASE_URL || !env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+  // Prefer production credentials but fall back to dev-specific values in non-production environments.
+  const supabaseUrl =
+    env.NEXT_PUBLIC_SUPABASE_URL ||
+    process.env.NEXT_PUBLIC_SUPABASE_URL ||
+    process.env.NEXT_PUBLIC_SUPABASE_DEV_URL;
+
+  const supabaseAnonKey =
+    env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+    process.env.NEXT_PUBLIC_SUPABASE_DEV_ANON_KEY;
+
+  // If credentials are still missing, return null gracefully (handled by callers).
+  if (!supabaseUrl || !supabaseAnonKey) {
     return null;
   }
-  
+
   const cookieStore = await cookies();
   
   // Determine if we're in production
   const isProduction = process.env.NODE_ENV === 'production';
   
   return createServerClient(
-    env.NEXT_PUBLIC_SUPABASE_URL,
-    env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    supabaseUrl,
+    supabaseAnonKey,
     {
       cookies: {
         get(name: string) {

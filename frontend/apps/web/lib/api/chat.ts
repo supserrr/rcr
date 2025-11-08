@@ -87,6 +87,13 @@ export interface ListChatsResponse {
   offset: number;
 }
 
+export interface ChatSummary {
+  totalChats: number;
+  unreadChats: number;
+  unreadMessages: number;
+  lastMessageAt?: string;
+}
+
 /**
  * List messages response
  */
@@ -156,6 +163,61 @@ export class ChatApi {
     }
 
     return this.mapChatFromDb(chat, user.id);
+  }
+
+  /**
+   * Get chat summary for the current user
+   */
+  static async getChatSummary(): Promise<ChatSummary> {
+    const supabase = createClient();
+    if (!supabase) {
+      throw new Error('Supabase is not configured. Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.');
+    }
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) {
+      throw new Error('User not authenticated');
+    }
+
+    const { data: chats, error } = await supabase
+      .from('chats')
+      .select('unread_count, updated_at, participants')
+      .contains('participants', [user.id]);
+
+    if (error) {
+      throw new Error(error.message || 'Failed to load chat summary');
+    }
+
+    const stats = (chats || []).reduce(
+      (acc, chat) => {
+        const unread = Number(chat.unread_count ?? 0);
+        acc.totalChats += 1;
+        if (unread > 0) {
+          acc.unreadChats += 1;
+          acc.unreadMessages += unread;
+        }
+        const updatedAt = chat.updated_at ? new Date(chat.updated_at as string) : null;
+        if (updatedAt && (!acc.lastMessageAt || updatedAt > acc.lastMessageAt)) {
+          acc.lastMessageAt = updatedAt;
+        }
+        return acc;
+      },
+      {
+        totalChats: 0,
+        unreadChats: 0,
+        unreadMessages: 0,
+        lastMessageAt: null as Date | null,
+      }
+    );
+
+    return {
+      totalChats: stats.totalChats,
+      unreadChats: stats.unreadChats,
+      unreadMessages: stats.unreadMessages,
+      lastMessageAt: stats.lastMessageAt ? stats.lastMessageAt.toISOString() : undefined,
+    };
   }
 
   /**
@@ -261,7 +323,7 @@ export class ChatApi {
       .single();
 
     if (error || !message) {
-      throw new Error(error.message || 'Failed to send message');
+      throw new Error(error?.message || 'Failed to send message');
     }
 
     const { data: chatRecord, error: chatFetchError } = await supabase

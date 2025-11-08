@@ -19,13 +19,28 @@ export interface UseSessionsReturn {
   refreshSessions: () => Promise<void>;
 }
 
-export function useSessions(params?: SessionQueryParams): UseSessionsReturn {
+export interface UseSessionsOptions {
+  enabled?: boolean;
+}
+
+export function useSessions(
+  params?: SessionQueryParams,
+  options?: UseSessionsOptions
+): UseSessionsReturn {
   const [sessions, setSessions] = useState<Session[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(options?.enabled ?? true);
   const [error, setError] = useState<string | null>(null);
   const [total, setTotal] = useState(0);
+  const enabled = options?.enabled ?? true;
 
   const fetchSessions = useCallback(async () => {
+    if (!enabled) {
+      setLoading(false);
+      setSessions([]);
+      setTotal(0);
+      return;
+    }
+
     setLoading(true);
     setError(null);
     try {
@@ -39,7 +54,7 @@ export function useSessions(params?: SessionQueryParams): UseSessionsReturn {
     } finally {
       setLoading(false);
     }
-  }, [params]);
+  }, [enabled, params]);
 
   useEffect(() => {
     fetchSessions();

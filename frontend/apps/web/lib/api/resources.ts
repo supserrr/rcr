@@ -35,6 +35,34 @@ export interface Resource {
 }
 
 /**
+ * Aggregated resource summary metric (from resource_summary_metrics view)
+ */
+export interface ResourceSummaryMetric {
+  resourceId: string;
+  title: string;
+  type: ResourceType;
+  category?: string;
+  isPublic: boolean;
+  totalViews: number;
+  totalDownloads: number;
+  lastViewedAt?: string;
+  lastDownloadedAt?: string;
+}
+
+/**
+ * User-specific resource engagement metrics
+ */
+export interface ResourceEngagementMetric {
+  resourceId: string;
+  userId: string | null;
+  viewsCount: number;
+  downloadsCount: number;
+  firstViewedAt?: string;
+  lastViewedAt?: string;
+  lastDownloadedAt?: string;
+}
+
+/**
  * Create resource input
  */
 export interface CreateResourceInput {
@@ -236,6 +264,123 @@ export class ResourcesApi {
   }
 
   /**
+   * List aggregated resource metrics for dashboard displays
+   */
+  static async listResourceSummaries(params?: {
+    isPublic?: boolean;
+    limit?: number;
+    orderBy?: 'views' | 'downloads' | 'recent';
+  }): Promise<ResourceSummaryMetric[]> {
+    const supabase = createClient();
+    if (!supabase) {
+      throw new Error('Supabase is not configured. Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.');
+    }
+
+    let query = supabase.from('resource_summary_metrics').select('*');
+
+    if (params?.isPublic !== undefined) {
+      query = query.eq('is_public', params.isPublic);
+    }
+
+    const order = params?.orderBy ?? 'views';
+    switch (order) {
+      case 'downloads':
+        query = query.order('total_downloads', { ascending: false });
+        break;
+      case 'recent':
+        query = query.order('last_viewed_at', { ascending: false });
+        break;
+      default:
+        query = query.order('total_views', { ascending: false });
+        break;
+    }
+
+    if (params?.limit) {
+      query = query.limit(params.limit);
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+      throw new Error(error.message || 'Failed to list resource summaries');
+    }
+
+    return (data || []).map((row) => this.mapResourceSummaryFromDb(row));
+  }
+
+  /**
+   * Get aggregated resource metric for a specific resource
+   */
+  static async getResourceSummary(resourceId: string): Promise<ResourceSummaryMetric | null> {
+    const supabase = createClient();
+    if (!supabase) {
+      throw new Error('Supabase is not configured. Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.');
+    }
+
+    const { data, error } = await supabase
+      .from('resource_summary_metrics')
+      .select('*')
+      .eq('resource_id', resourceId)
+      .maybeSingle();
+
+    if (error) {
+      throw new Error(error.message || 'Failed to get resource summary');
+    }
+
+    if (!data) {
+      return null;
+    }
+
+    return this.mapResourceSummaryFromDb(data);
+  }
+
+  /**
+   * Get resource engagement metrics for the current user (or provided user)
+   */
+  static async getResourceEngagement(
+    resourceId: string,
+    userId?: string | null
+  ): Promise<ResourceEngagementMetric | null> {
+    const supabase = createClient();
+    if (!supabase) {
+      throw new Error('Supabase is not configured. Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.');
+    }
+
+    let targetUserId = userId ?? null;
+
+    if (userId === undefined) {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      targetUserId = user?.id ?? null;
+    }
+
+    let query = supabase
+      .from('resource_metrics')
+      .select('*')
+      .eq('resource_id', resourceId)
+      .limit(1);
+
+    if (targetUserId) {
+      query = query.eq('user_id', targetUserId);
+    } else {
+      query = query.is('user_id', null);
+    }
+
+    const { data, error } = await query.maybeSingle();
+
+    if (error) {
+      throw new Error(error.message || 'Failed to get resource engagement metrics');
+    }
+
+    if (!data) {
+      return null;
+    }
+
+    return this.mapResourceEngagementFromDb(data);
+  }
+
+  /**
    * List resources using Supabase
    */
   static async listResources(params?: ResourceQueryParams): Promise<ListResourcesResponse> {
@@ -388,6 +533,18 @@ export class ResourcesApi {
       throw new Error('Supabase is not configured. Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.');
     }
 
+    const nowIso = new Date().toISOString();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    await this.upsertResourceMetric({
+      resourceId,
+      userId: user?.id ?? null,
+      incrementViews: true,
+      timestamp: nowIso,
+    });
+
     // Increment views count
     const { error } = await supabase.rpc('increment_resource_views', {
       resource_id: resourceId,
@@ -407,6 +564,42 @@ export class ResourcesApi {
           .update({ views: (resource.views || 0) + 1 })
           .eq('id', resourceId);
       }
+    }
+  }
+
+  /**
+   * Track resource download using Supabase
+   */
+  static async trackDownload(resourceId: string): Promise<void> {
+    const supabase = createClient();
+    if (!supabase) {
+      throw new Error('Supabase is not configured. Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.');
+    }
+
+    const nowIso = new Date().toISOString();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    await this.upsertResourceMetric({
+      resourceId,
+      userId: user?.id ?? null,
+      incrementDownloads: true,
+      timestamp: nowIso,
+    });
+
+    // Update downloads counter on resources table as a fallback
+    const { data: resource } = await supabase
+      .from('resources')
+      .select('downloads')
+      .eq('id', resourceId)
+      .single();
+
+    if (resource) {
+      await supabase
+        .from('resources')
+        .update({ downloads: (resource.downloads || 0) + 1 })
+        .eq('id', resourceId);
     }
   }
 
@@ -433,6 +626,136 @@ export class ResourcesApi {
       createdAt: dbResource.created_at as string,
       updatedAt: dbResource.updated_at as string,
     };
+  }
+
+  private static mapResourceSummaryFromDb(
+    dbSummary: Record<string, unknown>
+  ): ResourceSummaryMetric {
+    return {
+      resourceId: dbSummary.resource_id as string,
+      title: dbSummary.title as string,
+      type: dbSummary.type as ResourceType,
+      category: dbSummary.category as string | undefined,
+      isPublic: Boolean(dbSummary.is_public),
+      totalViews: Number(dbSummary.total_views ?? 0),
+      totalDownloads: Number(dbSummary.total_downloads ?? 0),
+      lastViewedAt: dbSummary.last_viewed_at
+        ? new Date(dbSummary.last_viewed_at as string).toISOString()
+        : undefined,
+      lastDownloadedAt: dbSummary.last_downloaded_at
+        ? new Date(dbSummary.last_downloaded_at as string).toISOString()
+        : undefined,
+    };
+  }
+
+  private static mapResourceEngagementFromDb(
+    dbMetric: Record<string, unknown>
+  ): ResourceEngagementMetric {
+    return {
+      resourceId: dbMetric.resource_id as string,
+      userId: (dbMetric.user_id as string | null) ?? null,
+      viewsCount: Number(dbMetric.views_count ?? 0),
+      downloadsCount: Number(dbMetric.downloads_count ?? 0),
+      firstViewedAt: dbMetric.first_viewed_at
+        ? new Date(dbMetric.first_viewed_at as string).toISOString()
+        : undefined,
+      lastViewedAt: dbMetric.last_viewed_at
+        ? new Date(dbMetric.last_viewed_at as string).toISOString()
+        : undefined,
+      lastDownloadedAt: dbMetric.last_downloaded_at
+        ? new Date(dbMetric.last_downloaded_at as string).toISOString()
+        : undefined,
+    };
+  }
+
+  private static async upsertResourceMetric(params: {
+    resourceId: string;
+    userId: string | null;
+    incrementViews?: boolean;
+    incrementDownloads?: boolean;
+    timestamp: string;
+  }): Promise<void> {
+    const supabase = createClient();
+    if (!supabase) {
+      throw new Error('Supabase is not configured. Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.');
+    }
+
+    const { resourceId, userId, incrementViews, incrementDownloads, timestamp } = params;
+
+    const shouldIncrementViews = Boolean(incrementViews);
+    const shouldIncrementDownloads = Boolean(incrementDownloads);
+
+    if (!shouldIncrementViews && !shouldIncrementDownloads) {
+      return;
+    }
+
+    let query = supabase
+      .from('resource_metrics')
+      .select('id,views_count,downloads_count,first_viewed_at,last_viewed_at,last_downloaded_at')
+      .eq('resource_id', resourceId)
+      .limit(1);
+
+    if (userId) {
+      query = query.eq('user_id', userId);
+    } else {
+      query = query.is('user_id', null);
+    }
+
+    const { data: existing, error: selectError } = await query.maybeSingle();
+
+    if (selectError) {
+      throw new Error(selectError.message || 'Failed to load resource metrics');
+    }
+
+    if (existing) {
+      const update: Record<string, unknown> = {};
+
+      if (shouldIncrementViews) {
+        update.views_count = Number(existing.views_count ?? 0) + 1;
+        update.last_viewed_at = timestamp;
+        if (!existing.first_viewed_at) {
+          update.first_viewed_at = timestamp;
+        }
+      }
+
+      if (shouldIncrementDownloads) {
+        update.downloads_count = Number(existing.downloads_count ?? 0) + 1;
+        update.last_downloaded_at = timestamp;
+      }
+
+      if (Object.keys(update).length > 0) {
+        const { error: updateError } = await supabase
+          .from('resource_metrics')
+          .update(update)
+          .eq('id', existing.id);
+
+        if (updateError) {
+          throw new Error(updateError.message || 'Failed to update resource metrics');
+        }
+      }
+    } else {
+      const newRow: Record<string, unknown> = {
+        resource_id: resourceId,
+        user_id: userId,
+        views_count: shouldIncrementViews ? 1 : 0,
+        downloads_count: shouldIncrementDownloads ? 1 : 0,
+      };
+
+      if (shouldIncrementViews) {
+        newRow.first_viewed_at = timestamp;
+        newRow.last_viewed_at = timestamp;
+      }
+
+      if (shouldIncrementDownloads) {
+        newRow.last_downloaded_at = timestamp;
+      }
+
+      const { error: insertError } = await supabase.from('resource_metrics').insert(newRow);
+
+      if (insertError) {
+        throw new Error(insertError.message || 'Failed to insert resource metrics');
+      }
+    }
   }
 }
 

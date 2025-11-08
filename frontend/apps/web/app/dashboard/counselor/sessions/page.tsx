@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { AnimatedPageHeader } from '@workspace/ui/components/animated-page-header';
 import { AnimatedCard } from '@workspace/ui/components/animated-card';
@@ -43,16 +43,21 @@ export default function CounselorSessionsPage() {
   const [patientsLoading, setPatientsLoading] = useState(true);
 
   // Load sessions using the hook
-  const { 
-    sessions, 
-    loading: sessionsLoading, 
+  const counselorSessionsParams = useMemo(
+    () => (user?.id ? { counselorId: user.id } : undefined),
+    [user?.id]
+  );
+
+  const {
+    sessions,
+    loading: sessionsLoading,
     error: sessionsError,
     createSession,
     rescheduleSession,
     cancelSession,
-    refreshSessions
-  } = useSessions({
-    counselorId: user?.id,
+    refreshSessions,
+  } = useSessions(counselorSessionsParams, {
+    enabled: Boolean(user?.id),
   });
 
   // Load patients for the schedule modal

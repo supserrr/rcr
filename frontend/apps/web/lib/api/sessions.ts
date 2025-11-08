@@ -111,6 +111,19 @@ export interface ListSessionsResponse {
 }
 
 /**
+ * Aggregated session statistics
+ */
+export interface SessionStats {
+  totalSessions: number;
+  totalScheduled: number;
+  upcomingSessions: number;
+  completedSessions: number;
+  cancelledSessions: number;
+  nextSessionAt?: string;
+  lastCompletedSessionAt?: string;
+}
+
+/**
  * Jitsi room configuration
  */
 export interface JitsiRoomConfig {
@@ -387,6 +400,82 @@ export class SessionsApi {
   }
 
   /**
+   * Get session statistics for the current patient (or a specified patient)
+   */
+  static async getPatientSessionStats(userId?: string): Promise<SessionStats | null> {
+    const supabase = createClient();
+    if (!supabase) {
+      throw new Error('Supabase is not configured. Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.');
+    }
+
+    let targetUserId = userId;
+
+    if (!targetUserId) {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) {
+        throw new Error('User not authenticated');
+      }
+      targetUserId = user.id;
+    }
+
+    const { data, error } = await supabase
+      .from('patient_session_stats')
+      .select('*')
+      .eq('user_id', targetUserId)
+      .maybeSingle();
+
+    if (error) {
+      throw new Error(error.message || 'Failed to get patient session stats');
+    }
+
+    if (!data) {
+      return null;
+    }
+
+    return this.mapSessionStatsFromDb(data);
+  }
+
+  /**
+   * Get session statistics for the current counselor (or a specified counselor)
+   */
+  static async getCounselorSessionStats(userId?: string): Promise<SessionStats | null> {
+    const supabase = createClient();
+    if (!supabase) {
+      throw new Error('Supabase is not configured. Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.');
+    }
+
+    let targetUserId = userId;
+
+    if (!targetUserId) {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) {
+        throw new Error('User not authenticated');
+      }
+      targetUserId = user.id;
+    }
+
+    const { data, error } = await supabase
+      .from('counselor_session_stats')
+      .select('*')
+      .eq('user_id', targetUserId)
+      .maybeSingle();
+
+    if (error) {
+      throw new Error(error.message || 'Failed to get counselor session stats');
+    }
+
+    if (!data) {
+      return null;
+    }
+
+    return this.mapSessionStatsFromDb(data);
+  }
+
+  /**
    * Map database session to API session format
    */
   private static mapSessionFromDb(dbSession: Record<string, unknown>): Session {
@@ -405,6 +494,22 @@ export class SessionsApi {
       rating: dbSession.rating as number | undefined,
       createdAt: dbSession.created_at as string,
       updatedAt: dbSession.updated_at as string,
+    };
+  }
+
+  private static mapSessionStatsFromDb(dbStats: Record<string, unknown>): SessionStats {
+    return {
+      totalSessions: Number(dbStats.total_sessions ?? 0),
+      totalScheduled: Number(dbStats.total_scheduled ?? 0),
+      upcomingSessions: Number(dbStats.upcoming_sessions ?? 0),
+      completedSessions: Number(dbStats.completed_sessions ?? 0),
+      cancelledSessions: Number(dbStats.cancelled_sessions ?? 0),
+      nextSessionAt: dbStats.next_session_at
+        ? new Date(dbStats.next_session_at as string).toISOString()
+        : undefined,
+      lastCompletedSessionAt: dbStats.last_completed_session_at
+        ? new Date(dbStats.last_completed_session_at as string).toISOString()
+        : undefined,
     };
   }
 }

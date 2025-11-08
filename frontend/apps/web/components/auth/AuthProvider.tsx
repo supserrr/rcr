@@ -155,26 +155,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         try {
             // Verify token by getting current user from backend with timeout
             const currentUserPromise = AuthService.getCurrentUser();
-            const timeoutPromise = new Promise<never>((_, reject) => 
-              setTimeout(() => reject(new Error('Auth check timeout')), 2000)
+            const timeoutPromise = new Promise<User | null>((resolve) => 
+              setTimeout(() => resolve(null), 8000)
             );
             
-            const currentUser = await Promise.race([
+            const currentUser = await Promise.race<User | null>([
               currentUserPromise,
               timeoutPromise
             ]);
             
-          setUser(currentUser);
-          AuthSession.setUser(currentUser);
-          
-          // Check onboarding status and redirect if needed
-          if (currentUser && currentUser.role !== 'guest' && currentUser.role !== 'admin') {
-            const onboardingComplete = isOnboardingComplete(currentUser);
-            if (!onboardingComplete && !pathname.startsWith('/onboarding')) {
-              const onboardingRoute = getOnboardingRoute(currentUser.role);
-              router.push(onboardingRoute);
-              return;
+          if (currentUser) {
+            setUser(currentUser);
+            AuthSession.setUser(currentUser);
+            
+            // Check onboarding status and redirect if needed
+            if (currentUser.role !== 'guest' && currentUser.role !== 'admin') {
+              const onboardingComplete = isOnboardingComplete(currentUser);
+              if (!onboardingComplete && !pathname.startsWith('/onboarding')) {
+                const onboardingRoute = getOnboardingRoute(currentUser.role);
+                router.push(onboardingRoute);
+                return;
+              }
             }
+          } else if (userData) {
+            if (process.env.NODE_ENV === 'development') {
+              console.warn('Token verification timed out; using cached user data.');
+            }
+            setUser(userData as User);
+          } else {
+            AuthSession.clear();
+            setUser(null);
           }
         } catch (error) {
             // Token is invalid or timeout, clear storage

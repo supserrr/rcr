@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { AnimatedPageHeader } from '@workspace/ui/components/animated-page-header';
 import { AnimatedCard } from '@workspace/ui/components/animated-card';
 import { Input } from '@workspace/ui/components/input';
@@ -51,8 +51,13 @@ export default function CounselorPatientsPage() {
   const [schedulePatient, setSchedulePatient] = useState<AdminUser | null>(null);
 
   // Load sessions to get assigned patients
-  const { sessions } = useSessions({
-    counselorId: user?.id,
+  const counselorSessionsParams = useMemo(
+    () => (user?.id ? { counselorId: user.id } : undefined),
+    [user?.id]
+  );
+
+  const { sessions } = useSessions(counselorSessionsParams, {
+    enabled: Boolean(user?.id),
   });
 
   // Load assigned patients

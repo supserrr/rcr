@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { AnimatedStatCard } from '@workspace/ui/components/animated-stat-card';
@@ -13,26 +13,28 @@ import { Badge } from '@workspace/ui/components/badge';
 import { Button } from '@workspace/ui/components/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@workspace/ui/components/avatar';
 import { SlidingNumber } from '@workspace/ui/components/animate-ui/primitives/texts/sliding-number';
-import { 
-  Users, 
-  Calendar, 
-  MessageCircle, 
+import {
+  Users,
+  Calendar,
+  MessageCircle,
   TrendingUp,
   Clock,
   CheckCircle,
   AlertCircle,
-  Star,
-  Heart,
-  Target,
-  Circle,
   CircleDot,
-  Minus
+  Circle,
+  Minus,
 } from 'lucide-react';
 import { useAuth } from '../../../components/auth/AuthProvider';
 import { useSessions } from '../../../hooks/useSessions';
 import { useChat } from '../../../hooks/useChat';
+import { useSessionStats } from '../../../hooks/useSessionStats';
+import { useChatSummary } from '../../../hooks/useChatSummary';
 import { AdminApi, type AdminUser } from '../../../lib/api/admin';
+import { ProgressApi } from '../../../lib/api/progress';
 import { toast } from 'sonner';
+import { Skeleton } from '@workspace/ui/components/skeleton';
+import { cn } from '@workspace/ui/lib/utils';
 
 export default function CounselorDashboard() {
   const router = useRouter();
@@ -40,25 +42,46 @@ export default function CounselorDashboard() {
   const [availability, setAvailability] = useState<'available' | 'busy' | 'offline'>('available');
   const [patients, setPatients] = useState<AdminUser[]>([]);
   const [patientsLoading, setPatientsLoading] = useState(true);
+  const [patientProgressMap, setPatientProgressMap] = useState<Record<
+    string,
+    { average: number; completed: number; total: number }
+  >>({});
+  const [patientProgressLoading, setPatientProgressLoading] = useState(false);
 
   // Load upcoming sessions
+  const counselorSessionParams = useMemo(
+    () => (user?.id ? { counselorId: user.id } : undefined),
+    [user?.id]
+  );
+
+  const { sessions, loading: sessionsLoading, error: _sessionsError } = useSessions(
+    counselorSessionParams,
+    {
+      enabled: Boolean(user?.id),
+    }
+  );
+
   const {
-    sessions,
-    loading: sessionsLoading,
-    error: sessionsError,
-  } = useSessions({
-    counselorId: user?.id,
-    status: 'scheduled',
+    stats: sessionStats,
+    loading: sessionStatsLoading,
+    error: _sessionStatsError,
+  } = useSessionStats({
+    role: 'counselor',
+    userId: user?.id,
+    enabled: Boolean(user?.id),
   });
 
   // Load chats for recent messages
-  const {
-    chats,
-    messages,
-    loading: chatsLoading,
-    error: chatsError,
-  } = useChat({
+  const { chats, messages, loading: chatsLoading, error: _chatsError } = useChat({
     participantId: user?.id,
+  });
+
+  const {
+    summary: chatSummary,
+    loading: chatSummaryLoading,
+    error: _chatSummaryError,
+  } = useChatSummary({
+    enabled: Boolean(user?.id),
   });
 
   // Load assigned patients
@@ -82,17 +105,36 @@ export default function CounselorDashboard() {
       }
     };
 
-    if (user?.id && sessions.length > 0) {
+    if (!user?.id) {
+      setPatients([]);
+      setPatientsLoading(false);
+      return;
+    }
+
+    if (sessions.length > 0) {
       fetchPatients();
+    } else {
+      setPatients([]);
+      setPatientsLoading(false);
     }
   }, [user?.id, sessions]);
 
   // Filter upcoming sessions
   const upcomingSessions = useMemo(() => {
-    return sessions.filter(session => 
-      session.status === 'scheduled' &&
-      new Date(session.date) > new Date()
-    ).slice(0, 3); // Show only next 3
+    const now = new Date();
+    return sessions
+      .filter((session) => {
+        const sessionDate = new Date(`${session.date}T${session.time}`);
+        return (
+          ['scheduled', 'rescheduled'].includes(session.status) &&
+          sessionDate.getTime() >= now.getTime()
+        );
+      })
+      .sort(
+        (a, b) =>
+          new Date(`${a.date}T${a.time}`).getTime() - new Date(`${b.date}T${b.time}`).getTime()
+      )
+      .slice(0, 3);
   }, [sessions]);
 
   // Get recent messages from all chats
@@ -111,11 +153,122 @@ export default function CounselorDashboard() {
 
   // Get unique assigned patients from sessions
   const assignedPatients = useMemo(() => {
-    const patientIds = new Set(
-      sessions.map(session => session.patientId)
-    );
-    return patients.filter(p => patientIds.has(p.id));
+    const patientIds = new Set(sessions.map((session) => session.patientId));
+    return patients.filter((p) => patientIds.has(p.id));
   }, [sessions, patients]);
+
+  useEffect(() => {
+    const loadPatientProgress = async () => {
+      if (!user?.id || assignedPatients.length === 0) {
+        setPatientProgressMap({});
+        setPatientProgressLoading(false);
+        return;
+      }
+
+      try {
+        setPatientProgressLoading(true);
+        const results = await Promise.all(
+          assignedPatients.map(async (patient) => {
+            try {
+              const modules = await ProgressApi.listPatientProgress(patient.id, {
+                includeItems: false,
+              });
+              if (modules.length === 0) {
+                return { patientId: patient.id, average: 0, completed: 0, total: 0 };
+              }
+              const average =
+                Math.round(
+                  modules.reduce((sum, module) => sum + module.progressPercent, 0) /
+                    modules.length
+                ) || 0;
+              const completed = modules.filter((module) => module.status === 'completed').length;
+              return {
+                patientId: patient.id,
+                average,
+                completed,
+                total: modules.length,
+              };
+            } catch (error) {
+              console.error('Error fetching progress for patient', patient.id, error);
+              return { patientId: patient.id, average: 0, completed: 0, total: 0 };
+            }
+          })
+        );
+
+        const nextMap: Record<string, { average: number; completed: number; total: number }> = {};
+        for (const entry of results) {
+          nextMap[entry.patientId] = {
+            average: entry.average,
+            completed: entry.completed,
+            total: entry.total,
+          };
+        }
+        setPatientProgressMap(nextMap);
+      } catch (error) {
+        console.error('Error loading patient progress summary:', error);
+        toast.error('Failed to load patient progress summary');
+      } finally {
+        setPatientProgressLoading(false);
+      }
+    };
+
+    loadPatientProgress();
+  }, [assignedPatients, user?.id]);
+
+  const patientSessionStats = useMemo(() => {
+    const stats = new Map<
+      string,
+      { total: number; completed: number; pending: number; cancelled: number }
+    >();
+
+    sessions.forEach((session) => {
+      const entry =
+        stats.get(session.patientId) ?? {
+          total: 0,
+          completed: 0,
+          pending: 0,
+          cancelled: 0,
+        };
+
+      entry.total += 1;
+
+      if (session.status === 'completed') {
+        entry.completed += 1;
+      } else if (session.status === 'cancelled') {
+        entry.cancelled += 1;
+      } else if (session.status === 'scheduled' || session.status === 'rescheduled') {
+        entry.pending += 1;
+      }
+
+      stats.set(session.patientId, entry);
+    });
+
+    return stats;
+  }, [sessions]);
+
+  const statsLoading =
+    authLoading ||
+    sessionsLoading ||
+    sessionStatsLoading ||
+    chatsLoading ||
+    chatSummaryLoading ||
+    patientsLoading ||
+    patientProgressLoading;
+
+  const upcomingSessionsLoading = statsLoading || sessionsLoading;
+  const messagesLoading = statsLoading || chatsLoading;
+  const patientOverviewLoading = statsLoading || patientProgressLoading || patientsLoading;
+
+  const upcomingSessionCount = sessionStats?.upcomingSessions ?? upcomingSessions.length;
+
+  const averagePatientProgress = useMemo(() => {
+    const entries = Object.values(patientProgressMap);
+    if (entries.length === 0) {
+      return null;
+    }
+    const total = entries.reduce((sum, entry) => sum + entry.average, 0);
+    return Math.round(total / entries.length);
+  }, [patientProgressMap]);
 
   const getPatientName = (patientId: string) => {
     const patient = patients.find(p => p.id === patientId);
@@ -157,14 +310,38 @@ export default function CounselorDashboard() {
     return 'Patient';
   };
 
-  // Loading state
-  if (authLoading || sessionsLoading || chatsLoading || patientsLoading) {
-    return (
-      <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+  const renderListSkeleton = useCallback(
+    (count = 3, heightClass = 'h-16') => (
+      <div className="space-y-3">
+        {Array.from({ length: count }).map((_, index) => (
+          <div
+            key={index}
+            className={cn(
+              'relative overflow-hidden rounded-2xl border border-primary/15 bg-gradient-to-r',
+              'from-primary/10 via-background/40 to-primary/10 dark:from-primary/15 dark:via-background/20 dark:to-primary/15',
+              'shadow-[0_18px_40px_-20px_rgba(168,85,247,0.45)] animate-pulse'
+            )}
+          >
+            <div className={cn('w-full', heightClass)} />
+          </div>
+        ))}
       </div>
-    );
-  }
+    ),
+    []
+  );
+
+  const upcomingSessionsDescription = useMemo(() => {
+    if (!sessionStats || sessionStats.upcomingSessions === 0 || !sessionStats.nextSessionAt) {
+      return 'No upcoming sessions scheduled';
+    }
+    const nextSessionDate = new Date(sessionStats.nextSessionAt);
+    return `Next session on ${nextSessionDate.toLocaleDateString(undefined, {
+      dateStyle: 'medium',
+    })} at ${nextSessionDate.toLocaleTimeString(undefined, { timeStyle: 'short' })}`;
+  }, [sessionStats]);
+
+  const unreadChatCount = chatSummary?.unreadMessages ?? 0;
+  const unreadChatConversations = chatSummary?.unreadChats ?? 0;
 
   const getAvailabilityColor = () => {
     switch (availability) {
@@ -199,25 +376,33 @@ export default function CounselorDashboard() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <AnimatedStatCard
           title="Active Patients"
-          value={assignedPatients.length}
-          description="Currently assigned"
+          value={statsLoading ? '—' : assignedPatients.length}
+          description={
+            statsLoading
+              ? 'Loading…'
+              : averagePatientProgress !== null
+              ? `Average progress ${averagePatientProgress}%`
+              : 'Currently assigned'
+          }
           icon={Users}
-          trend={{ value: 12, isPositive: true }}
           delay={0.1}
+          animateValue={!statsLoading}
         />
         <AnimatedStatCard
           title="Upcoming Sessions"
-          value={upcomingSessions.length}
-          description="Next session in 2 hours"
+          value={statsLoading ? '—' : upcomingSessionCount}
+          description={statsLoading ? 'Loading…' : upcomingSessionsDescription}
           icon={Calendar}
           delay={0.2}
+          animateValue={!statsLoading}
         />
         <AnimatedStatCard
           title="Messages"
-          value={chats.filter(chat => chat.unreadCount > 0).length}
-          description={`${chats.reduce((sum, chat) => sum + chat.unreadCount, 0)} unread`}
+          value={statsLoading ? '—' : unreadChatConversations}
+          description={statsLoading ? 'Loading…' : `${unreadChatCount} unread`}
           icon={MessageCircle}
           delay={0.3}
+          animateValue={!statsLoading}
         />
         
         {/* Availability Status Card */}
@@ -312,36 +497,42 @@ export default function CounselorDashboard() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {upcomingSessions.length > 0 ? (
+            {upcomingSessionsLoading ? (
+              renderListSkeleton(2, 'h-20')
+            ) : upcomingSessions.length > 0 ? (
               <div className="space-y-4">
-                {upcomingSessions.map((session) => (
-                  <div key={session.id} className="flex items-center justify-between p-3 border rounded-lg">
-                    <div className="flex items-center space-x-3">
-                      <Avatar className="h-10 w-10">
-                        <AvatarImage src={getPatientAvatar(session.patientId)} alt={getPatientName(session.patientId)} />
-                        <AvatarFallback>
-                          {getPatientName(session.patientId).split(' ').map(n => n[0]).join('')}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <p className="font-medium">{getPatientName(session.patientId)}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {new Date(session.date).toLocaleDateString()} at {session.time}
-                        </p>
+                {upcomingSessions.map((session) => {
+                  const sessionDateTime = new Date(`${session.date}T${session.time}`);
+                  return (
+                    <div key={session.id} className="flex items-center justify-between p-3 border rounded-lg">
+                      <div className="flex items-center space-x-3">
+                        <Avatar className="h-10 w-10">
+                          <AvatarImage src={getPatientAvatar(session.patientId)} alt={getPatientName(session.patientId)} />
+                          <AvatarFallback>
+                            {getPatientName(session.patientId).split(' ').map(n => n[0]).join('')}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <p className="font-medium">{getPatientName(session.patientId)}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {sessionDateTime.toLocaleDateString(undefined, { dateStyle: 'medium' })}{' '}
+                            at {sessionDateTime.toLocaleTimeString(undefined, { timeStyle: 'short' })}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Badge variant="outline">{session.duration} min</Badge>
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          onClick={() => router.push(`/dashboard/counselor/sessions/session/${session.id}`)}
+                        >
+                          Join
+                        </Button>
                       </div>
                     </div>
-                    <div className="flex items-center space-x-2">
-                      <Badge variant="outline">{session.duration} min</Badge>
-                      <Button 
-                        size="sm" 
-                        variant="outline"
-                        onClick={() => router.push(`/dashboard/counselor/sessions/session/${session.id}`)}
-                      >
-                        Join
-                      </Button>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             ) : (
               <div className="text-center py-6">
@@ -361,30 +552,66 @@ export default function CounselorDashboard() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {assignedPatients.length > 0 ? (
+            {patientOverviewLoading ? (
+              renderListSkeleton(3, 'h-24')
+            ) : assignedPatients.length > 0 ? (
               <div className="space-y-4">
-                {assignedPatients.map((patient) => (
-                  <div key={patient.id} className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-2">
-                        <Avatar className="h-8 w-8">
-                          <AvatarImage src={undefined} alt={patient.fullName || patient.email} />
-                          <AvatarFallback>
-                            {(patient.fullName || patient.email || 'P').split(' ').map(n => n[0]).join('').slice(0, 2)}
-                          </AvatarFallback>
-                        </Avatar>
-                        <span className="text-sm font-medium">{patient.fullName || patient.email}</span>
+                {assignedPatients.map((patient) => {
+                  const stats = patientSessionStats.get(patient.id);
+                  const moduleProgress = patientProgressMap[patient.id];
+                  const modulesCompleted = moduleProgress?.completed ?? 0;
+                  const modulesTotal = moduleProgress?.total ?? 0;
+                  const completionPercent =
+                    moduleProgress !== undefined
+                      ? moduleProgress.average
+                      : stats && stats.total > 0
+                      ? Math.round((stats.completed / stats.total) * 100)
+                      : 0;
+
+                  let badgeLabel = 'No sessions yet';
+                  let badgeVariant: 'secondary' | 'outline' | 'ghost' = 'outline';
+
+                  if (stats) {
+                    if (stats.pending > 0) {
+                      badgeLabel = `${stats.pending} upcoming`;
+                    } else if (stats.completed === stats.total && stats.total > 0) {
+                      badgeLabel = 'All sessions completed';
+                      badgeVariant = 'secondary';
+                    } else if (stats.completed > 0) {
+                      badgeLabel = `${stats.completed} completed`;
+                    } else if (stats.cancelled === stats.total && stats.total > 0) {
+                      badgeLabel = 'All sessions cancelled';
+                    }
+                  }
+
+                  return (
+                    <div key={patient.id} className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-2">
+                          <Avatar className="h-8 w-8">
+                            <AvatarImage src={undefined} alt={patient.fullName || patient.email} />
+                            <AvatarFallback>
+                              {(patient.fullName || patient.email || 'P')
+                                .split(' ')
+                                .map((n) => n[0])
+                                .join('')
+                                .slice(0, 2)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <span className="text-sm font-medium">
+                            {patient.fullName || patient.email}
+                          </span>
+                        </div>
+                        <Badge variant={badgeVariant}>{badgeLabel}</Badge>
                       </div>
-                      <Badge variant="outline">
-                        Active
-                      </Badge>
+                      <Progress value={completionPercent} className="h-2" />
+                      <p className="text-xs text-muted-foreground">
+                        Progress {completionPercent}% • Sessions {stats?.completed ?? 0}/{stats?.total ?? 0}
+                        {modulesTotal > 0 ? ` • Modules ${modulesCompleted}/${modulesTotal}` : ''}
+                      </p>
                     </div>
-                    <Progress value={75} className="h-2" />
-                    <p className="text-xs text-muted-foreground">
-                      Patient ID: {patient.id.slice(0, 8)}...
-                    </p>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             ) : (
               <div className="text-center py-6">
@@ -406,7 +633,9 @@ export default function CounselorDashboard() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {recentMessages.length > 0 ? (
+            {messagesLoading ? (
+              renderListSkeleton(3, 'h-20')
+            ) : recentMessages.length > 0 ? (
               <div className="space-y-3">
                 {recentMessages.map((message) => {
                   const isFromCounselor = message.senderId === user?.id;

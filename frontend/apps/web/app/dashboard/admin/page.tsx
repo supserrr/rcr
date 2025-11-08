@@ -8,21 +8,22 @@ import { Card, CardContent, CardHeader, CardTitle } from '@workspace/ui/componen
 import { Badge } from '@workspace/ui/components/badge';
 import { Button } from '@workspace/ui/components/button';
 import { SlidingNumber } from '@workspace/ui/components/animate-ui/primitives/texts/sliding-number';
-import { 
-  Users, 
-  Calendar, 
-  TrendingUp, 
+import {
+  Users,
+  Calendar,
+  TrendingUp,
   MessageCircle,
   UserCheck,
-  AlertCircle,
   Activity,
   BarChart3,
-  Heart,
-  Target,
-  Shield
 } from 'lucide-react';
 import { useAuth } from '../../../components/auth/AuthProvider';
-import { AdminApi, type Analytics } from '../../../lib/api/admin';
+import {
+  AdminApi,
+  type Analytics,
+  type SystemHealthStatus,
+  type AdminActivityEntry,
+} from '../../../lib/api/admin';
 import { toast } from 'sonner';
 
 export default function AdminDashboard() {
@@ -30,30 +31,76 @@ export default function AdminDashboard() {
   const [analytics, setAnalytics] = useState<Analytics | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [systemHealth, setSystemHealth] = useState<SystemHealthStatus[]>([]);
+  const [systemHealthLoading, setSystemHealthLoading] = useState(true);
+  const [activityEntries, setActivityEntries] = useState<AdminActivityEntry[]>([]);
+  const [activityLoading, setActivityLoading] = useState(true);
+
+  const statsLoading = authLoading || loading || systemHealthLoading || activityLoading;
+
+  const getStatusIndicatorClass = (status: SystemHealthStatus['status']) => {
+    switch (status) {
+      case 'operational':
+        return 'bg-green-500';
+      case 'degraded':
+        return 'bg-amber-500';
+      case 'maintenance':
+        return 'bg-purple-500';
+      case 'offline':
+        return 'bg-red-500';
+      default:
+        return 'bg-gray-400';
+    }
+  };
+
+  const getSeverityBadgeClasses = (severity: SystemHealthStatus['severity']) => {
+    switch (severity) {
+      case 'critical':
+        return 'bg-red-100 text-red-800 border-red-200 dark:bg-red-900/30 dark:text-red-200';
+      case 'warning':
+        return 'bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-900/30 dark:text-amber-200';
+      default:
+        return 'bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/30 dark:text-blue-200';
+    }
+  };
 
   // Load analytics data
   useEffect(() => {
-    const fetchAnalytics = async () => {
+    const fetchDashboardData = async () => {
       try {
         setLoading(true);
+        setSystemHealthLoading(true);
+        setActivityLoading(true);
         setError(null);
-        const data = await AdminApi.getAnalytics();
-        setAnalytics(data);
+
+        const [analyticsData, healthData, activityData] = await Promise.all([
+          AdminApi.getAnalytics(),
+          AdminApi.listSystemHealth(),
+          AdminApi.listAdminActivity({ limit: 8 }),
+        ]);
+
+        setAnalytics(analyticsData);
+        setSystemHealth(healthData);
+        setActivityEntries(activityData);
       } catch (err) {
-        console.error('Error fetching analytics:', err);
-        setError(err instanceof Error ? err.message : 'Failed to load analytics');
-        toast.error('Failed to load analytics data');
+        console.error('Error fetching admin dashboard data:', err);
+        const message =
+          err instanceof Error ? err.message : 'Failed to load admin dashboard data';
+        setError(message);
+        toast.error(message);
       } finally {
         setLoading(false);
+        setSystemHealthLoading(false);
+        setActivityLoading(false);
       }
     };
 
     if (user?.id) {
-      fetchAnalytics();
+      fetchDashboardData();
     }
   }, [user?.id]);
 
-  if (authLoading || loading) {
+  if (statsLoading) {
     return (
       <div className="flex justify-center items-center h-64">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
@@ -90,7 +137,11 @@ export default function AdminDashboard() {
           value={analytics.users.total}
           description="Registered users"
           icon={Users}
-          trend={{ value: analytics.users.newThisMonth, isPositive: true }}
+          trend={
+            analytics.users.newThisMonth > 0
+              ? { value: analytics.users.newThisMonth, isPositive: true }
+              : undefined
+          }
           delay={0.1}
         />
         <AnimatedStatCard
@@ -98,15 +149,22 @@ export default function AdminDashboard() {
           value={analytics.sessions.scheduled}
           description="Currently scheduled"
           icon={Calendar}
-          trend={{ value: analytics.sessions.thisMonth, isPositive: true }}
+          trend={
+            analytics.sessions.thisMonth > 0
+              ? { value: analytics.sessions.thisMonth, isPositive: true }
+              : undefined
+          }
           delay={0.2}
         />
         <AnimatedStatCard
           title="Completed Sessions"
           value={analytics.sessions.completed}
-          description={`This month: ${analytics.sessions.thisMonth}`}
+          description={
+            analytics.sessions.thisMonth > 0
+              ? `This month: ${analytics.sessions.thisMonth}`
+              : 'Completed sessions'
+          }
           icon={TrendingUp}
-          trend={{ value: analytics.sessions.thisMonth, isPositive: true }}
           delay={0.3}
         />
         <AnimatedStatCard
@@ -154,7 +212,7 @@ export default function AdminDashboard() {
           <CardContent>
             <div className="text-2xl font-bold">{analytics.resources.total}</div>
             <p className="text-xs text-muted-foreground">
-              {analytics.resources.views} total views
+              {analytics.resources.views.toLocaleString()} total views
             </p>
           </CardContent>
         </AnimatedCard>
@@ -170,45 +228,40 @@ export default function AdminDashboard() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <div className="w-3 h-3 bg-green-500 rounded-full" />
-                <span className="text-sm">Server Status</span>
+            {systemHealth.length > 0 ? (
+              systemHealth.map((item) => (
+                <div
+                  key={item.id}
+                  className="flex items-start justify-between gap-3 rounded-lg border border-border/40 p-3"
+                >
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <div className={`w-3 h-3 rounded-full ${getStatusIndicatorClass(item.status)}`} />
+                      <span className="text-sm font-medium capitalize">
+                        {item.component.replace(/_/g, ' ')}
+                      </span>
+                    </div>
+                    {item.summary ? (
+                      <p className="text-xs text-muted-foreground">{item.summary}</p>
+                    ) : null}
+                    <p className="text-xs text-muted-foreground">
+                      Last checked{' '}
+                      {new Date(item.lastCheckedAt).toLocaleString(undefined, {
+                        dateStyle: 'medium',
+                        timeStyle: 'short',
+                      })}
+                    </p>
+                  </div>
+                  <Badge className={`${getSeverityBadgeClasses(item.severity)} border`}>
+                    {item.status.replace(/_/g, ' ')}
+                  </Badge>
+                </div>
+              ))
+            ) : (
+              <div className="py-4 text-center text-sm text-muted-foreground">
+                No system health data available.
               </div>
-              <Badge variant="default">Operational</Badge>
-            </div>
-            
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <div className="w-3 h-3 bg-green-500 rounded-full" />
-                <span className="text-sm">Database</span>
-              </div>
-              <Badge variant="default">Healthy</Badge>
-            </div>
-            
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <div className="w-3 h-3 bg-yellow-500 rounded-full" />
-                <span className="text-sm">Video Service</span>
-              </div>
-              <Badge variant="secondary">Maintenance</Badge>
-            </div>
-            
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <div className="w-3 h-3 bg-green-500 rounded-full" />
-                <span className="text-sm">AI Assistant</span>
-              </div>
-              <Badge variant="default">Online</Badge>
-            </div>
-            
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <div className="w-3 h-3 bg-green-500 rounded-full" />
-                <span className="text-sm">Email Service</span>
-              </div>
-              <Badge variant="default">Operational</Badge>
-            </div>
+            )}
           </CardContent>
         </AnimatedCard>
 
@@ -221,49 +274,35 @@ export default function AdminDashboard() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            <div className="flex items-center space-x-3 p-3 bg-primary/5 border border-primary/20 rounded-lg">
-              <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                <Users className="h-4 w-4 text-blue-600" />
+            {activityEntries.length > 0 ? (
+              activityEntries.map((entry) => (
+                <div
+                  key={entry.id}
+                  className="flex items-start gap-3 rounded-lg border border-border/40 p-3"
+                >
+                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                    <Activity className="h-4 w-4 text-primary" />
+                  </div>
+                  <div className="flex-1 space-y-1">
+                    <p className="text-sm font-medium text-foreground">{entry.action}</p>
+                    {entry.summary ? (
+                      <p className="text-xs text-muted-foreground">{entry.summary}</p>
+                    ) : null}
+                    <p className="text-xs text-muted-foreground">
+                      {new Date(entry.createdAt).toLocaleString(undefined, {
+                        dateStyle: 'medium',
+                        timeStyle: 'short',
+                      })}
+                      {entry.actorId ? ` • ${entry.actorId.slice(0, 8)}…` : ''}
+                    </p>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="py-4 text-center text-sm text-muted-foreground">
+                No recent activity.
               </div>
-              <div className="flex-1">
-                <p className="text-sm font-medium text-muted-foreground">New patient registered</p>
-                <p className="text-xs text-muted-foreground">Grace Mukamana joined the platform</p>
-              </div>
-              <span className="text-xs text-muted-foreground">2h ago</span>
-            </div>
-            
-            <div className="flex items-center space-x-3 p-3 bg-primary/5 border border-primary/20 rounded-lg">
-              <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
-                <TrendingUp className="h-4 w-4 text-green-600" />
-              </div>
-              <div className="flex-1">
-                <p className="text-sm font-medium text-muted-foreground">Module completed</p>
-                <p className="text-xs text-muted-foreground">Paul Nkurunziza finished "Managing Treatment Side Effects"</p>
-              </div>
-              <span className="text-xs text-muted-foreground">4h ago</span>
-            </div>
-            
-            <div className="flex items-center space-x-3 p-3 bg-primary/5 border border-primary/20 rounded-lg">
-              <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
-                <Calendar className="h-4 w-4 text-purple-600" />
-              </div>
-              <div className="flex-1">
-                <p className="text-sm font-medium text-muted-foreground">Session completed</p>
-                <p className="text-xs text-muted-foreground">Dr. Marie Claire finished session with Jean Baptiste</p>
-              </div>
-              <span className="text-xs text-muted-foreground">6h ago</span>
-            </div>
-            
-            <div className="flex items-center space-x-3 p-3 bg-primary/5 border border-primary/20 rounded-lg">
-              <div className="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center">
-                <AlertCircle className="h-4 w-4 text-orange-600" />
-              </div>
-              <div className="flex-1">
-                <p className="text-sm font-medium text-muted-foreground">Support ticket created</p>
-                <p className="text-xs text-muted-foreground">New urgent ticket from patient</p>
-              </div>
-              <span className="text-xs text-muted-foreground">8h ago</span>
-            </div>
+            )}
           </CardContent>
         </AnimatedCard>
       </div>

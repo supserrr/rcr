@@ -38,8 +38,15 @@ export function createClient(): SupabaseClient | null {
   // Validate that Supabase environment variables are set
   // Check both the validated env object and process.env directly
   // In Next.js, NEXT_PUBLIC_ variables are embedded at build time
-  const supabaseUrl = env.NEXT_PUBLIC_SUPABASE_URL || (typeof window !== 'undefined' ? process.env.NEXT_PUBLIC_SUPABASE_URL : undefined);
-  const supabaseKey = env.NEXT_PUBLIC_SUPABASE_ANON_KEY || (typeof window !== 'undefined' ? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY : undefined);
+  const supabaseUrl =
+    env.NEXT_PUBLIC_SUPABASE_URL ||
+    (typeof window !== 'undefined' ? process.env.NEXT_PUBLIC_SUPABASE_URL : undefined) ||
+    process.env.NEXT_PUBLIC_SUPABASE_DEV_URL;
+
+  const supabaseKey =
+    env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+    (typeof window !== 'undefined' ? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY : undefined) ||
+    process.env.NEXT_PUBLIC_SUPABASE_DEV_ANON_KEY;
   
   if (!supabaseUrl || !supabaseKey) {
     // Only log warning in development, not during build

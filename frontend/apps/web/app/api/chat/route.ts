@@ -65,7 +65,36 @@ export async function POST(req: Request) {
     }
   }
 
-  // Fallback to local AI SDK
+  const fallbackApiKey =
+    process.env.ASSISTANT_API_KEY || process.env.AI_GATEWAY_API_KEY;
+  const fallbackBaseUrl =
+    process.env.AI_GATEWAY_URL || process.env.ASSISTANT_API_BASE_URL;
+
+  if (!fallbackApiKey) {
+    console.error(
+      'AI Gateway authentication failed: Missing ASSISTANT_API_KEY or AI_GATEWAY_API_KEY environment variable.',
+    );
+    return new Response(
+      JSON.stringify({
+        error:
+          'AI assistant is not configured. Please provide ASSISTANT_API_KEY (or AI_GATEWAY_API_KEY) on the server.',
+      }),
+      {
+        status: 500,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      },
+    );
+  }
+
+  if (!process.env.OPENAI_API_KEY) {
+    process.env.OPENAI_API_KEY = fallbackApiKey;
+  }
+  if (fallbackBaseUrl) {
+    process.env.OPENAI_BASE_URL = fallbackBaseUrl;
+  }
+
   const result = streamText({
     model: webSearch ? 'perplexity/sonar' : model,
     messages: convertToModelMessages(messages),

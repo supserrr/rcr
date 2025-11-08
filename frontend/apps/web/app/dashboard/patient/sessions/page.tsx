@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { AnimatedPageHeader } from '@workspace/ui/components/animated-page-header';
 import { AnimatedCard } from '@workspace/ui/components/animated-card';
@@ -44,16 +44,21 @@ export default function PatientSessionsPage() {
   const [selectedSession, setSelectedSession] = useState<Session | null>(null);
 
   // Load sessions using the hook
-  const { 
-    sessions, 
-    loading: sessionsLoading, 
+  const patientSessionsParams = useMemo(
+    () => (user?.id ? { patientId: user.id } : undefined),
+    [user?.id]
+  );
+
+  const {
+    sessions,
+    loading: sessionsLoading,
     error: sessionsError,
     createSession,
     rescheduleSession,
     cancelSession,
-    refreshSessions
-  } = useSessions({
-    patientId: user?.id,
+    refreshSessions,
+  } = useSessions(patientSessionsParams, {
+    enabled: Boolean(user?.id),
   });
 
   // Filter sessions based on tab

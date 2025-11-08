@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { PatientLayout } from '../../components/dashboard/layouts/PatientLayout';
 import { CounselorLayout } from '../../components/dashboard/layouts/CounselorLayout';
@@ -17,6 +17,12 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const pathname = usePathname();
   const { user, signOut, isLoading } = useAuth();
 
+  useEffect(() => {
+    if (!isLoading && !user && pathname !== '/signin') {
+      router.replace('/signin');
+    }
+  }, [isLoading, user, router, pathname]);
+
   // Show loading state while checking authentication
   if (isLoading) {
     return (
@@ -26,10 +32,12 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     );
   }
 
-  // Redirect if not authenticated
   if (!user) {
-    router.push('/signin');
-    return null;
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Spinner variant="bars" size={32} className="text-primary" />
+      </div>
+    );
   }
 
   const handleNavigate = (path: string) => {
@@ -51,7 +59,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     name: user.name,
     email: user.email,
     role: user.role,
-    avatar: user.avatar || '/avatars/default.jpg'
+    avatar: user.avatar || undefined
   };
 
   switch (user.role) {

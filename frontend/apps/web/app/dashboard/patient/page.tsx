@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { AnimatedStatCard } from '@workspace/ui/components/animated-stat-card';
 import { AnimatedPageHeader } from '@workspace/ui/components/animated-page-header';
@@ -12,22 +12,24 @@ import { Badge } from '@workspace/ui/components/badge';
 import { Button } from '@workspace/ui/components/button';
 import { Skeleton } from '@workspace/ui/components/skeleton';
 import { SlidingNumber } from '@workspace/ui/components/animate-ui/primitives/texts/sliding-number';
-import { 
-  TrendingUp, 
-  Calendar, 
-  MessageCircle, 
+import { cn } from '@workspace/ui/lib/utils';
+import {
+  TrendingUp,
+  Calendar,
+  MessageCircle,
   BookOpen,
   Clock,
   CheckCircle,
+  Circle,
   Play,
-  Heart,
-  Target,
-  Users
 } from 'lucide-react';
 import { useAuth } from '../../../components/auth/AuthProvider';
 import { useSessions } from '../../../hooks/useSessions';
 import { useChat } from '../../../hooks/useChat';
-import { useResources } from '../../../hooks/useResources';
+import { usePatientProgress } from '../../../hooks/usePatientProgress';
+import { useSessionStats } from '../../../hooks/useSessionStats';
+import { useChatSummary } from '../../../hooks/useChatSummary';
+import { useResourceSummaries } from '../../../hooks/useResourceMetrics';
 import { AdminApi, type AdminUser } from '../../../lib/api/admin';
 import { QuickBookingModal } from '@workspace/ui/components/quick-booking-modal';
 import { toast } from 'sonner';
@@ -39,14 +41,38 @@ export default function PatientDashboard() {
   const [counselors, setCounselors] = useState<AdminUser[]>([]);
   const [counselorsLoading, setCounselorsLoading] = useState(true);
 
+  // Load patient progress modules
+  const {
+    modules: progressModules,
+    loading: progressLoading,
+    error: _progressError,
+  } = usePatientProgress({
+    includeItems: true,
+  });
+
   // Load upcoming sessions
+  const patientSessionParams = useMemo(
+    () => (user?.id ? { patientId: user.id } : undefined),
+    [user?.id]
+  );
+
   const {
     sessions,
     loading: sessionsLoading,
-    error: sessionsError,
-  } = useSessions({
-    patientId: user?.id,
-    status: 'scheduled',
+    error: _sessionsError,
+  } = useSessions(patientSessionParams, {
+    enabled: Boolean(user?.id),
+  });
+
+  // Load aggregated session stats
+  const {
+    stats: sessionStats,
+    loading: sessionStatsLoading,
+    error: _sessionStatsError,
+  } = useSessionStats({
+    role: 'patient',
+    userId: user?.id,
+    enabled: Boolean(user?.id),
   });
 
   // Load chats for recent messages
@@ -54,21 +80,29 @@ export default function PatientDashboard() {
     chats,
     messages,
     loading: chatsLoading,
-    error: chatsError,
+    error: _chatsError,
   } = useChat({
     participantId: user?.id,
   });
 
-  // Load recommended resources (public resources, limited)
   const {
-    resources,
-    loading: resourcesLoading,
-    error: resourcesError,
-  } = useResources({
+    summary: chatSummary,
+    loading: chatSummaryLoading,
+    error: _chatSummaryError,
+  } = useChatSummary({
+    enabled: Boolean(user?.id),
+  });
+
+  // Load recommended resources (summary metrics)
+  const {
+    summaries: resourceSummaries,
+    loading: resourceSummariesLoading,
+    error: _resourceSummariesError,
+  } = useResourceSummaries({
     isPublic: true,
     limit: 3,
-    sortBy: 'views',
-    sortOrder: 'desc',
+    orderBy: 'views',
+    enabled: Boolean(user?.id),
   });
 
   // Load counselors for quick booking
@@ -88,15 +122,27 @@ export default function PatientDashboard() {
 
     if (user?.id) {
       fetchCounselors();
+    } else {
+      setCounselorsLoading(false);
     }
   }, [user?.id]);
 
   // Filter upcoming sessions
   const upcomingSessions = useMemo(() => {
-    return sessions.filter(session => 
-      session.status === 'scheduled' &&
-      new Date(session.date) > new Date()
-    ).slice(0, 3); // Show only next 3
+    const now = new Date();
+    return sessions
+      .filter((session) => {
+        const sessionDate = new Date(`${session.date}T${session.time}`);
+        return (
+          ['scheduled', 'rescheduled'].includes(session.status) &&
+          sessionDate.getTime() >= now.getTime()
+        );
+      })
+      .sort(
+        (a, b) =>
+          new Date(`${a.date}T${a.time}`).getTime() - new Date(`${b.date}T${b.time}`).getTime()
+      )
+      .slice(0, 3);
   }, [sessions]);
 
   // Get recent messages from all chats
@@ -115,8 +161,40 @@ export default function PatientDashboard() {
 
   // Get recommended resources
   const recommendedResources = useMemo(() => {
-    return resources.slice(0, 3);
-  }, [resources]);
+    return resourceSummaries.slice(0, 3);
+  }, [resourceSummaries]);
+
+  const moduleProgressPercent = useMemo(() => {
+    if (progressModules.length === 0) {
+      return null;
+    }
+    const total = progressModules.reduce((sum, module) => sum + module.progressPercent, 0);
+    return Math.round(total / progressModules.length);
+  }, [progressModules]);
+
+  const moduleChecklist = useMemo(() => {
+    return progressModules
+      .slice()
+      .sort(
+        (a, b) =>
+          new Date(b.lastActivityAt).getTime() - new Date(a.lastActivityAt).getTime()
+      )
+      .slice(0, 4)
+      .map((module) => ({
+        id: module.id,
+        title: module.moduleTitle || module.moduleId,
+        status:
+          module.status === 'completed'
+            ? 'completed'
+            : module.status === 'in_progress'
+            ? 'in_progress'
+            : 'not_started',
+        summary:
+          typeof module.metadata?.summary === 'string'
+            ? (module.metadata.summary as string)
+            : undefined,
+      }));
+  }, [progressModules]);
 
   const handleQuickBooking = () => {
     setIsQuickBookingOpen(true);
@@ -154,17 +232,61 @@ export default function PatientDashboard() {
     return 'Counselor';
   };
 
-  // Calculate module progress (placeholder - would come from patient metadata)
-  const moduleProgress = 75; // This would come from user metadata or a separate API
+  const statsLoading =
+    authLoading ||
+    progressLoading ||
+    sessionStatsLoading ||
+    chatSummaryLoading ||
+    resourceSummariesLoading ||
+    counselorsLoading;
 
-  // Loading state
-  if (authLoading || sessionsLoading || chatsLoading || resourcesLoading || counselorsLoading) {
-    return (
-      <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+  const modulesLoading = statsLoading || progressLoading;
+  const upcomingSessionsLoading = sessionsLoading || statsLoading;
+  const messagesLoading = chatsLoading || statsLoading;
+  const resourcesLoading = resourceSummariesLoading || statsLoading;
+
+  const renderListSkeleton = useCallback(
+    (count = 3, heightClass = 'h-16') => (
+      <div className="space-y-3">
+        {Array.from({ length: count }).map((_, index) => (
+          <div
+            key={index}
+            className={cn(
+              'relative overflow-hidden rounded-2xl border border-primary/15 bg-gradient-to-r',
+              'from-primary/10 via-background/40 to-primary/10 dark:from-primary/15 dark:via-background/20 dark:to-primary/15',
+              'shadow-[0_18px_40px_-20px_rgba(168,85,247,0.45)] animate-pulse'
+            )}
+          >
+            <div className={cn('w-full', heightClass)} />
+          </div>
+        ))}
       </div>
-    );
-  }
+    ),
+    []
+  );
+
+  const upcomingSessionsDescription = useMemo(() => {
+    if (!sessionStats || sessionStats.upcomingSessions === 0 || !sessionStats.nextSessionAt) {
+      return 'No upcoming sessions scheduled';
+    }
+    const nextSessionDate = new Date(sessionStats.nextSessionAt);
+    return `Next session on ${nextSessionDate.toLocaleDateString(undefined, {
+      dateStyle: 'medium',
+    })} at ${nextSessionDate.toLocaleTimeString(undefined, { timeStyle: 'short' })}`;
+  }, [sessionStats]);
+
+  const unreadChatCount = chatSummary?.unreadMessages ?? 0;
+  const unreadChatConversations = chatSummary?.unreadChats ?? 0;
+
+  const resourceTotalViews = useMemo(() => {
+    return resourceSummaries.reduce((sum, resource) => sum + resource.totalViews, 0);
+  }, [resourceSummaries]);
+
+  const formattedResourceViews = useMemo(() => {
+    return resourceTotalViews.toLocaleString();
+  }, [resourceTotalViews]);
+
+  const upcomingSessionCount = sessionStats?.upcomingSessions ?? upcomingSessions.length;
 
   return (
     <div className="space-y-6">
@@ -177,33 +299,47 @@ export default function PatientDashboard() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <AnimatedStatCard
           title="Module Progress"
-          value={moduleProgress}
-          description="Your overall progress"
+          value={statsLoading ? '—' : moduleProgressPercent ?? '—'}
+          description={
+            statsLoading
+              ? 'Loading…'
+              : moduleProgressPercent !== null
+              ? 'Your overall progress'
+              : 'Progress will appear once your plan begins'
+          }
           icon={TrendingUp}
-          trend={{ value: 15, isPositive: true }}
           delay={0.1}
+          animateValue={!statsLoading && moduleProgressPercent !== null}
         />
         <AnimatedStatCard
           title="Upcoming Sessions"
-          value={upcomingSessions.length}
-          description="Next session in 2 days"
+          value={statsLoading ? '—' : upcomingSessionCount}
+          description={statsLoading ? 'Loading…' : upcomingSessionsDescription}
           icon={Calendar}
           delay={0.2}
+          animateValue={!statsLoading}
         />
         <AnimatedStatCard
           title="Messages"
-          value={chats.filter(chat => chat.unreadCount > 0).length}
-          description={`${chats.reduce((sum, chat) => sum + chat.unreadCount, 0)} unread`}
+          value={statsLoading ? '—' : unreadChatConversations}
+          description={statsLoading ? 'Loading…' : `${unreadChatCount} unread`}
           icon={MessageCircle}
           delay={0.3}
+          animateValue={!statsLoading}
         />
         <AnimatedStatCard
           title="Resources"
-          value={resources.length}
-          description="Available resources"
+          value={statsLoading ? '—' : resourceSummaries.length}
+          description={
+            statsLoading
+              ? 'Loading…'
+              : resourceSummaries.length > 0
+              ? `${formattedResourceViews} total views`
+              : 'Explore new resources'
+          }
           icon={BookOpen}
-          trend={{ value: 25, isPositive: true }}
           delay={0.4}
+          animateValue={!statsLoading}
         />
       </div>
 
@@ -221,56 +357,67 @@ export default function PatientDashboard() {
               <div className="flex items-center justify-between mb-2">
                 <span className="text-sm font-medium">Your Progress</span>
                 <span className="text-sm text-muted-foreground">
-                  <SlidingNumber 
-                    number={moduleProgress}
-                    fromNumber={0}
-                    transition={{ stiffness: 200, damping: 20, mass: 0.4 }}
-                  />%
+                  {moduleProgressPercent !== null ? (
+                    <SlidingNumber
+                      number={moduleProgressPercent}
+                      fromNumber={0}
+                      transition={{ stiffness: 200, damping: 20, mass: 0.4 }}
+                    />
+                  ) : (
+                    '—'
+                  )}
+                  {moduleProgressPercent !== null ? '%' : ''}
                 </span>
               </div>
-              <Progress value={moduleProgress} className="h-2" />
+              <Progress value={moduleProgressPercent ?? 0} className="h-2" />
             </div>
-            
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <CheckCircle className="h-4 w-4 text-green-500" />
-                  <span className="text-sm">Recognizing Anxiety Symptoms</span>
-                </div>
-                <Badge variant="secondary">Completed</Badge>
+
+            {modulesLoading ? (
+              renderListSkeleton(3, 'h-12')
+            ) : moduleChecklist.length > 0 ? (
+              <div className="space-y-3">
+                {moduleChecklist.map((module) => {
+                  const isCompleted = module.status === 'completed';
+                  const isInProgress = module.status === 'in_progress';
+
+                  return (
+                    <div key={module.id} className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        {isCompleted ? (
+                          <CheckCircle className="h-4 w-4 text-green-500" />
+                        ) : isInProgress ? (
+                          <Clock className="h-4 w-4 text-amber-500" />
+                        ) : (
+                          <Circle className="h-4 w-4 text-muted-foreground" />
+                        )}
+                        <div className="flex flex-col">
+                          <span className="text-sm">{module.title}</span>
+                          {module.summary ? (
+                            <span className="text-xs text-muted-foreground">{module.summary}</span>
+                          ) : null}
+                        </div>
+                      </div>
+                      <Badge
+                        variant={isCompleted ? 'secondary' : 'outline'}
+                        className={
+                          !isCompleted && !isInProgress ? 'opacity-70 border-dashed' : undefined
+                        }
+                      >
+                        {isCompleted ? 'Completed' : isInProgress ? 'In Progress' : 'Not Started'}
+                      </Badge>
+                    </div>
+                  );
+                })}
               </div>
-              
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <CheckCircle className="h-4 w-4 text-green-500" />
-                  <span className="text-sm">Breathing Exercises</span>
-                </div>
-                <Badge variant="secondary">Completed</Badge>
+            ) : (
+              <div className="rounded-lg border border-dashed border-muted-foreground/30 p-4 text-center text-sm text-muted-foreground">
+                Personalized modules will appear once your care plan begins.
               </div>
-              
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <CheckCircle className="h-4 w-4 text-green-500" />
-                  <span className="text-sm">Mindfulness Practice</span>
-                </div>
-                <Badge variant="secondary">Completed</Badge>
-              </div>
-              
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Clock className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm">Building a Support Network</span>
-                </div>
-                <Badge variant="outline">In Progress</Badge>
-              </div>
-            </div>
-            
-            <Button 
-              className="w-full"
-              onClick={() => router.push('/dashboard/patient/resources')}
-            >
+            )}
+
+            <Button className="w-full" onClick={() => router.push('/dashboard/patient/resources')}>
               <Play className="h-4 w-4 mr-2" />
-              Continue Learning
+              Explore Resources
             </Button>
           </CardContent>
         </AnimatedCard>
@@ -284,20 +431,24 @@ export default function PatientDashboard() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {upcomingSessions.length > 0 ? (
+            {upcomingSessionsLoading ? (
+              renderListSkeleton(2, 'h-16')
+            ) : upcomingSessions.length > 0 ? (
               <div className="space-y-4">
                 {upcomingSessions.map((session) => {
                   // Get counselor name
                   const counselorId = session.counselorId;
                   const counselor = counselors.find(c => c.id === counselorId);
                   const counselorName = counselor?.fullName || counselor?.email || 'Counselor';
+                  const sessionDateTime = new Date(`${session.date}T${session.time}`);
 
                   return (
                     <div key={session.id} className="flex items-center justify-between p-3 border rounded-lg">
                       <div>
                         <p className="font-medium">Session with {counselorName}</p>
                         <p className="text-sm text-muted-foreground">
-                          {new Date(session.date).toLocaleDateString()} at {session.time}
+                          {sessionDateTime.toLocaleDateString(undefined, { dateStyle: 'medium' })}{' '}
+                          at {sessionDateTime.toLocaleTimeString(undefined, { timeStyle: 'short' })}
                         </p>
                       </div>
                       <Button 
@@ -334,7 +485,9 @@ export default function PatientDashboard() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {recentMessages.length > 0 ? (
+            {messagesLoading ? (
+              renderListSkeleton(3, 'h-20')
+            ) : recentMessages.length > 0 ? (
               <div className="space-y-3">
                 {recentMessages.map((message) => (
                   <div 
@@ -379,11 +532,13 @@ export default function PatientDashboard() {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {recommendedResources.length > 0 ? (
+              {resourcesLoading ? (
+                renderListSkeleton(3, 'h-16')
+              ) : recommendedResources.length > 0 ? (
                 recommendedResources.map((resource) => (
                   <div 
-                    key={resource.id} 
-                    onClick={() => router.push(`/dashboard/patient/resources?resourceId=${resource.id}`)}
+                    key={resource.resourceId} 
+                    onClick={() => router.push(`/dashboard/patient/resources?resourceId=${resource.resourceId}`)}
                     className="flex items-center gap-3 p-3 border rounded-lg hover:bg-primary/5 dark:hover:bg-primary/10 hover:border-primary/20 dark:hover:border-primary/30 hover:shadow-md dark:hover:shadow-lg dark:hover:shadow-primary/20 transition-all duration-200 cursor-pointer group"
                   >
                     <div className="w-10 h-10 bg-purple-100 dark:bg-purple-900/30 rounded-lg flex items-center justify-center group-hover:bg-purple-200 dark:group-hover:bg-purple-800/50 transition-colors duration-200">
@@ -394,17 +549,21 @@ export default function PatientDashboard() {
                       )}
                     </div>
                     <div className="flex-1">
-                      <p className="font-medium text-sm group-hover:text-primary dark:group-hover:text-primary transition-colors duration-200">{resource.title}</p>
+                      <p className="font-medium text-sm group-hover:text-primary dark:group-hover:text-primary transition-colors duration-200">
+                        {resource.title}
+                      </p>
                       <p className="text-xs text-muted-foreground">
-                        {resource.type.toUpperCase()} • {resource.views} views
+                        {resource.type.toUpperCase()} • {resource.totalViews.toLocaleString()} views
                       </p>
                     </div>
-                    <Button 
-                      size="sm" 
-                      variant="ghost" 
+                    <Button
+                      size="sm"
+                      variant="ghost"
                       onClick={(e) => {
                         e.stopPropagation();
-                        router.push(`/dashboard/patient/resources?resourceId=${resource.id}`);
+                        router.push(
+                          `/dashboard/patient/resources?resourceId=${resource.resourceId}`,
+                        );
                       }}
                       className="group-hover:bg-primary/10 dark:group-hover:bg-primary/20 group-hover:text-primary dark:group-hover:text-primary transition-all duration-200"
                     >

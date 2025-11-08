@@ -60,6 +60,12 @@ export interface ListNotificationsResponse {
   offset: number;
 }
 
+export interface NotificationSummary {
+  total: number;
+  unread: number;
+  latestNotification?: Notification;
+}
+
 /**
  * Mark notifications as read input
  */
@@ -100,6 +106,54 @@ export class NotificationsApi {
     }
 
     return this.mapNotificationFromDb(notification);
+  }
+
+  /**
+   * Get notification summary for the current user
+   */
+  static async getNotificationSummary(): Promise<NotificationSummary> {
+    const supabase = createClient();
+    if (!supabase) {
+      throw new Error('Supabase is not configured. Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.');
+    }
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      throw new Error('User not authenticated');
+    }
+
+    const [{ count: total }, { count: unread }, { data: latestNotifications, error }] =
+      await Promise.all([
+        supabase.from('notifications').select('*', { count: 'exact', head: true }).eq('user_id', user.id),
+        supabase
+          .from('notifications')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', user.id)
+          .eq('is_read', false),
+        supabase
+          .from('notifications')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+          .limit(1),
+      ]);
+
+    if (error) {
+      throw new Error(error.message || 'Failed to load notification summary');
+    }
+
+    const latest = latestNotifications && latestNotifications.length > 0
+      ? this.mapNotificationFromDb(latestNotifications[0])
+      : undefined;
+
+    return {
+      total: total || 0,
+      unread: unread || 0,
+      latestNotification: latest,
+    };
   }
 
   /**

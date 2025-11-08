@@ -60,6 +60,36 @@ export interface Analytics {
 }
 
 /**
+ * System health status
+ */
+export interface SystemHealthStatus {
+  id: string;
+  component: string;
+  status: 'operational' | 'degraded' | 'maintenance' | 'offline';
+  severity: 'info' | 'warning' | 'critical';
+  summary?: string;
+  details?: string;
+  telemetry: Record<string, unknown>;
+  lastCheckedAt: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
+ * Admin activity entry
+ */
+export interface AdminActivityEntry {
+  id: string;
+  actorId?: string;
+  action: string;
+  targetType?: string;
+  targetId?: string;
+  summary?: string;
+  metadata: Record<string, unknown>;
+  createdAt: string;
+}
+
+/**
  * Update user role input
  */
 export interface UpdateUserRoleInput {
@@ -109,79 +139,68 @@ export class AdminApi {
       throw new Error('Supabase is not configured. Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.');
     }
 
-    // Get user counts
-    const { count: totalUsers } = await supabase
-      .from('users')
-      .select('*', { count: 'exact', head: true });
+    const [
+      { count: totalUsers },
+      { count: patients },
+      { count: counselors },
+      { count: admins },
+      { count: totalSessions },
+      { count: scheduledSessions },
+      { count: completedSessions },
+      { count: cancelledSessions },
+      { count: totalResources },
+      { count: publicResources },
+      resourceSummaryResult,
+      { count: totalChats },
+      { count: totalMessages },
+      { count: unreadMessages },
+      { count: totalNotifications },
+      { count: unreadNotifications },
+    ] = await Promise.all([
+      supabase.from('users').select('*', { count: 'exact', head: true }),
+      supabase.from('users').select('*', { count: 'exact', head: true }).eq('role', 'patient'),
+      supabase.from('users').select('*', { count: 'exact', head: true }).eq('role', 'counselor'),
+      supabase.from('users').select('*', { count: 'exact', head: true }).eq('role', 'admin'),
+      supabase.from('sessions').select('*', { count: 'exact', head: true }),
+      supabase
+        .from('sessions')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'scheduled'),
+      supabase
+        .from('sessions')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'completed'),
+      supabase
+        .from('sessions')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'cancelled'),
+      supabase.from('resources').select('*', { count: 'exact', head: true }),
+      supabase.from('resources').select('*', { count: 'exact', head: true }).eq('is_public', true),
+      supabase.from('resource_summary_metrics').select('total_views,total_downloads'),
+      supabase.from('chats').select('*', { count: 'exact', head: true }),
+      supabase.from('messages').select('*', { count: 'exact', head: true }),
+      supabase
+        .from('messages')
+        .select('*', { count: 'exact', head: true })
+        .eq('is_read', false),
+      supabase.from('notifications').select('*', { count: 'exact', head: true }),
+      supabase
+        .from('notifications')
+        .select('*', { count: 'exact', head: true })
+        .eq('is_read', false),
+    ]);
 
-    const { count: patients } = await supabase
-      .from('users')
-      .select('*', { count: 'exact', head: true })
-      .eq('role', 'patient');
+    if (resourceSummaryResult.error) {
+      throw new Error(resourceSummaryResult.error.message || 'Failed to load resource metrics');
+    }
 
-    const { count: counselors } = await supabase
-      .from('users')
-      .select('*', { count: 'exact', head: true })
-      .eq('role', 'counselor');
-
-    const { count: admins } = await supabase
-      .from('users')
-      .select('*', { count: 'exact', head: true })
-      .eq('role', 'admin');
-
-    // Get session counts
-    const { count: totalSessions } = await supabase
-      .from('sessions')
-      .select('*', { count: 'exact', head: true });
-
-    const { count: scheduledSessions } = await supabase
-      .from('sessions')
-      .select('*', { count: 'exact', head: true })
-      .eq('status', 'scheduled');
-
-    const { count: completedSessions } = await supabase
-      .from('sessions')
-      .select('*', { count: 'exact', head: true })
-      .eq('status', 'completed');
-
-    const { count: cancelledSessions } = await supabase
-      .from('sessions')
-      .select('*', { count: 'exact', head: true })
-      .eq('status', 'cancelled');
-
-    // Get resource counts
-    const { count: totalResources } = await supabase
-      .from('resources')
-      .select('*', { count: 'exact', head: true });
-
-    const { count: publicResources } = await supabase
-      .from('resources')
-      .select('*', { count: 'exact', head: true })
-      .eq('is_public', true);
-
-    // Get chat counts
-    const { count: totalChats } = await supabase
-      .from('chats')
-      .select('*', { count: 'exact', head: true });
-
-    const { count: totalMessages } = await supabase
-      .from('messages')
-      .select('*', { count: 'exact', head: true });
-
-    const { count: unreadMessages } = await supabase
-      .from('messages')
-      .select('*', { count: 'exact', head: true })
-      .eq('is_read', false);
-
-    // Get notification counts
-    const { count: totalNotifications } = await supabase
-      .from('notifications')
-      .select('*', { count: 'exact', head: true });
-
-    const { count: unreadNotifications } = await supabase
-      .from('notifications')
-      .select('*', { count: 'exact', head: true })
-      .eq('is_read', false);
+    const resourceAggregate = (resourceSummaryResult.data || []).reduce(
+      (acc, row) => ({
+        views: acc.views + Number(row.total_views ?? 0),
+        downloads: acc.downloads + Number(row.total_downloads ?? 0),
+      }),
+      { views: 0, downloads: 0 }
+    );
 
     return {
       users: {
@@ -203,8 +222,8 @@ export class AdminApi {
         total: totalResources || 0,
         public: publicResources || 0,
         private: (totalResources || 0) - (publicResources || 0),
-        views: 0, // Would need aggregation
-        downloads: 0, // Would need aggregation
+        views: resourceAggregate.views,
+        downloads: resourceAggregate.downloads,
       },
       chats: {
         total: totalChats || 0,
@@ -218,6 +237,91 @@ export class AdminApi {
         byType: {}, // Would need grouping
       },
     };
+  }
+
+  /**
+   * List system health records
+   */
+  static async listSystemHealth(): Promise<SystemHealthStatus[]> {
+    const supabase = createClient();
+    if (!supabase) {
+      throw new Error('Supabase is not configured. Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.');
+    }
+
+    const { data, error } = await supabase
+      .from('system_health')
+      .select('*')
+      .order('component', { ascending: true });
+
+    if (error) {
+      throw new Error(error.message || 'Failed to load system health');
+    }
+
+    return (data || []).map((row) => this.mapSystemHealthFromDb(row));
+  }
+
+  /**
+   * Upsert a system health record for a component
+   */
+  static async upsertSystemHealth(
+    component: string,
+    input: Partial<Omit<SystemHealthStatus, 'id' | 'component' | 'createdAt' | 'updatedAt' | 'lastCheckedAt'>> & {
+      status: SystemHealthStatus['status'];
+      severity?: SystemHealthStatus['severity'];
+      lastCheckedAt?: string;
+    }
+  ): Promise<SystemHealthStatus> {
+    const supabase = createClient();
+    if (!supabase) {
+      throw new Error('Supabase is not configured. Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.');
+    }
+
+    const payload: Record<string, unknown> = {
+      component,
+      status: input.status,
+      severity: input.severity ?? 'info',
+      summary: input.summary ?? null,
+      details: input.details ?? null,
+      telemetry: input.telemetry ?? {},
+      last_checked_at: input.lastCheckedAt ?? new Date().toISOString(),
+    };
+
+    const { data, error } = await supabase
+      .from('system_health')
+      .upsert(payload, { onConflict: 'component' })
+      .select('*')
+      .eq('component', component)
+      .single();
+
+    if (error) {
+      throw new Error(error.message || 'Failed to upsert system health');
+    }
+
+    return this.mapSystemHealthFromDb(data);
+  }
+
+  /**
+   * List admin activity entries
+   */
+  static async listAdminActivity(params?: { limit?: number }): Promise<AdminActivityEntry[]> {
+    const supabase = createClient();
+    if (!supabase) {
+      throw new Error('Supabase is not configured. Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.');
+    }
+
+    const limit = params?.limit ?? 50;
+
+    const { data, error } = await supabase
+      .from('admin_activity_log')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(limit);
+
+    if (error) {
+      throw new Error(error.message || 'Failed to load admin activity');
+    }
+
+    return (data || []).map((row) => this.mapAdminActivityFromDb(row));
   }
 
   /**
@@ -287,46 +391,49 @@ export class AdminApi {
     const offset = params?.offset ?? 0;
 
     if (currentRole === 'admin') {
-      const { data, error } = await supabase.functions.invoke('admin', {
-        method: 'POST',
-        body: {
-          action: 'listUsers',
-          limit,
-          offset,
-          role: params?.role,
-          isVerified: params?.isVerified,
-          search: params?.search,
-        },
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
+      try {
+        const { data, error } = await supabase.functions.invoke('admin', {
+          method: 'POST',
+          body: {
+            action: 'listUsers',
+            limit,
+            offset,
+            role: params?.role,
+            isVerified: params?.isVerified,
+            search: params?.search,
+          },
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
 
-      if (error) {
-        throw new Error(error.message || 'Failed to list users');
+        if (error) {
+          throw error;
+        }
+
+        if (data?.success && data.data) {
+          const response = data.data;
+
+          return {
+            users: (response.users || []).map((u: any) => ({
+              id: u.id,
+              email: u.email || '',
+              fullName: u.fullName || u.full_name,
+              role: (u.role as AdminUser['role']) || 'patient',
+              isVerified: u.isVerified || u.is_verified || false,
+              createdAt: u.createdAt || u.created_at,
+              lastLogin: u.lastLogin || u.last_login || undefined,
+              ...(u.metadata ? { metadata: u.metadata } : {}),
+            })),
+            total: response.total || response.count || 0,
+            limit: response.limit || limit,
+            offset: response.offset || offset,
+          };
+        }
+      } catch (functionError: any) {
+        console.warn('[AdminApi.listUsers] Edge function unavailable, falling back to profiles query:', functionError?.message ?? functionError);
+        // Continue to profiles fallback below
       }
-
-      if (!data || !data.success || !data.data) {
-        throw new Error(data?.error?.message || 'Failed to list users');
-      }
-
-      const response = data.data;
-
-      return {
-        users: (response.users || []).map((u: any) => ({
-          id: u.id,
-          email: u.email || '',
-          fullName: u.fullName || u.full_name,
-          role: (u.role as AdminUser['role']) || 'patient',
-          isVerified: u.isVerified || u.is_verified || false,
-          createdAt: u.createdAt || u.created_at,
-          lastLogin: u.lastLogin || u.last_login || undefined,
-          ...(u.metadata ? { metadata: u.metadata } : {}),
-        })),
-        total: response.total || response.count || 0,
-        limit: response.limit || limit,
-        offset: response.offset || offset,
-      };
     }
 
     // Non-admin users query the public.profiles table directly
@@ -455,6 +562,35 @@ export class AdminApi {
     if (!data || !data.success) {
       throw new Error(data?.error?.message || 'Failed to delete user');
     }
+  }
+  private static mapSystemHealthFromDb(row: Record<string, unknown>): SystemHealthStatus {
+    return {
+      id: row.id as string,
+      component: row.component as string,
+      status: row.status as SystemHealthStatus['status'],
+      severity: row.severity as SystemHealthStatus['severity'],
+      summary: row.summary as string | undefined,
+      details: row.details as string | undefined,
+      telemetry: (row.telemetry as Record<string, unknown>) ?? {},
+      lastCheckedAt: row.last_checked_at
+        ? new Date(row.last_checked_at as string).toISOString()
+        : new Date().toISOString(),
+      createdAt: row.created_at as string,
+      updatedAt: row.updated_at as string,
+    };
+  }
+
+  private static mapAdminActivityFromDb(row: Record<string, unknown>): AdminActivityEntry {
+    return {
+      id: row.id as string,
+      actorId: row.actor_id as string | undefined,
+      action: row.action as string,
+      targetType: row.target_type as string | undefined,
+      targetId: row.target_id as string | undefined,
+      summary: row.summary as string | undefined,
+      metadata: (row.metadata as Record<string, unknown>) ?? {},
+      createdAt: row.created_at as string,
+    };
   }
 }
 
