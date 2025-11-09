@@ -177,12 +177,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 return;
               }
             }
-          } else if (userData) {
-            if (process.env.NODE_ENV === 'development') {
-              console.warn('Token verification timed out; using cached user data.');
-            }
-            setUser(userData as User);
           } else {
+            if (process.env.NODE_ENV === 'development') {
+              console.warn('Token verification failed or returned no user; clearing cached credentials.');
+            }
             AuthSession.clear();
             setUser(null);
           }

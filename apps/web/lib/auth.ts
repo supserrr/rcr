@@ -143,7 +143,34 @@ export function isOnboardingComplete(user: User | null): boolean {
   // For now, we'll check if the user has any onboarding data
   // This will be set when onboarding is completed
   const metadata = (user as any).metadata || {};
-  return metadata.onboarding_completed === true;
+  const flag =
+    metadata.onboarding_completed ??
+    metadata.onboardingCompleted ??
+    metadata.onboarding_complete ??
+    metadata.has_completed_onboarding ??
+    metadata.onboarding?.completed ??
+    metadata.onboarding?.isComplete ??
+    metadata.onboarding?.is_completed;
+
+  if (typeof flag === 'boolean') {
+    return flag;
+  }
+
+  if (typeof flag === 'string') {
+    const normalized = flag.trim().toLowerCase();
+    return normalized === 'true' || normalized === '1' || normalized === 'yes' || normalized === 'completed';
+  }
+
+  if (typeof flag === 'number') {
+    return flag === 1;
+  }
+
+  // Fallback: if we have a completion timestamp, consider onboarding done
+  if (metadata.onboarding_completed_at || metadata.onboardingCompletedAt) {
+    return true;
+  }
+
+  return false;
 }
 
 /**
