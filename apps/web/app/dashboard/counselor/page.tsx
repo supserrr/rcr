@@ -33,8 +33,7 @@ import { useChatSummary } from '../../../hooks/useChatSummary';
 import { AdminApi, type AdminUser } from '../../../lib/api/admin';
 import { ProgressApi } from '../../../lib/api/progress';
 import { toast } from 'sonner';
-import { Skeleton } from '@workspace/ui/components/skeleton';
-import { cn } from '@workspace/ui/lib/utils';
+import { Spinner } from '@workspace/ui/components/ui/shadcn-io/spinner';
 
 export default function CounselorDashboard() {
   const router = useRouter();
@@ -72,9 +71,18 @@ export default function CounselorDashboard() {
   });
 
   // Load chats for recent messages
-  const { chats, messages, loading: chatsLoading, error: _chatsError } = useChat({
-    participantId: user?.id,
-  });
+  const chatParams = useMemo(
+    () => (user?.id ? { participantId: user.id } : undefined),
+    [user?.id]
+  );
+
+  const { chats, messages, loading: chatsLoading, error: _chatsError } = useChat(chatParams);
+  const [hasLoadedChats, setHasLoadedChats] = useState(false);
+  useEffect(() => {
+    if (!chatsLoading) {
+      setHasLoadedChats(true);
+    }
+  }, [chatsLoading]);
 
   const {
     summary: chatSummary,
@@ -250,14 +258,14 @@ export default function CounselorDashboard() {
     authLoading ||
     sessionsLoading ||
     sessionStatsLoading ||
-    chatsLoading ||
     chatSummaryLoading ||
     patientsLoading ||
     patientProgressLoading;
 
-  const upcomingSessionsLoading = statsLoading || sessionsLoading;
-  const messagesLoading = statsLoading || chatsLoading;
-  const patientOverviewLoading = statsLoading || patientProgressLoading || patientsLoading;
+  const upcomingSessionsLoading = authLoading || sessionsLoading;
+  const messagesLoading = !hasLoadedChats && (authLoading || chatsLoading);
+  const patientOverviewLoading =
+    authLoading || patientProgressLoading || patientsLoading || sessionsLoading;
 
   const upcomingSessionCount = sessionStats?.upcomingSessions ?? upcomingSessions.length;
 
@@ -310,21 +318,11 @@ export default function CounselorDashboard() {
     return 'Patient';
   };
 
-  const renderListSkeleton = useCallback(
-    (count = 3, heightClass = 'h-16') => (
-      <div className="space-y-3">
-        {Array.from({ length: count }).map((_, index) => (
-          <div
-            key={index}
-            className={cn(
-              'relative overflow-hidden rounded-2xl border border-primary/15 bg-gradient-to-r',
-              'from-primary/10 via-background/40 to-primary/10 dark:from-primary/15 dark:via-background/20 dark:to-primary/15',
-              'shadow-[0_18px_40px_-20px_rgba(168,85,247,0.45)] animate-pulse'
-            )}
-          >
-            <div className={cn('w-full', heightClass)} />
-          </div>
-        ))}
+  const renderLoader = useCallback(
+    (message = 'Loading...') => (
+      <div className="flex flex-col items-center justify-center py-10 text-center">
+        <Spinner variant="bars" size={32} className="text-primary" />
+        <p className="mt-3 text-sm text-muted-foreground">{message}</p>
       </div>
     ),
     []
@@ -498,7 +496,7 @@ export default function CounselorDashboard() {
           </CardHeader>
           <CardContent>
             {upcomingSessionsLoading ? (
-              renderListSkeleton(2, 'h-20')
+              renderLoader('Fetching your upcoming sessions')
             ) : upcomingSessions.length > 0 ? (
               <div className="space-y-4">
                 {upcomingSessions.map((session) => {
@@ -553,7 +551,7 @@ export default function CounselorDashboard() {
           </CardHeader>
           <CardContent>
             {patientOverviewLoading ? (
-              renderListSkeleton(3, 'h-24')
+              renderLoader('Summarising patient progress')
             ) : assignedPatients.length > 0 ? (
               <div className="space-y-4">
                 {assignedPatients.map((patient) => {
@@ -634,7 +632,7 @@ export default function CounselorDashboard() {
           </CardHeader>
           <CardContent>
             {messagesLoading ? (
-              renderListSkeleton(3, 'h-20')
+              renderLoader('Loading recent conversations')
             ) : recentMessages.length > 0 ? (
               <div className="space-y-3">
                 {recentMessages.map((message) => {

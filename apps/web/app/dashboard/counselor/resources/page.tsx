@@ -62,6 +62,7 @@ import { useAuth } from '../../../../components/auth/AuthProvider';
 import { useResources } from '../../../../hooks/useResources';
 import { ResourcesApi, type Resource } from '../../../../lib/api/resources';
 import { toast } from 'sonner';
+import { Spinner } from '@workspace/ui/components/ui/shadcn-io/spinner';
 
 export default function CounselorResourcesPage() {
   const { user } = useAuth();
@@ -591,7 +592,7 @@ export default function CounselorResourcesPage() {
           {/* Resources Display */}
           {resourcesLoading ? (
             <div className="flex justify-center items-center h-64">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+              <Spinner variant="bars" size={32} className="text-primary" />
             </div>
           ) : filteredResources.length > 0 ? (
             viewMode === 'grid' ? (

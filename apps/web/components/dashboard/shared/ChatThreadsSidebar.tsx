@@ -14,12 +14,26 @@ import {
 } from '@workspace/ui/components/dropdown-menu';
 import { useChat } from '../../../hooks/useChat';
 import { useAuth } from '../../auth/AuthProvider';
+import { Spinner } from '@workspace/ui/components/ui/shadcn-io/spinner';
+
+interface SidebarThread {
+  id: string;
+  title: string;
+  lastMessage: string;
+  timestamp: Date;
+  unreadCount?: number;
+  archived?: boolean;
+}
 
 interface ChatThreadsSidebarProps {
   activeThreadId?: string;
   onThreadSelect?: (threadId: string) => void;
   onNewThread?: () => void;
   className?: string;
+  threads?: SidebarThread[];
+  loading?: boolean;
+  emptyStateTitle?: string;
+  emptyStateDescription?: string;
 }
 
 export function ChatThreadsSidebar({
@@ -27,16 +41,22 @@ export function ChatThreadsSidebar({
   onThreadSelect,
   onNewThread,
   className,
+  threads: providedThreads,
+  loading: providedLoading,
+  emptyStateTitle,
+  emptyStateDescription,
 }: ChatThreadsSidebarProps) {
   const { user } = useAuth();
+  const useSupabaseData = !providedThreads;
   
   // Load chats using the useChat hook
-  const { chats, messages, loading } = useChat({
-    participantId: user?.id,
-  });
+  const { chats, messages, loading } = useChat(
+    useSupabaseData ? { participantId: user?.id } : undefined,
+    { enabled: useSupabaseData && !!user?.id }
+  );
 
   // Convert chats to threads format
-  const threads = useMemo(() => {
+  const supabaseThreads = useMemo(() => {
     return chats.map(chat => {
       // Get the last message for this chat
       const chatMessages = messages.filter(msg => msg.chatId === chat.id);
@@ -58,14 +78,32 @@ export function ChatThreadsSidebar({
       };
     });
   }, [chats, messages, user?.id]);
+
+  const normalizedProvidedThreads = useMemo(() => {
+    if (!providedThreads) return [];
+    return providedThreads.map((thread) => ({
+      ...thread,
+      timestamp: thread.timestamp instanceof Date ? thread.timestamp : new Date(thread.timestamp),
+      unreadCount: thread.unreadCount ?? 0,
+      archived: thread.archived ?? false,
+    }));
+  }, [providedThreads]);
+
+  const threads = useMemo(
+    () => (useSupabaseData ? supabaseThreads : normalizedProvidedThreads),
+    [useSupabaseData, supabaseThreads, normalizedProvidedThreads]
+  );
+
+  const isLoading = providedLoading ?? (useSupabaseData ? loading : false);
+
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState<'all' | 'recent' | 'archived'>('all');
 
   // Loading state
-  if (loading) {
+  if (isLoading) {
     return (
       <div className={cn("flex items-center justify-center h-64", className)}>
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        <Spinner variant="bars" size={28} className="text-primary" />
       </div>
     );
   }
@@ -144,11 +182,20 @@ export function ChatThreadsSidebar({
         {filteredThreads.length === 0 ? (
           <div className="p-8 text-center">
             <MessageSquare className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
+            {emptyStateTitle ? (
+              <h3 className="text-sm font-medium text-foreground mb-1">
+                {emptyStateTitle}
+              </h3>
+            ) : null}
             <p className="text-sm text-muted-foreground">
-              {searchQuery ? 'No conversations found' : 
-               activeTab === 'archived' ? 'No archived conversations' :
-               activeTab === 'recent' ? 'No recent conversations' :
-               'No conversations yet'}
+              {searchQuery
+                ? 'No conversations found'
+                : emptyStateDescription ??
+                  (activeTab === 'archived'
+                    ? 'No archived conversations'
+                    : activeTab === 'recent'
+                    ? 'No recent conversations'
+                    : 'No conversations yet')}
             </p>
             {!searchQuery && activeTab === 'all' && (
               <Button

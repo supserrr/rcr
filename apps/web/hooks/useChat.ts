@@ -22,18 +22,26 @@ export interface UseChatReturn {
   realtimeConnected: boolean;
 }
 
-export function useChat(params?: ChatQueryParams): UseChatReturn {
+interface UseChatOptions {
+  enabled?: boolean;
+}
+
+export function useChat(
+  params?: ChatQueryParams,
+  options?: UseChatOptions
+): UseChatReturn {
   const [chats, setChats] = useState<Chat[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
   const [currentChat, setCurrentChat] = useState<Chat | null>(null);
-  const [loading, setLoading] = useState(true);
+  const isEnabled = options?.enabled ?? true;
+  const [loading, setLoading] = useState(isEnabled);
   const [error, setError] = useState<string | null>(null);
   const [total, setTotal] = useState(0);
   const [realtimeConnected, setRealtimeConnected] = useState(false);
 
   // Supabase Realtime integration for messages
   useChatMessages(
-    currentChat?.id || null,
+    isEnabled ? currentChat?.id || null : null,
     (message) => {
         // Add new message if it's for the current chat
       if (currentChat && message.chat_id === currentChat.id) {
@@ -57,7 +65,9 @@ export function useChat(params?: ChatQueryParams): UseChatReturn {
           return [...prev, transformedMessage];
         });
         // Refresh chats to update last message
+        if (isEnabled) {
         fetchChats();
+        }
       }
     },
     (error) => {
@@ -68,14 +78,19 @@ export function useChat(params?: ChatQueryParams): UseChatReturn {
 
   // Set connected state (Realtime is connected when subscribed)
   useEffect(() => {
-    if (currentChat) {
+    if (isEnabled && currentChat) {
       setRealtimeConnected(true);
     } else {
       setRealtimeConnected(false);
     }
-  }, [currentChat]);
+  }, [currentChat, isEnabled]);
 
   const fetchChats = useCallback(async () => {
+    if (!isEnabled) {
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     setError(null);
     try {
@@ -89,11 +104,15 @@ export function useChat(params?: ChatQueryParams): UseChatReturn {
     } finally {
       setLoading(false);
     }
-  }, [params]);
+  }, [params, isEnabled]);
 
   useEffect(() => {
+    if (isEnabled) {
     fetchChats();
-  }, [fetchChats]);
+    } else {
+      setLoading(false);
+    }
+  }, [fetchChats, isEnabled]);
 
   // Realtime subscription is handled by useChatMessages hook
   // No need to manually join/leave rooms

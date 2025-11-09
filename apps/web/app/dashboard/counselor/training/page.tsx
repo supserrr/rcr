@@ -49,6 +49,7 @@ import {
 import { useResources } from '../../../../hooks/useResources';
 import { ResourcesApi, type Resource as ResourceType } from '../../../../lib/api/resources';
 import { toast } from 'sonner';
+import { Spinner } from '@workspace/ui/components/ui/shadcn-io/spinner';
 
 export default function CounselorTrainingPage() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -320,7 +321,7 @@ export default function CounselorTrainingPage() {
       <AnimatedGrid className="grid gap-6 md:grid-cols-2 lg:grid-cols-3" staggerDelay={0.1}>
         {loading ? (
           <div className="col-span-full flex justify-center items-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+            <Spinner variant="bars" size={32} className="text-primary" />
           </div>
         ) : filteredResources.length > 0 ? (
           filteredResources.map((resource) => (

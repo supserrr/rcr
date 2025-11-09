@@ -8,11 +8,13 @@
     "lint": "turbo lint",
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",
     "seed:dashboard": "tsx scripts/seed-dashboard-data.ts",
-    "test:dashboard-data": "tsx scripts/test-dashboard-data.ts"
+    "test:dashboard-data": "tsx scripts/test-dashboard-data.ts",
+    "backfill:avatars": "tsx scripts/backfill-counselor-avatars.ts"
   },
   "devDependencies": {
     "@workspace/eslint-config": "workspace:*",
     "@workspace/typescript-config": "workspace:*",
+    "@supabase/supabase-js": "^2.80.0",
     "eslint": "^9.32.0",
     "prettier": "^3.6.2",
     "shadcn": "^3.5.0",

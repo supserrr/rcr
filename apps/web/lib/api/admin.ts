@@ -18,6 +18,16 @@ export interface AdminUser {
   isVerified: boolean;
   createdAt: string;
   lastLogin?: string;
+  metadata?: Record<string, unknown>;
+  specialty?: string;
+  experience?: number;
+  availability?: 'available' | 'busy' | 'offline' | string;
+  avatarUrl?: string;
+  phoneNumber?: string;
+  location?: string;
+  languages?: string[];
+  bio?: string;
+  credentials?: string | string[];
 }
 
 /**
@@ -390,6 +400,145 @@ export class AdminApi {
     const limit = params?.limit ?? 50;
     const offset = params?.offset ?? 0;
 
+  const toString = (value: unknown): string | undefined => {
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      return trimmed.length > 0 ? trimmed : undefined;
+    }
+    return undefined;
+  };
+
+  const toNumber = (value: unknown): number | undefined => {
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return value;
+    }
+    if (typeof value === 'string') {
+      const parsed = Number.parseFloat(value);
+      return Number.isNaN(parsed) ? undefined : parsed;
+    }
+    return undefined;
+  };
+
+  const toStringArray = (value: unknown): string[] | undefined => {
+    if (Array.isArray(value)) {
+      const normalized = value
+        .filter((item): item is string => typeof item === 'string')
+        .map((item) => item.trim())
+        .filter((item) => item.length > 0);
+      return normalized.length > 0 ? normalized : undefined;
+    }
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      return trimmed.length > 0 ? [trimmed] : undefined;
+    }
+    return undefined;
+  };
+
+  const mapToAdminUser = (raw: any): AdminUser => {
+    const metadata = (raw?.metadata ?? {}) as Record<string, any>;
+
+    const specialty =
+      toString(raw?.specialty) ??
+      toString(metadata.specialty) ??
+      toStringArray(metadata.specialties)?.[0] ??
+      toString(metadata.expertise);
+
+    const experienceValue =
+      raw?.experience ??
+      raw?.experience_years ??
+      metadata.experience ??
+      metadata.experienceYears ??
+      metadata.experience_years;
+    const experience = toNumber(experienceValue);
+
+    const availabilityRaw = toString(raw?.availability) ?? toString(metadata.availability);
+    const allowedAvailability = new Set(['available', 'busy', 'offline']);
+    const availability = availabilityRaw && allowedAvailability.has(availabilityRaw)
+      ? (availabilityRaw as 'available' | 'busy' | 'offline')
+      : undefined;
+
+    const avatarUrl =
+      toString(raw?.avatarUrl) ??
+      toString(raw?.avatar_url) ??
+      toString(metadata.avatar_url) ??
+      toString(metadata.avatar);
+
+    const phoneNumber =
+      toString(raw?.phoneNumber) ??
+      toString(metadata.phoneNumber) ??
+      toString(metadata.contact_phone) ??
+      toString(metadata.phone);
+
+    const location =
+      toString(raw?.location) ??
+      toString(metadata.location);
+
+    const languages =
+      toStringArray(raw?.languages) ??
+      toStringArray(metadata.languages) ??
+      toStringArray(metadata.language_preferences);
+
+    const bio =
+      toString(raw?.bio) ??
+      toString(metadata.bio) ??
+      toString(metadata.about);
+
+    const credentialsValue =
+      raw?.credentials ??
+      metadata.credentials ??
+      metadata.certifications ??
+      metadata.licenses;
+
+    const credentials =
+      Array.isArray(credentialsValue)
+        ? toStringArray(credentialsValue)
+        : toString(credentialsValue);
+
+    const name =
+      toString(raw?.fullName) ??
+      toString(raw?.full_name) ??
+      toString(metadata.full_name) ??
+      toString(metadata.name) ??
+      '';
+
+    const email =
+      toString(raw?.email) ??
+      toString(metadata.email) ??
+      toString(metadata.contact_email) ??
+      '';
+
+    const createdAt =
+      toString(raw?.createdAt) ??
+      toString(raw?.created_at) ??
+      toString(metadata.created_at) ??
+      new Date().toISOString();
+
+    const lastLogin =
+      toString(raw?.lastLogin) ??
+      toString(raw?.last_login) ??
+      toString(metadata.last_login);
+
+    return {
+      id: raw?.id ?? '',
+      email,
+      fullName: name,
+      role: (raw?.role as AdminUser['role']) || 'patient',
+      isVerified: Boolean(raw?.isVerified ?? raw?.is_verified ?? metadata.is_verified),
+      createdAt,
+      lastLogin,
+      metadata,
+      specialty,
+      experience: experience,
+      availability: availability ?? availabilityRaw ?? undefined,
+      avatarUrl,
+      phoneNumber,
+      location,
+      languages,
+      bio,
+      credentials: credentials,
+    };
+  };
+
     if (currentRole === 'admin') {
       try {
         const { data, error } = await supabase.functions.invoke('admin', {
@@ -415,16 +564,9 @@ export class AdminApi {
           const response = data.data;
 
           return {
-            users: (response.users || []).map((u: any) => ({
-              id: u.id,
-              email: u.email || '',
-              fullName: u.fullName || u.full_name,
-              role: (u.role as AdminUser['role']) || 'patient',
-              isVerified: u.isVerified || u.is_verified || false,
-              createdAt: u.createdAt || u.created_at,
-              lastLogin: u.lastLogin || u.last_login || undefined,
-              ...(u.metadata ? { metadata: u.metadata } : {}),
-            })),
+            users: (response.users || []).map((u: any) =>
+              mapToAdminUser(u),
+            ),
             total: response.total || response.count || 0,
             limit: response.limit || limit,
             offset: response.offset || offset,
@@ -470,24 +612,25 @@ export class AdminApi {
     }
 
     return {
-      users: (profiles || []).map((profile) => ({
+      users: (profiles || []).map((profile) =>
+        mapToAdminUser({
         id: profile.id,
         email:
           (profile.metadata?.email as string | undefined) ||
           (profile.metadata?.contact_email as string | undefined) ||
           '',
         fullName: profile.full_name || '',
-        role: (profile.role as AdminUser['role']) || 'patient',
-        isVerified: !!profile.is_verified,
-        createdAt: profile.created_at || new Date().toISOString(),
-        lastLogin: profile.updated_at || undefined,
-        // Spread profile metadata for downstream consumers that expect additional fields.
-        ...(profile.metadata ? { metadata: profile.metadata } : {}),
-        ...(profile.specialty ? { specialty: profile.specialty } : {}),
-        ...(profile.experience_years ? { experience: profile.experience_years } : {}),
-        ...(profile.availability ? { availability: profile.availability } : {}),
-        ...(profile.avatar_url ? { avatarUrl: profile.avatar_url } : {}),
-      })),
+          role: profile.role,
+          isVerified: profile.is_verified,
+          createdAt: profile.created_at,
+          lastLogin: profile.updated_at,
+          metadata: profile.metadata ?? {},
+          specialty: profile.specialty,
+          experience: profile.experience_years,
+          availability: profile.availability,
+          avatarUrl: profile.avatar_url,
+        }),
+      ),
       total: count ?? (profiles?.length ?? 0),
       limit,
       offset,

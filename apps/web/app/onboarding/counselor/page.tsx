@@ -13,6 +13,7 @@ import { UsersIcon } from '@workspace/ui/components/users';
 import { UploadIcon } from '@workspace/ui/components/upload';
 import { AuthApi } from '../../../lib/api/auth';
 import { toast } from 'sonner';
+import { useAuth } from '@/components/auth/AuthProvider';
 
 /**
  * Counselor onboarding form data structure
@@ -65,6 +66,7 @@ export default function CounselorOnboardingPage() {
   const resumeFileInputRef = useRef<HTMLInputElement>(null);
   const licenseFileInputRef = useRef<HTMLInputElement>(null);
   const certificationsFileInputRef = useRef<HTMLInputElement>(null);
+  const { checkAuth } = useAuth();
   const [formData, setFormData] = useState<CounselorOnboardingData>({
     licenseNumber: '',
     licenseExpiry: '',
@@ -183,6 +185,8 @@ export default function CounselorOnboardingPage() {
       await AuthApi.updateProfile({
         metadata: profileData,
       });
+
+      await checkAuth();
 
       toast.success('Onboarding completed! Your application is under review. Redirecting to your dashboard...');
       router.push('/dashboard/counselor');

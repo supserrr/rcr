@@ -21,6 +21,7 @@ import { Search, Filter, Play, FileText, Video, BookOpen, Download, SortAsc, Sor
 import { useResources } from '../../../../hooks/useResources';
 import { ResourcesApi, type Resource } from '../../../../lib/api/resources';
 import { toast } from 'sonner';
+import { Spinner } from '@workspace/ui/components/ui/shadcn-io/spinner';
 
 export default function PatientResourcesPage() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -314,7 +315,7 @@ export default function PatientResourcesPage() {
             {/* Resources Grid */}
             {resourcesLoading ? (
               <div className="flex justify-center items-center h-64">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+                <Spinner variant="bars" size={32} className="text-primary" />
               </div>
             ) : getResourcesByType('all').length > 0 ? (
               <AnimatedGrid className="grid gap-6 md:grid-cols-2 lg:grid-cols-3" staggerDelay={0.1}>
@@ -408,7 +409,7 @@ export default function PatientResourcesPage() {
               {/* Resources Grid */}
               {resourcesLoading ? (
                 <div className="flex justify-center items-center h-64">
-                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+                  <Spinner variant="bars" size={32} className="text-primary" />
                 </div>
               ) : getResourcesByType(type).length > 0 ? (
                 <AnimatedGrid className="grid gap-6 md:grid-cols-2 lg:grid-cols-3" staggerDelay={0.1}>

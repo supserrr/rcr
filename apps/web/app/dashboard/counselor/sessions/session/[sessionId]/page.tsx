@@ -21,6 +21,7 @@ import { useAuth } from '../../../../../../components/auth/AuthProvider';
 import { SessionsApi, type Session } from '../../../../../../lib/api/sessions';
 import { AdminApi, type AdminUser } from '../../../../../../lib/api/admin';
 import { toast } from 'sonner';
+import { Spinner } from '@workspace/ui/components/ui/shadcn-io/spinner';
 
 /**
  * Session room page for video/audio counseling sessions.
@@ -77,7 +78,7 @@ export default function SessionRoomPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+        <Spinner variant="bars" size={32} className="text-primary" />
       </div>
     );
   }

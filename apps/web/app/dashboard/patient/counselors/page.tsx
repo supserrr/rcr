@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { AnimatedPageHeader } from '@workspace/ui/components/animated-page-header';
 import { AnimatedGrid } from '@workspace/ui/components/animated-grid';
 import { LandingStyleCounselorCard } from '@workspace/ui/components/landing-style-counselor-card';
@@ -20,18 +20,318 @@ import { AdminApi, type AdminUser } from '../../../../lib/api/admin';
 import { ProfileViewModal } from '@workspace/ui/components/profile-view-modal';
 import { useAuth } from '../../../../components/auth/AuthProvider';
 import { toast } from 'sonner';
+import { Spinner } from '@workspace/ui/components/ui/shadcn-io/spinner';
+import type { Counselor } from '@workspace/ui/lib/types';
+
+type CounselorProfile = Counselor & {
+  metadata?: Record<string, unknown>;
+  phoneNumber?: string;
+  location?: string;
+  languages?: string[];
+  bio?: string;
+  credentials?: string;
+};
+
+const toString = (value: unknown): string | undefined => {
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : undefined;
+  }
+  return undefined;
+};
+
+const toNumber = (value: unknown): number | undefined => {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+  if (typeof value === 'string') {
+    const parsed = Number.parseFloat(value);
+    return Number.isNaN(parsed) ? undefined : parsed;
+  }
+  return undefined;
+};
+
+const toStringArray = (value: unknown): string[] | undefined => {
+  if (Array.isArray(value)) {
+    const normalized = value
+      .filter((item): item is string => typeof item === 'string')
+      .map((item) => item.trim())
+      .filter((item) => item.length > 0);
+    return normalized.length > 0 ? normalized : undefined;
+  }
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? [trimmed] : undefined;
+  }
+  return undefined;
+};
+
+const createKeySet = (keys: string[]): Set<string> =>
+  new Set(keys.map((key) => key.toLowerCase()));
+
+const extractStringCandidate = (value: unknown): string | undefined => {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value.toString();
+  }
+
+  const direct = toString(value);
+  if (direct) {
+    return direct;
+  }
+
+  if (value && typeof value === 'object') {
+    const source = value as Record<string, unknown>;
+    return (
+      toString(source.url) ??
+      toString(source.href) ??
+      toString(source.value) ??
+      (typeof source.text === 'string' ? source.text.trim() : undefined)
+    );
+  }
+
+  return undefined;
+};
+
+const findStringByKeys = (
+  subject: unknown,
+  keys: Set<string>,
+  visited: WeakSet<object> = new WeakSet(),
+): string | undefined => {
+  if (Array.isArray(subject)) {
+    for (const item of subject) {
+      const nested = findStringByKeys(item, keys, visited);
+      if (nested) {
+        return nested;
+      }
+    }
+    return undefined;
+  }
+
+  if (!subject || typeof subject !== 'object') {
+    return undefined;
+  }
+
+  const obj = subject as Record<string, unknown>;
+  if (visited.has(obj)) {
+    return undefined;
+  }
+  visited.add(obj);
+
+  for (const [rawKey, rawValue] of Object.entries(obj)) {
+    const normalizedKey = rawKey.toLowerCase();
+    if (keys.has(normalizedKey)) {
+      const candidate = extractStringCandidate(rawValue);
+      if (candidate) {
+        return candidate;
+      }
+    }
+    const nested = findStringByKeys(rawValue, keys, visited);
+    if (nested) {
+      return nested;
+    }
+  }
+
+  return undefined;
+};
+
+const findStringArrayByKeys = (
+  subject: unknown,
+  keys: Set<string>,
+  visited: WeakSet<object> = new WeakSet(),
+): string[] | undefined => {
+  if (Array.isArray(subject)) {
+    for (const item of subject) {
+      const nested = findStringArrayByKeys(item, keys, visited);
+      if (nested && nested.length > 0) {
+        return nested;
+      }
+    }
+    return undefined;
+  }
+
+  if (!subject || typeof subject !== 'object') {
+    return undefined;
+  }
+
+  const obj = subject as Record<string, unknown>;
+  if (visited.has(obj)) {
+    return undefined;
+  }
+  visited.add(obj);
+
+  for (const [rawKey, rawValue] of Object.entries(obj)) {
+    const normalizedKey = rawKey.toLowerCase();
+    if (keys.has(normalizedKey)) {
+      const arrayCandidate = toStringArray(rawValue);
+      if (arrayCandidate && arrayCandidate.length > 0) {
+        return arrayCandidate;
+      }
+      const stringCandidate = extractStringCandidate(rawValue);
+      if (stringCandidate) {
+        return [stringCandidate];
+      }
+    }
+    const nested = findStringArrayByKeys(rawValue, keys, visited);
+    if (nested && nested.length > 0) {
+      return nested;
+    }
+  }
+
+  return undefined;
+};
+
+const AVATAR_KEYS = createKeySet([
+  'avatar',
+  'avatar_url',
+  'avatarurl',
+  'profileimage',
+  'profile_image',
+  'profile_image_url',
+  'profilepicture',
+  'profile_picture',
+  'photo',
+  'photo_url',
+  'photoUrl',
+  'image',
+  'image_url',
+  'imageurl',
+  'picture',
+]);
+
+const EMAIL_KEYS = createKeySet(['email', 'contact_email', 'primary_email', 'work_email']);
+const PHONE_KEYS = createKeySet([
+  'phone',
+  'phone_number',
+  'phonenumber',
+  'contact_phone',
+  'mobile',
+  'mobile_phone',
+]);
+const LOCATION_KEYS = createKeySet(['location', 'city', 'country', 'address']);
+const BIO_KEYS = createKeySet(['bio', 'about', 'description', 'summary', 'profile_bio']);
+const CREDENTIAL_KEYS = createKeySet([
+  'credentials',
+  'certifications',
+  'licenses',
+  'qualifications',
+  'achievements',
+]);
+const LANGUAGE_KEYS = createKeySet([
+  'languages',
+  'language_preferences',
+  'spoken_languages',
+  'preferred_languages',
+]);
+
+const sanitizeAvailability = (value?: string): Counselor['availability'] => {
+  if (value === 'busy' || value === 'offline') {
+    return value;
+  }
+  return 'available';
+};
+
+const mapAdminUserToCounselor = (user: AdminUser): CounselorProfile => {
+  const metadata = (user.metadata ?? {}) as Record<string, unknown>;
+  const specialty =
+    toString(user.specialty) ??
+    toString(metadata.specialty) ??
+    toStringArray(metadata.specialties)?.[0] ??
+    toString(metadata.expertise) ??
+    'General Counseling';
+
+  const experience =
+    toNumber(user.experience) ??
+    toNumber(metadata.experience) ??
+    toNumber(metadata.experienceYears) ??
+    toNumber(metadata.experience_years) ??
+    0;
+
+  const availability = sanitizeAvailability(
+    toString(user.availability) ?? toString(metadata.availability),
+  );
+
+  const avatar =
+    toString(user.avatarUrl) ??
+    findStringByKeys(metadata, AVATAR_KEYS);
+
+  const phoneNumber =
+    toString(user.phoneNumber) ??
+    findStringByKeys(metadata, PHONE_KEYS);
+
+  const location =
+    toString(user.location) ??
+    findStringByKeys(metadata, LOCATION_KEYS);
+
+  const languages =
+    toStringArray(user.languages) ??
+    findStringArrayByKeys(metadata, LANGUAGE_KEYS);
+
+  const bio =
+    toString(user.bio) ??
+    findStringByKeys(metadata, BIO_KEYS);
+
+  const credentialSource =
+    user.credentials ??
+    metadata.credentials ??
+    metadata.certifications ??
+    metadata.licenses;
+
+  const credentialArray = toStringArray(credentialSource);
+  const credentialString = credentialArray?.join(', ') ?? toString(credentialSource);
+
+  const patients = toStringArray(metadata.patients);
+
+  const name =
+    toString(user.fullName) ??
+    toString(metadata.full_name) ??
+    toString(metadata.name) ??
+    toString(user.email) ??
+    'Counselor';
+
+  const createdAt =
+    toString(user.createdAt) ??
+    new Date().toISOString();
+
+  const credentialText =
+    credentialString ??
+    findStringByKeys(metadata, CREDENTIAL_KEYS);
+
+  const email =
+    toString(user.email) ??
+    findStringByKeys(metadata, EMAIL_KEYS) ??
+    '';
+
+  return {
+    id: user.id,
+    name,
+    email,
+    role: 'counselor',
+    avatar,
+    createdAt: new Date(createdAt),
+    specialty,
+    experience,
+    availability,
+    patients,
+    metadata,
+    phoneNumber,
+    location,
+    languages,
+    bio,
+    credentials: credentialText ?? undefined,
+  };
+};
 
 export default function PatientCounselorsPage() {
   const { user } = useAuth();
-  const [counselors, setCounselors] = useState<AdminUser[]>([]);
+  const [counselors, setCounselors] = useState<CounselorProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedSpecialty, setSelectedSpecialty] = useState('all');
   const [selectedAvailability, setSelectedAvailability] = useState('all');
-  const [selectedCounselor, setSelectedCounselor] = useState<AdminUser | null>(null);
+  const [selectedCounselor, setSelectedCounselor] = useState<CounselorProfile | null>(null);
   const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
-  const [selectedProfileCounselor, setSelectedProfileCounselor] = useState<AdminUser | null>(null);
+  const [selectedProfileCounselor, setSelectedProfileCounselor] = useState<CounselorProfile | null>(null);
 
   // Load counselors
   useEffect(() => {
@@ -39,7 +339,20 @@ export default function PatientCounselorsPage() {
       try {
         setLoading(true);
         const response = await AdminApi.listUsers({ role: 'counselor' });
-        setCounselors(response.users);
+        const mapped = response.users.map(mapAdminUserToCounselor);
+        if (typeof window !== 'undefined') {
+          (window as unknown as { __RCR_counselors?: unknown }).__RCR_counselors = {
+            raw: response.users,
+            mapped,
+          };
+        }
+        console.log('[patient counselors] raw admin users', response.users);
+        setCounselors(mapped);
+        if (typeof window !== 'undefined') {
+          setTimeout(() => {
+            console.log('[patient counselors] mapped counselors state', mapped);
+          }, 0);
+        }
       } catch (error) {
         console.error('Error loading counselors:', error);
         toast.error('Failed to load counselors');
@@ -52,18 +365,38 @@ export default function PatientCounselorsPage() {
   }, []);
 
   // Get unique specialties from counselors
-  const specialties = ['all', ...new Set(counselors.map(c => (c as any).specialty).filter(Boolean))];
+  const specialties = useMemo(() => {
+    const values = new Set<string>();
+    counselors.forEach((counselor) => {
+      if (counselor.specialty) {
+        values.add(counselor.specialty);
+      }
+    });
+    return ['all', ...Array.from(values)];
+  }, [counselors]);
   const availabilityOptions = ['all', 'available', 'busy', 'offline'];
 
-  const filteredCounselors = counselors.filter(counselor => {
-    const matchesSearch = (counselor.fullName || counselor.email || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         ((counselor as any).specialty || '').toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesSpecialty = selectedSpecialty === 'all' || (counselor as any).specialty === selectedSpecialty;
-    // Note: Availability is not in AdminUser type, would need to be added to backend
-    const matchesAvailability = selectedAvailability === 'all'; // Always true for now
+  const filteredCounselors = useMemo(() => {
+    const search = searchTerm.trim().toLowerCase();
+
+    return counselors.filter((counselor) => {
+      const matchesSearch =
+        search.length === 0 ||
+        counselor.name.toLowerCase().includes(search) ||
+        (counselor.specialty?.toLowerCase().includes(search) ?? false) ||
+        (counselor.bio?.toLowerCase().includes(search) ?? false);
+
+      const matchesSpecialty =
+        selectedSpecialty === 'all' ||
+        counselor.specialty?.toLowerCase() === selectedSpecialty.toLowerCase();
+
+      const matchesAvailability =
+        selectedAvailability === 'all' ||
+        counselor.availability === selectedAvailability;
     
     return matchesSearch && matchesSpecialty && matchesAvailability;
   });
+  }, [counselors, searchTerm, selectedSpecialty, selectedAvailability]);
 
   const handleBookSession = (counselorId: string) => {
     const counselor = counselors.find(c => c.id === counselorId);
@@ -157,7 +490,7 @@ export default function PatientCounselorsPage() {
       {/* Counselors Grid */}
       {loading ? (
         <div className="flex justify-center items-center py-12">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+          <Spinner variant="bars" size={32} className="text-primary" />
         </div>
       ) : filteredCounselors.length > 0 ? (
         <AnimatedGrid className="grid gap-6 md:grid-cols-2 lg:grid-cols-3" staggerDelay={0.1}>
@@ -165,11 +498,11 @@ export default function PatientCounselorsPage() {
             <LandingStyleCounselorCard
               key={counselor.id}
               id={counselor.id}
-              name={counselor.fullName || counselor.email || 'Counselor'}
-              avatar={undefined}
-              specialty={(counselor as any).specialty || 'General Counseling'}
-              availability={(counselor as any).availability || 'available'}
-              experience={(counselor as any).experience || 0}
+              name={counselor.name}
+              avatar={counselor.avatar}
+              specialty={counselor.specialty}
+              availability={counselor.availability}
+              experience={counselor.experience}
               onBookSession={handleBookSession}
               onViewProfile={handleViewProfile}
               delay={index * 0.1}
@@ -199,7 +532,7 @@ export default function PatientCounselorsPage() {
       )}
 
       {/* Featured Counselors */}
-      {counselors.filter(c => ((c as any).experience || 0) >= 5).length > 0 && (
+      {counselors.filter(c => (c.experience ?? 0) >= 5).length > 0 && (
         <div className="mt-12">
           <div className="flex items-center gap-2 mb-6">
             <Star className="h-5 w-5 text-foreground" />
@@ -208,17 +541,17 @@ export default function PatientCounselorsPage() {
           
           <AnimatedGrid className="grid gap-6 md:grid-cols-2" staggerDelay={0.15}>
             {counselors
-              .filter(counselor => ((counselor as any).experience || 0) >= 5)
+              .filter(counselor => (counselor.experience ?? 0) >= 5)
               .slice(0, 4)
               .map((counselor, index) => (
                 <div key={counselor.id} className="relative">
                   <LandingStyleCounselorCard
                     id={counselor.id}
-                    name={counselor.fullName || counselor.email || 'Counselor'}
-                    avatar={undefined}
-                    specialty={(counselor as any).specialty || 'General Counseling'}
-                    availability={(counselor as any).availability || 'available'}
-                    experience={(counselor as any).experience || 0}
+                    name={counselor.name}
+                    avatar={counselor.avatar}
+                    specialty={counselor.specialty}
+                    availability={counselor.availability}
+                    experience={counselor.experience}
                     onBookSession={handleBookSession}
                     onViewProfile={handleViewProfile}
                     delay={index * 0.15}
@@ -236,17 +569,7 @@ export default function PatientCounselorsPage() {
       {/* Booking Modal */}
       {selectedCounselor && (
         <SessionBookingModal
-          counselor={{
-            id: selectedCounselor.id,
-            name: selectedCounselor.fullName || selectedCounselor.email || 'Counselor',
-            email: selectedCounselor.email,
-            role: 'counselor' as const,
-            avatar: undefined,
-            createdAt: new Date(selectedCounselor.createdAt),
-            specialty: (selectedCounselor as any).specialty || 'General Counseling',
-            experience: (selectedCounselor as any).experience || 0,
-            availability: (selectedCounselor as any).availability || 'available',
-          }}
+          counselor={selectedCounselor}
           isOpen={isBookingModalOpen}
           onClose={handleCloseBookingModal}
           onBookingConfirmed={handleConfirmBooking}
@@ -261,17 +584,7 @@ export default function PatientCounselorsPage() {
             setIsProfileOpen(false);
             setSelectedProfileCounselor(null);
           }}
-          user={{
-            id: selectedProfileCounselor.id,
-            name: selectedProfileCounselor.fullName || selectedProfileCounselor.email || 'Counselor',
-            email: selectedProfileCounselor.email,
-            role: 'counselor' as const,
-            avatar: undefined,
-            createdAt: new Date(selectedProfileCounselor.createdAt),
-            specialty: (selectedProfileCounselor as any).specialty || 'General Counseling',
-            experience: (selectedProfileCounselor as any).experience || 0,
-            availability: (selectedProfileCounselor as any).availability || 'available',
-          }}
+          user={selectedProfileCounselor}
           userType="counselor"
           currentUserRole="patient"
         />

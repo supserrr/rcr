@@ -1,3 +1,5 @@
+'use cache'
+
 import { Suspense } from "react"
 import { Ubuntu } from "next/font/google"
 import type { Metadata } from "next"
@@ -32,7 +34,7 @@ function ProvidersLoading() {
   )
 }
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode

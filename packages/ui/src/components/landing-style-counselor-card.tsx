@@ -1,11 +1,12 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Button } from './button';
 import { Badge } from './badge';
 import { MessageCircle, Video, Phone, CircleDot, Circle, Minus } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { normalizeAvatarUrl } from '../lib/avatar';
 
 interface LandingStyleCounselorCardProps {
   id: string;
@@ -46,25 +47,12 @@ export function LandingStyleCounselorCard({
 
   // Default consultation types - you can make this configurable later
   const consultationTypes: ('chat' | 'video' | 'phone')[] = ['chat', 'video', 'phone'];
-
-  // Use working placeholder images
   const placeholderImages: string[] = [
     'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=400&h=400&fit=crop&auto=format&q=80',
     'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=400&h=400&fit=crop&auto=format&q=80',
     'https://images.unsplash.com/photo-1582750433449-648ed127bb54?w=400&h=400&fit=crop&auto=format&q=80',
     'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=400&fit=crop&auto=format&q=80'
   ];
-
-  // Get a consistent image based on counselor ID
-  const getImageUrl = (): string => {
-    if (avatar && !avatar.startsWith('/avatars/')) {
-      return avatar;
-    }
-    // Use ID to get consistent placeholder
-    const index = parseInt(id) % placeholderImages.length;
-    const image = placeholderImages[index];
-    return image || placeholderImages[0] || 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=400&h=400&fit=crop&auto=format&q=80';
-  };
 
   const getAvailabilityBadge = () => {
     if (!availability) return null;
@@ -98,6 +86,20 @@ export function LandingStyleCounselorCard({
     );
   };
 
+  const imageUrl = useMemo(() => {
+    const normalized = normalizeAvatarUrl(avatar);
+    if (normalized) {
+      return normalized;
+    }
+
+    const parsedIndex = Number.isFinite(Number.parseInt(id))
+      ? Number.parseInt(id) % placeholderImages.length
+      : Math.abs(Array.from(id).reduce((acc, char) => acc + char.charCodeAt(0), 0)) % placeholderImages.length;
+
+    const fallback = placeholderImages[parsedIndex];
+    return fallback || placeholderImages[0];
+  }, [avatar, id]);
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -107,7 +109,7 @@ export function LandingStyleCounselorCard({
     >
       {/* Full Cover Image */}
       <img
-        src={getImageUrl()}
+        src={imageUrl}
         alt={name}
         className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
         onError={(e) => {

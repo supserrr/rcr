@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { useAuth } from '../../../../components/auth/AuthProvider';
 import { SpiralAnimation } from '@/components/ui/spiral-animation';
 import { PromptBox } from '@workspace/ui/components/ui/chatgpt-prompt-input';
@@ -15,9 +15,42 @@ import { useChat } from '@ai-sdk/react';
 import { DefaultChatTransport } from 'ai';
 import { toast } from 'sonner';
 
+type AiThread = {
+  id: string;
+  title: string;
+  lastMessage: string;
+  timestamp: Date;
+  unreadCount?: number;
+  archived?: boolean;
+};
+
 export default function PatientAIChatPage() {
   const { user } = useAuth();
-  const [activeThreadId, setActiveThreadId] = useState<string | undefined>();
+  const defaultThreads = useMemo<AiThread[]>(() => [
+    {
+      id: 'ai-assistant',
+      title: 'AI Assistant',
+      lastMessage: 'Ask anything to get started.',
+      timestamp: new Date(),
+      unreadCount: 0,
+    },
+    {
+      id: 'coping-support',
+      title: 'Coping Strategies',
+      lastMessage: 'Mindfulness and breathing techniques overview.',
+      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24 * 2),
+      unreadCount: 0,
+    },
+    {
+      id: 'nutrition-checklist',
+      title: 'Nutrition Checklist',
+      lastMessage: 'Healthy meal ideas tailored for treatment days.',
+      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24 * 5),
+      unreadCount: 1,
+    },
+  ], []);
+  const [threads, setThreads] = useState<AiThread[]>(defaultThreads);
+  const [activeThreadId, setActiveThreadId] = useState<string>(defaultThreads[0]?.id ?? 'ai-assistant');
   const [showSidebar, setShowSidebar] = useState(false); // Control sidebar visibility on mobile
 
   const [input, setInput] = useState('');
@@ -49,6 +82,43 @@ export default function PatientAIChatPage() {
     setInput(e.target.value);
   };
 
+  const updateThreadPreview = useCallback((threadId: string, preview: string) => {
+    setThreads((prev) =>
+      prev.map((thread) =>
+        thread.id === threadId
+          ? {
+              ...thread,
+              lastMessage: preview,
+              timestamp: new Date(),
+              unreadCount: 0,
+            }
+          : thread
+      )
+    );
+  }, []);
+
+  const extractMessageText = useCallback((message: any) => {
+    if (!message) return '';
+    if (Array.isArray(message.parts)) {
+      return message.parts
+        .map((part: any) => {
+          if (!part) return '';
+          if (typeof part === 'string') return part;
+          if ('text' in part && typeof part.text === 'string') return part.text;
+          return '';
+        })
+        .join('')
+        .trim();
+    }
+    if (typeof message.content === 'string') {
+      return message.content;
+    }
+    if (Array.isArray(message.content)) {
+      return message.content.join(' ');
+    }
+    return '';
+  }, []);
+
   const handleChatSubmit = (e?: React.FormEvent) => {
     e?.preventDefault();
     if (!input.trim() || isLoading) return;
@@ -56,12 +126,14 @@ export default function PatientAIChatPage() {
     const messageText = input.trim();
     setInput('');
     sendMessage({ text: messageText });
+    updateThreadPreview(activeThreadId, messageText);
   };
 
   const append = (message: { role: 'user' | 'assistant'; content: string }) => {
     if (message.role === 'user') {
       setInput(message.content);
       sendMessage({ text: message.content });
+      updateThreadPreview(activeThreadId, message.content);
     } else {
       setMessages(prev => [...prev, message as any]);
     }
@@ -77,6 +149,14 @@ export default function PatientAIChatPage() {
     }, 0);
     return () => clearTimeout(timer);
   }, [messages]);
+
+  useEffect(() => {
+    if (!messages.length) return;
+    const lastMessage = messages[messages.length - 1];
+    const preview = extractMessageText(lastMessage);
+    if (!preview) return;
+    updateThreadPreview(activeThreadId, preview);
+  }, [messages, activeThreadId, extractMessageText, updateThreadPreview]);
 
   if (!user) return null;
 
@@ -102,13 +182,29 @@ export default function PatientAIChatPage() {
   const handleThreadSelect = (threadId: string) => {
     setActiveThreadId(threadId);
     setShowSidebar(false);
-    console.log('Selected thread:', threadId);
+    setThreads((prev) =>
+      prev.map((thread) =>
+        thread.id === threadId ? { ...thread, unreadCount: 0 } : thread
+      )
+    );
+    setMessages([]);
+    setInput('');
   };
 
   const handleNewThread = () => {
-    setActiveThreadId(undefined);
+    const newId = `thread-${Date.now()}`;
+    const newThread: AiThread = {
+      id: newId,
+      title: `Conversation ${threads.length + 1}`,
+      lastMessage: 'Ask anything to get started.',
+      timestamp: new Date(),
+      unreadCount: 0,
+    };
+    setThreads((prev) => [newThread, ...prev]);
+    setActiveThreadId(newId);
     setShowSidebar(false);
-    console.log('Creating new thread');
+    setMessages([]);
+    setInput('');
   };
 
   return (
@@ -117,8 +213,11 @@ export default function PatientAIChatPage() {
       <div className="hidden lg:block flex-shrink-0">
         <ChatThreadsSidebar
           activeThreadId={activeThreadId}
-          onThreadSelect={(id) => setActiveThreadId(id)}
-          onNewThread={() => setActiveThreadId(undefined)}
+          onThreadSelect={handleThreadSelect}
+          onNewThread={handleNewThread}
+          threads={threads}
+          emptyStateTitle="No conversations yet"
+          emptyStateDescription="Start a new thread to ask the AI assistant anything."
         />
       </div>
 
@@ -131,6 +230,9 @@ export default function PatientAIChatPage() {
               activeThreadId={activeThreadId}
               onThreadSelect={handleThreadSelect}
               onNewThread={handleNewThread}
+              threads={threads}
+              emptyStateTitle="No conversations yet"
+              emptyStateDescription="Start a new thread to ask the AI assistant anything."
             />
           </div>
         </SheetContent>

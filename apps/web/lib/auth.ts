@@ -251,7 +251,12 @@ export class AuthService {
     return response.accessToken;
   }
 
-  static async getCurrentUser(): Promise<User> {
+  /**
+   * Retrieve the currently authenticated user.
+   *
+   * @returns The authenticated user or null when no active session exists.
+   */
+  static async getCurrentUser(): Promise<User | null> {
     return AuthApi.getCurrentUser();
   }
 

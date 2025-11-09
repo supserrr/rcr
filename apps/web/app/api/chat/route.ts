@@ -8,22 +8,26 @@ import { buildKnowledgeContext } from '@/lib/ai/knowledge-base';
  * @returns Plain-text representation.
  */
 function extractTextFromMessage(message: UIMessage): string {
-  if (!message.content) {
+  const content = (message as { content?: unknown }).content;
+
+  if (!Array.isArray(content)) {
     return '';
   }
 
-  return message.content
+  return content
     .map((part) => {
       if (typeof part === 'string') {
         return part;
       }
 
-      if ('text' in part && typeof part.text === 'string') {
-        return part.text;
+      if (part && typeof part === 'object') {
+        if ('text' in part && typeof (part as { text?: string }).text === 'string') {
+          return (part as { text: string }).text;
       }
 
-      if ('value' in part && typeof part.value === 'string') {
-        return part.value;
+        if ('value' in part && typeof (part as { value?: string }).value === 'string') {
+          return (part as { value: string }).value;
+        }
       }
 
       return '';

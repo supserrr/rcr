@@ -1,7 +1,8 @@
-"use server";
+'use server';
 
 import { promises as fs } from "fs";
 import path from "path";
+import { cacheLife, cacheTag } from 'next/cache';
 
 /**
  * Maximum number of characters per content chunk.
@@ -52,17 +53,21 @@ interface KnowledgeChunk {
   content: string;
 }
 
-let cachedChunks: KnowledgeChunk[] | null = null;
-
 /**
  * Loads and memoizes documentation snippets that describe the platform.
  *
  * @returns Array of {@link KnowledgeChunk}.
  */
 async function loadKnowledgeChunks(): Promise<KnowledgeChunk[]> {
-  if (cachedChunks) {
-    return cachedChunks;
-  }
+  'use cache';
+  // ⚙️ CACHING STRATEGY: These values assume documentation updates are infrequent.
+  // Adjust or revalidate as needed if docs change more regularly.
+  cacheLife({
+    stale: 60 * 60, // 1 hour
+    revalidate: 60 * 60 * 24, // 24 hours
+    expire: 60 * 60 * 24 * 7, // 7 days
+  });
+  cacheTag('knowledge-base');
 
   const projectRoot = process.cwd();
   const chunks: KnowledgeChunk[] = [];
@@ -81,8 +86,7 @@ async function loadKnowledgeChunks(): Promise<KnowledgeChunk[]> {
     }
   }
 
-  cachedChunks = chunks;
-  return cachedChunks;
+  return chunks;
 }
 
 /**
@@ -125,7 +129,10 @@ function splitContentIntoChunks(markdown: string, source: string): KnowledgeChun
     const headingMatch = line.match(/^#{1,6}\s+(.*)/);
     if (headingMatch) {
       flushBuffer();
-      currentHeading = headingMatch[1].trim() || currentHeading;
+      const headingText = headingMatch[1];
+      if (headingText) {
+        currentHeading = headingText.trim() || currentHeading;
+      }
       continue;
     }
 

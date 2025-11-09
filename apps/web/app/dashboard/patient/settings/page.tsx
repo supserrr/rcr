@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { AnimatedPageHeader } from '@workspace/ui/components/animated-page-header';
 import { AnimatedCard } from '@workspace/ui/components/animated-card';
 import { Button } from '@workspace/ui/components/button';
@@ -54,6 +54,8 @@ import { AuthApi } from '../../../../lib/api/auth';
 import { toast } from 'sonner';
 import { Textarea } from '@workspace/ui/components/textarea';
 import { useEffect } from 'react';
+import { Spinner } from '@workspace/ui/components/ui/shadcn-io/spinner';
+import { normalizeAvatarUrl } from '@workspace/ui/lib/avatar';
 
 export default function PatientSettingsPage() {
   const { user, isLoading: authLoading } = useAuth();
@@ -113,6 +115,11 @@ export default function PatientSettingsPage() {
     avatar_url: user?.avatar || ''
   });
 
+  const profileAvatarUrl = useMemo(
+    () => normalizeAvatarUrl(profile.avatar_url || user?.avatar),
+    [profile.avatar_url, user?.avatar],
+  );
+
   // Load user profile data
   useEffect(() => {
     const loadProfile = async () => {
@@ -120,6 +127,10 @@ export default function PatientSettingsPage() {
 
       try {
         const currentUser = await AuthApi.getCurrentUser();
+        if (!currentUser) {
+          // Session expired; keep existing auth state data
+          return;
+        }
         const metadata = currentUser.metadata || {};
         
         setProfile(prev => ({
@@ -398,7 +409,7 @@ export default function PatientSettingsPage() {
   if (authLoading) {
     return (
       <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+        <Spinner variant="bars" size={32} className="text-primary" />
       </div>
     );
   }
@@ -463,7 +474,7 @@ export default function PatientSettingsPage() {
                 <div className="flex items-center gap-6">
                   <div className="relative">
                     <Avatar className="h-24 w-24 ring-4 ring-primary/20 shadow-lg">
-                      <AvatarImage src={undefined} alt={user?.name || 'Patient'} />
+                      <AvatarImage src={profileAvatarUrl} alt={user?.name || 'Patient'} />
                       <AvatarFallback className="text-xl bg-primary/10 text-primary">
                         {user?.name?.split(' ').map((n: string) => n[0]).join('') || 'P'}
                       </AvatarFallback>
@@ -902,7 +913,7 @@ export default function PatientSettingsPage() {
                     >
                       {isSaving ? (
                         <>
-                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
+                          <Spinner variant="bars" size={16} className="text-white mr-2" />
                           Saving...
                         </>
                       ) : (
@@ -1292,7 +1303,7 @@ export default function PatientSettingsPage() {
                         >
                           {isCreatingTicket ? (
                             <>
-                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
+                              <Spinner variant="bars" size={16} className="text-white mr-2" />
                               Creating...
                             </>
                           ) : (
@@ -1436,7 +1447,7 @@ export default function PatientSettingsPage() {
             >
               {isChangingPassword ? (
                 <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
+                  <Spinner variant="bars" size={16} className="text-white mr-2" />
                   Changing...
                 </>
               ) : (
@@ -1507,7 +1518,7 @@ export default function PatientSettingsPage() {
             >
               {isDeleting ? (
                 <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
+                  <Spinner variant="bars" size={16} className="text-white mr-2" />
                   Deleting...
                 </>
               ) : (

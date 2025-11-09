@@ -13,6 +13,7 @@ import { FileTextIcon } from '@workspace/ui/components/file-text';
 import { UsersIcon } from '@workspace/ui/components/users';
 import { AuthApi } from '../../../lib/api/auth';
 import { toast } from 'sonner';
+import { useAuth } from '@/components/auth/AuthProvider';
 
 /**
  * Patient onboarding form data structure
@@ -50,6 +51,7 @@ export default function PatientOnboardingPage() {
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { checkAuth } = useAuth();
   const [formData, setFormData] = useState<PatientOnboardingData>({
     age: '',
     gender: '',
@@ -162,6 +164,8 @@ export default function PatientOnboardingPage() {
       await AuthApi.updateProfile({
         metadata: profileData,
       });
+
+      await checkAuth();
 
       toast.success('Onboarding completed! Redirecting to your dashboard...');
       router.push('/dashboard/patient');

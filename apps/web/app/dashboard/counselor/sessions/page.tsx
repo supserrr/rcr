@@ -29,6 +29,7 @@ import { useSessions } from '../../../../hooks/useSessions';
 import { AdminApi, type AdminUser } from '../../../../lib/api/admin';
 import type { Session, RescheduleSessionInput, CreateSessionInput } from '@/lib/api/sessions';
 import { toast } from 'sonner';
+import { Spinner } from '@workspace/ui/components/ui/shadcn-io/spinner';
 
 export default function CounselorSessionsPage() {
   const router = useRouter();
@@ -216,7 +217,7 @@ export default function CounselorSessionsPage() {
   if (authLoading || sessionsLoading || patientsLoading) {
     return (
       <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+        <Spinner variant="bars" size={32} className="text-primary" />
       </div>
     );
   }

@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@workspace/ui/components/dialog';
 import { Button } from '@workspace/ui/components/button';
 import { Badge } from '@workspace/ui/components/badge';
@@ -27,6 +27,7 @@ import {
   ExternalLink
 } from 'lucide-react';
 import { Counselor, Patient } from '@workspace/ui/lib/types';
+import { normalizeAvatarUrl } from '../lib/avatar';
 
 interface ProfileViewModalProps {
   isOpen: boolean;
@@ -48,6 +49,14 @@ export function ProfileViewModal({
   const isCounselor = userType === 'counselor';
   const counselor = isCounselor ? user as Counselor : null;
   const patient = !isCounselor ? user as Patient : null;
+
+  const avatarUrl = useMemo(() => normalizeAvatarUrl(user.avatar), [user.avatar]);
+  const counselorAvailability =
+    (('availability' in user ? (user as any).availability : undefined) as Counselor['availability'] | undefined) ||
+    counselor?.availability;
+  const counselorLanguages =
+    (('languages' in user ? (user as any).languages : undefined) as string[] | undefined) ||
+    (counselor && Array.isArray((counselor as any).languages) ? (counselor as any).languages : undefined);
 
   const handleSendMessage = () => {
     console.log('Send message to', user.name);
@@ -78,7 +87,7 @@ export function ProfileViewModal({
               <div className="flex items-center gap-4">
                 <div className="relative">
                   <Avatar className="h-20 w-20 ring-4 ring-background shadow-lg">
-                    <AvatarImage src={user.avatar} alt={user.name} />
+                    <AvatarImage src={avatarUrl} alt={user.name} />
                     <AvatarFallback className="text-xl font-semibold bg-primary/10 text-primary">
                       {user.name?.split(' ').map(n => n[0]).join('') || 'U'}
                     </AvatarFallback>
@@ -136,7 +145,9 @@ export function ProfileViewModal({
                     </div>
                     <div>
                       <p className="text-sm font-medium">Email</p>
-                      <p className="text-sm text-muted-foreground">{user.email}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {user.email?.trim() || 'Not provided'}
+                    </p>
                     </div>
                   </div>
                   
@@ -169,7 +180,7 @@ export function ProfileViewModal({
                 {/* Professional/Health Information */}
                 {isCounselor && counselor ? (
                   <>
-                    {counselor.experience && (
+                    {typeof counselor.experience === 'number' && (
                       <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/30">
                         <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-900/30">
                           <Clock className="h-4 w-4 text-blue-600 dark:text-blue-400" />
@@ -177,6 +188,17 @@ export function ProfileViewModal({
                         <div>
                           <p className="text-sm font-medium">Experience</p>
                           <p className="text-sm text-muted-foreground">{counselor.experience} years</p>
+                        </div>
+                      </div>
+                    )}
+                    {counselorAvailability && (
+                      <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/30">
+                        <div className="p-2 rounded-lg bg-green-100 dark:bg-green-900/30">
+                          <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium">Availability</p>
+                          <p className="text-sm text-muted-foreground capitalize">{counselorAvailability}</p>
                         </div>
                       </div>
                     )}
@@ -197,6 +219,18 @@ export function ProfileViewModal({
                         <p className="text-sm text-muted-foreground leading-relaxed">{'bio' in counselor ? (counselor as any).bio : ''}</p>
                       </div>
                     ) : null}
+                    {counselorLanguages && counselorLanguages.length > 0 && (
+                      <div className="p-3 rounded-lg bg-muted/30">
+                        <p className="text-sm font-medium mb-2">Languages</p>
+                        <div className="flex flex-wrap gap-2">
+                          {counselorLanguages.map((language: string) => (
+                            <Badge key={language} variant="outline" className="bg-muted/60">
+                              {language}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </>
                 ) : patient ? (
                   <>

@@ -22,13 +22,13 @@ import {
   Plus,
   Filter,
   Search,
-  Loader2,
   AlertCircle
 } from 'lucide-react';
 import { useAuth } from '../../../../components/auth/AuthProvider';
 import { useSessions } from '../../../../hooks/useSessions';
 import type { Session, RescheduleSessionInput } from '@/lib/api/sessions';
 import { toast } from 'sonner';
+import { Spinner } from '@workspace/ui/components/ui/shadcn-io/spinner';
 
 export default function PatientSessionsPage() {
   const router = useRouter();
@@ -182,7 +182,7 @@ export default function PatientSessionsPage() {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <Spinner variant="bars" size={32} className="text-primary" />
           <p className="text-muted-foreground">Loading sessions...</p>
         </div>
       </div>

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { AnimatedPageHeader } from '@workspace/ui/components/animated-page-header';
 import { AnimatedCard } from '@workspace/ui/components/animated-card';
@@ -44,6 +44,7 @@ import { AdminApi, type AdminUser } from '../../../../lib/api/admin';
 import { ProfileViewModal } from '@workspace/ui/components/profile-view-modal';
 import { ScheduleSessionModal } from '../../../../components/session/ScheduleSessionModal';
 import { toast } from 'sonner';
+import { Spinner } from '@workspace/ui/components/ui/shadcn-io/spinner';
 
 export default function CounselorChatPage() {
   const router = useRouter();
@@ -62,6 +63,11 @@ export default function CounselorChatPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Load chats using the hook
+  const chatParams = useMemo(
+    () => (user?.id ? { participantId: user.id } : undefined),
+    [user?.id]
+  );
+
   const {
     chats,
     messages,
@@ -72,9 +78,7 @@ export default function CounselorChatPage() {
     selectChat,
     refreshChats,
     realtimeConnected,
-  } = useChat({
-    participantId: user?.id,
-  });
+  } = useChat(chatParams);
 
   // Load patients for profile view and booking
   useEffect(() => {
@@ -250,7 +254,7 @@ export default function CounselorChatPage() {
   if (authLoading || chatsLoading || patientsLoading) {
     return (
       <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+        <Spinner variant="bars" size={32} className="text-primary" />
       </div>
     );
   }

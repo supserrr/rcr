@@ -37,6 +37,9 @@ importers:
         specifier: ^9.11.1
         version: 9.11.1(react@19.2.0)
     devDependencies:
+      '@supabase/supabase-js':
+        specifier: ^2.80.0
+        version: 2.80.0
       '@workspace/eslint-config':
         specifier: workspace:*
         version: link:packages/eslint-config

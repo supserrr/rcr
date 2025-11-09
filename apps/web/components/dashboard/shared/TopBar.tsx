@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Button } from '@workspace/ui/components/button';
 import { Badge } from '@workspace/ui/components/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@workspace/ui/components/avatar';
@@ -10,10 +10,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@workspace/ui/components/dropdown-menu';
-import { NotificationInboxPopover } from '@workspace/ui/components/notification-inbox-popover';
+import { NotificationInboxPopover } from './NotificationInboxPopover';
 import {
   ThemeTogglerButton,
-  type ThemeTogglerButtonProps,
 } from '@workspace/ui/components/animate-ui/components/buttons/theme-toggler';
 import { 
   LogOut, 
