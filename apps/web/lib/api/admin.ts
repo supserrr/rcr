@@ -388,15 +388,22 @@ export class AdminApi {
       error: currentUserError,
     } = await supabase.auth.getUser();
 
+    let currentRole: AdminUser['role'] | 'guest' = 'guest';
+
     if (currentUserError) {
-      throw new Error(currentUserError.message || 'Failed to determine current user');
-    }
+      const normalizedMessage = currentUserError.message?.toLowerCase() ?? '';
+      const isAuthMissing =
+        normalizedMessage.includes('auth session missing') ||
+        normalizedMessage.includes('session not found') ||
+        normalizedMessage.includes('user not authenticated') ||
+        normalizedMessage.includes('not authenticated');
 
-    if (!currentUser) {
-      throw new Error('User not authenticated');
+      if (!isAuthMissing) {
+        throw new Error(currentUserError.message || 'Failed to determine current user');
+      }
+    } else if (currentUser) {
+      currentRole = (currentUser.user_metadata?.role as AdminUser['role']) || 'patient';
     }
-
-    const currentRole = (currentUser.user_metadata?.role as AdminUser['role']) || 'patient';
     const limit = params?.limit ?? 50;
     const offset = params?.offset ?? 0;
 

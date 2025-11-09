@@ -10,10 +10,12 @@ import {
   subscribeToNotifications,
   subscribeToSession,
   subscribeToChat,
+  subscribeToProfiles,
   unsubscribeAll,
   type RealtimeMessage,
   type RealtimeNotification,
   type RealtimeSession,
+  type RealtimeProfile,
 } from '@/lib/realtime/client';
 
 /**
@@ -133,5 +135,27 @@ export function useRealtimeCleanup() {
       unsubscribeAll();
     };
   }, []);
+}
+
+/**
+ * Hook for subscribing to profile updates
+ */
+export function useProfileUpdates(
+  filters: { role?: string; ids?: string[] } | null,
+  onUpdate: (
+    profile: RealtimeProfile,
+    context: { eventType: string; oldRecord: Record<string, unknown> | null },
+  ) => void,
+  onError?: (error: Error) => void
+) {
+  const filtersKey = JSON.stringify(filters ?? {});
+
+  useEffect(() => {
+    const unsubscribe = subscribeToProfiles(filters, onUpdate, onError);
+
+    return () => {
+      unsubscribe();
+    };
+  }, [filtersKey, onUpdate, onError, filters]);
 }
 

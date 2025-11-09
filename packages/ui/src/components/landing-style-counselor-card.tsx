@@ -43,7 +43,14 @@ export function LandingStyleCounselorCard({
   };
 
   // Create a description that includes specialty and experience
-  const description = `${specialty || 'Counselor'} • ${experience || 0} years experience`;
+  const experienceLabel =
+    typeof experience === 'number' && experience > 0
+      ? `${experience} ${experience === 1 ? 'year' : 'years'} experience`
+      : 'Experience info coming soon';
+
+  const description = specialty
+    ? `${specialty} • ${experienceLabel}`
+    : experienceLabel;
 
   // Default consultation types - you can make this configurable later
   const consultationTypes: ('chat' | 'video' | 'phone')[] = ['chat', 'video', 'phone'];

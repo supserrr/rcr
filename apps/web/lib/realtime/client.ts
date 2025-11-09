@@ -43,6 +43,22 @@ export interface RealtimeSession {
   updated_at: string;
 }
 
+export interface RealtimeProfile {
+  id: string;
+  role: string | null;
+  full_name?: string | null;
+  email?: string | null;
+  availability?: string | null;
+  avatar_url?: string | null;
+  metadata?: Record<string, unknown> | null;
+  is_verified?: boolean | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+  specialty?: string | null;
+  experience_years?: number | null;
+  phone_number?: string | null;
+}
+
 /**
  * Realtime client instance
  */
@@ -302,6 +318,82 @@ export function subscribeToChat(
   channels.set(channelName, channel);
 
   // Return unsubscribe function
+  return () => {
+    channel.unsubscribe();
+    channels.delete(channelName);
+  };
+}
+
+/**
+ * Subscribe to profile updates
+ */
+export function subscribeToProfiles(
+  filters: { role?: string; ids?: string[] } | null,
+  onProfileChange: (
+    profile: RealtimeProfile,
+    context: { eventType: string; oldRecord: Record<string, unknown> | null },
+  ) => void,
+  onError?: (error: Error) => void
+): () => void {
+  const client = getSupabaseClient();
+  const filterKey = JSON.stringify(filters ?? {});
+  const channelName = `profiles:${filterKey}`;
+
+  if (channels.has(channelName)) {
+    channels.get(channelName)?.unsubscribe();
+    channels.delete(channelName);
+  }
+
+  const channel = client
+    .channel(channelName)
+    .on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'profiles',
+      },
+      (payload) => {
+        const record = (payload.new ?? payload.old) as RealtimeProfile | null;
+        if (!record) {
+          return;
+        }
+
+        if (filters?.role && record.role !== filters.role) {
+          return;
+        }
+
+        if (filters?.ids && filters.ids.length > 0 && !filters.ids.includes(record.id)) {
+          return;
+        }
+
+        try {
+          onProfileChange(record, {
+            eventType: payload.eventType,
+            oldRecord: (payload.old as Record<string, unknown> | null) ?? null,
+          });
+        } catch (error) {
+          if (onError) {
+            onError(error as Error);
+          } else {
+            console.error(error);
+          }
+        }
+      },
+    )
+    .subscribe((status) => {
+      if (status === 'CHANNEL_ERROR') {
+        const error = new Error('Failed to subscribe to profiles channel');
+        if (onError) {
+          onError(error);
+        } else {
+          console.error(error);
+        }
+      }
+    });
+
+  channels.set(channelName, channel);
+
   return () => {
     channel.unsubscribe();
     channels.delete(channelName);

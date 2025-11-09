@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { AnimatedPageHeader } from '@workspace/ui/components/animated-page-header';
 import { AnimatedGrid } from '@workspace/ui/components/animated-grid';
 import { LandingStyleCounselorCard } from '@workspace/ui/components/landing-style-counselor-card';
@@ -22,6 +22,8 @@ import { useAuth } from '../../../../components/auth/AuthProvider';
 import { toast } from 'sonner';
 import { Spinner } from '@workspace/ui/components/ui/shadcn-io/spinner';
 import type { Counselor } from '@workspace/ui/lib/types';
+import { useProfileUpdates } from '../../../../hooks/useRealtime';
+import type { RealtimeProfile } from '../../../../lib/realtime/client';
 
 type CounselorProfile = Counselor & {
   metadata?: Record<string, unknown>;
@@ -321,6 +323,51 @@ const mapAdminUserToCounselor = (user: AdminUser): CounselorProfile => {
   };
 };
 
+const mapProfileRecordToAdminUser = (profile: RealtimeProfile): AdminUser => {
+  const metadata = (profile.metadata ?? {}) as Record<string, unknown>;
+
+  return {
+    id: profile.id,
+    email:
+      (typeof metadata.email === 'string' ? metadata.email : undefined) ??
+      (typeof metadata.contact_email === 'string' ? metadata.contact_email : undefined) ??
+      '',
+    fullName:
+      (typeof profile.full_name === 'string' ? profile.full_name : undefined) ??
+      (typeof metadata.full_name === 'string' ? metadata.full_name : undefined),
+    role: (profile.role as AdminUser['role']) || 'counselor',
+    isVerified: Boolean(profile.is_verified),
+    createdAt: profile.created_at ?? new Date().toISOString(),
+    lastLogin: profile.updated_at ?? undefined,
+    metadata,
+    specialty:
+      (typeof profile.specialty === 'string' ? profile.specialty : undefined) ??
+      (typeof metadata.specialty === 'string' ? metadata.specialty : undefined),
+    experience:
+      (typeof profile.experience_years === 'number' ? profile.experience_years : undefined) ??
+      (typeof metadata.experience === 'number' ? metadata.experience : undefined) ??
+      (typeof metadata.experienceYears === 'number' ? metadata.experienceYears : undefined),
+    availability:
+      (typeof profile.availability === 'string' ? profile.availability : undefined) ??
+      (typeof metadata.availability === 'string' ? metadata.availability : undefined),
+    avatarUrl:
+      (typeof profile.avatar_url === 'string' ? profile.avatar_url : undefined) ??
+      (typeof metadata.avatar_url === 'string' ? metadata.avatar_url : undefined) ??
+      (typeof metadata.avatar === 'string' ? metadata.avatar : undefined),
+    phoneNumber:
+      (typeof profile.phone_number === 'string' ? profile.phone_number : undefined) ??
+      (typeof metadata.phoneNumber === 'string' ? metadata.phoneNumber : undefined) ??
+      (typeof metadata.contact_phone === 'string' ? metadata.contact_phone : undefined),
+    location:
+      (typeof metadata.location === 'string' ? metadata.location : undefined),
+    languages: Array.isArray(metadata.languages)
+      ? metadata.languages.filter((item): item is string => typeof item === 'string')
+      : undefined,
+    bio: typeof metadata.bio === 'string' ? metadata.bio : undefined,
+    credentials: (metadata.credentials ?? metadata.certifications ?? metadata.licenses) as string | string[] | undefined,
+  };
+};
+
 export default function PatientCounselorsPage() {
   const { user } = useAuth();
   const [counselors, setCounselors] = useState<CounselorProfile[]>([]);
@@ -363,6 +410,84 @@ export default function PatientCounselorsPage() {
 
     loadCounselors();
   }, []);
+
+  const handleProfileRealtimeUpdate = useCallback(
+    (profile: RealtimeProfile, { eventType }: { eventType: string; oldRecord: Record<string, unknown> | null }) => {
+      if (!profile || !profile.id) {
+        return;
+      }
+
+      const adminUser = mapProfileRecordToAdminUser(profile);
+      const counselorProfile = mapAdminUserToCounselor(adminUser);
+
+      setCounselors((previous) => {
+        const existingIndex = previous.findIndex((c) => c.id === counselorProfile.id);
+
+        if (eventType === 'DELETE') {
+          if (existingIndex === -1) {
+            return previous;
+          }
+          const next = [...previous];
+          next.splice(existingIndex, 1);
+          if (typeof window !== 'undefined') {
+            (window as unknown as { __RCR_counselors?: unknown }).__RCR_counselors = {
+              raw: null,
+              mapped: next,
+            };
+          }
+          return next;
+        }
+
+        if (existingIndex === -1) {
+          const next = [...previous, counselorProfile].sort((a, b) =>
+            a.name.localeCompare(b.name),
+          );
+          if (typeof window !== 'undefined') {
+            (window as unknown as { __RCR_counselors?: unknown }).__RCR_counselors = {
+              raw: null,
+              mapped: next,
+            };
+          }
+          return next;
+        }
+
+        const next = [...previous];
+        const current = next[existingIndex];
+        if (!current) {
+          return next;
+        }
+
+        next[existingIndex] = {
+          ...current,
+          ...counselorProfile,
+          metadata: counselorProfile.metadata ?? current.metadata,
+        };
+
+        if (typeof window !== 'undefined') {
+          (window as unknown as { __RCR_counselors?: unknown }).__RCR_counselors = {
+            raw: null,
+            mapped: next,
+          };
+        }
+
+        return next;
+      });
+    },
+    [],
+  );
+
+  const profileSubscriptionFilters = useMemo(
+    () => ({ role: 'counselor' as const }),
+    [],
+  );
+
+  useProfileUpdates(
+    profileSubscriptionFilters,
+    handleProfileRealtimeUpdate,
+    (error) => {
+      console.error('Realtime counselor subscription error:', error);
+    },
+  );
 
   // Get unique specialties from counselors
   const specialties = useMemo(() => {

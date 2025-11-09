@@ -31,14 +31,25 @@ import { useChat } from '../../../hooks/useChat';
 import { useSessionStats } from '../../../hooks/useSessionStats';
 import { useChatSummary } from '../../../hooks/useChatSummary';
 import { AdminApi, type AdminUser } from '../../../lib/api/admin';
+import { AuthApi } from '../../../lib/api/auth';
 import { ProgressApi } from '../../../lib/api/progress';
 import { toast } from 'sonner';
 import { Spinner } from '@workspace/ui/components/ui/shadcn-io/spinner';
 
+const sanitizeAvailability = (
+  value?: string | null,
+): 'available' | 'busy' | 'offline' => {
+  if (value === 'busy' || value === 'offline') {
+    return value;
+  }
+  return 'available';
+};
+
 export default function CounselorDashboard() {
   const router = useRouter();
-  const { user, isLoading: authLoading } = useAuth();
+  const { user, isLoading: authLoading, checkAuth } = useAuth();
   const [availability, setAvailability] = useState<'available' | 'busy' | 'offline'>('available');
+  const [availabilityUpdating, setAvailabilityUpdating] = useState(false);
   const [patients, setPatients] = useState<AdminUser[]>([]);
   const [patientsLoading, setPatientsLoading] = useState(true);
   const [patientProgressMap, setPatientProgressMap] = useState<Record<
@@ -299,12 +310,61 @@ export default function CounselorDashboard() {
     }
   };
 
-  const handleAvailabilityChange = (newAvailability: 'available' | 'busy' | 'offline') => {
-    setAvailability(newAvailability);
-    // In a real app, this would update the availability in the backend
-    // For now, we'll just update local state
-    toast.success(`Availability set to ${newAvailability}`);
-  };
+  useEffect(() => {
+    if (!user) {
+      setAvailability('available');
+      return;
+    }
+
+    const metadata = (user.metadata ?? {}) as Record<string, unknown>;
+    const candidate =
+      (typeof metadata.availability === 'string' ? metadata.availability : undefined) ??
+      (typeof (metadata.status as string | undefined) === 'string'
+        ? (metadata.status as string | undefined)
+        : undefined);
+    setAvailability((previous) => {
+      const sanitized = sanitizeAvailability(candidate);
+      return previous === sanitized ? previous : sanitized;
+    });
+  }, [user]);
+
+  const handleAvailabilityChange = useCallback(
+    async (newAvailability: 'available' | 'busy' | 'offline') => {
+      if (!user?.id) {
+        toast.error('You need to be signed in to update availability.');
+        return;
+      }
+
+      if (availabilityUpdating || availability === newAvailability) {
+        return;
+      }
+
+      const previousAvailability = availability;
+      setAvailability(newAvailability);
+      setAvailabilityUpdating(true);
+
+      try {
+        await AuthApi.updateProfile({
+          metadata: {
+            availability: newAvailability,
+          },
+        });
+        await checkAuth();
+        toast.success(
+          `Availability set to ${newAvailability.charAt(0).toUpperCase()}${newAvailability.slice(1)}`,
+        );
+      } catch (error) {
+        setAvailability(previousAvailability);
+        const message =
+          error instanceof Error ? error.message : 'Failed to update availability';
+        toast.error(message);
+        console.error('Failed to update availability:', error);
+      } finally {
+        setAvailabilityUpdating(false);
+      }
+    },
+    [availability, availabilityUpdating, checkAuth, user?.id],
+  );
 
   // Get patient name from message
   const getPatientNameFromMessage = (message: any) => {
@@ -438,13 +498,13 @@ export default function CounselorDashboard() {
                 >
                   {availability.charAt(0).toUpperCase() + availability.slice(1)}
                 </motion.div>
-                <motion.p
+              <motion.p
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   transition={{ duration: 0.5, delay: 0.8 }}
                   className="text-xs text-muted-foreground mt-1"
                 >
-                  Change status below
+                  {availabilityUpdating ? 'Updating availability…' : 'Change status below'}
                 </motion.p>
                 <motion.div
                   initial={{ opacity: 0 }}
@@ -458,6 +518,7 @@ export default function CounselorDashboard() {
                       size="sm"
                       className={availability === 'available' ? 'bg-green-600 hover:bg-green-700' : ''}
                       onClick={() => handleAvailabilityChange('available')}
+                      disabled={availabilityUpdating}
                     >
                       <CircleDot className="h-4 w-4" />
                     </Button>
@@ -466,6 +527,7 @@ export default function CounselorDashboard() {
                       size="sm"
                       className={availability === 'busy' ? 'bg-yellow-600 hover:bg-yellow-700' : ''}
                       onClick={() => handleAvailabilityChange('busy')}
+                      disabled={availabilityUpdating}
                     >
                       <Circle className="h-4 w-4" />
                     </Button>
@@ -474,6 +536,7 @@ export default function CounselorDashboard() {
                       size="sm"
                       className={availability === 'offline' ? 'bg-gray-600 hover:bg-gray-700' : ''}
                       onClick={() => handleAvailabilityChange('offline')}
+                      disabled={availabilityUpdating}
                     >
                       <Minus className="h-4 w-4" />
                     </Button>

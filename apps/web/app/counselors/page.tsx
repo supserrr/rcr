@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from "@workspace/ui/components/button";
 import { Input } from '@workspace/ui/components/input';
@@ -11,6 +11,11 @@ import { ThemeTogglerButton } from '@workspace/ui/components/animate-ui/componen
 import { RCRLogo } from '@workspace/ui/components/rcr-logo';
 import { Search, Filter, MessageCircle, Video, Phone } from 'lucide-react';
 import { useAuth } from '@/components/auth/AuthProvider';
+import { AdminApi, type AdminUser } from '@/lib/api/admin';
+import { Spinner } from '@workspace/ui/components/ui/shadcn-io/spinner';
+import { toast } from 'sonner';
+import { useProfileUpdates } from '@/hooks/useRealtime';
+import type { RealtimeProfile } from '@/lib/realtime/client';
 
 /**
  * Counselor profile data structure
@@ -21,81 +26,188 @@ interface Counselor {
   title: string;
   specialties: string[];
   languages: string[];
-  experience: string;
+  experienceYears?: number | null;
   reviews: number;
-  availability: string;
-  photo: string;
+  availability: 'available' | 'busy' | 'offline';
+  photo?: string;
   bio: string;
   education: string;
   certifications: string[];
   consultationTypes: ('chat' | 'video' | 'phone')[];
 }
 
-/**
- * Sample counselor data
- */
-const counselors: Counselor[] = [
-  {
-    id: '1',
-    name: 'Dr. Marie Uwimana',
-    title: 'Licensed Clinical Psychologist',
-    specialties: ['Cancer Support', 'Grief Counseling', 'Family Therapy'],
-    languages: ['Kinyarwanda', 'English', 'French'],
-    experience: '8 years',
-    reviews: 127,
-    availability: 'Available now',
-    photo: 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=400&h=400&fit=crop&auto=format&q=80',
-    bio: 'Dr. Uwimana specializes in supporting cancer patients and their families through their journey. With extensive experience in grief counseling and family therapy, she provides compassionate care tailored to Rwandan cultural values.',
-    education: 'PhD in Clinical Psychology, University of Rwanda',
-    certifications: ['Licensed Clinical Psychologist', 'Cancer Support Specialist', 'Grief Counseling Certification'],
-    consultationTypes: ['chat', 'video', 'phone']
-  },
-  {
-    id: '2',
-    name: 'Jean-Baptiste Nkurunziza',
-    title: 'Mental Health Counselor',
-    specialties: ['Anxiety Management', 'Depression Support', 'Coping Strategies'],
-    languages: ['Kinyarwanda', 'English'],
-    experience: '6 years',
-    reviews: 89,
-    availability: 'Available in 2 hours',
-    photo: 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=400&h=400&fit=crop&auto=format&q=80',
-    bio: 'Jean-Baptiste focuses on helping patients develop effective coping strategies and manage anxiety and depression related to cancer diagnosis and treatment.',
-    education: 'Master of Counseling, Kigali Institute of Education',
-    certifications: ['Mental Health Counselor', 'Anxiety Management Specialist'],
-    consultationTypes: ['chat', 'video']
-  },
-  {
-    id: '3',
-    name: 'Dr. Grace Mukamana',
-    title: 'Oncology Social Worker',
-    specialties: ['Family Support', 'Resource Navigation', 'End-of-Life Care'],
-    languages: ['Kinyarwanda', 'English', 'Swahili'],
-    experience: '10 years',
-    reviews: 156,
-    availability: 'Available tomorrow',
-    photo: 'https://images.unsplash.com/photo-1582750433449-648ed127bb54?w=400&h=400&fit=crop&auto=format&q=80',
-    bio: 'Dr. Mukamana provides comprehensive support to families navigating cancer treatment, helping them access resources and cope with the emotional challenges of the journey.',
-    education: 'MSW in Oncology Social Work, University of Cape Town',
-    certifications: ['Licensed Social Worker', 'Oncology Social Work Specialist'],
-    consultationTypes: ['chat', 'video', 'phone']
-  },
-  {
-    id: '4',
-    name: 'Paul Nsengimana',
-    title: 'Peer Support Specialist',
-    specialties: ['Peer Support', 'Survivor Stories', 'Community Building'],
-    languages: ['Kinyarwanda', 'English'],
-    experience: '4 years',
-    reviews: 73,
-    availability: 'Available now',
-    photo: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=400&fit=crop&auto=format&q=80',
-    bio: 'Paul is a cancer survivor who provides peer support and shares his journey to inspire hope and resilience in others facing similar challenges.',
-    education: 'Certificate in Peer Support, Rwanda Cancer Relief',
-    certifications: ['Certified Peer Support Specialist', 'Cancer Survivor Mentor'],
-    consultationTypes: ['chat', 'video']
+const toStringArray = (value: unknown): string[] => {
+  if (Array.isArray(value)) {
+    return value.filter((item): item is string => typeof item === 'string').map((item) => item.trim()).filter(Boolean);
   }
-];
+
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (!trimmed) {
+      return [];
+    }
+    return trimmed.split(',').map((item) => item.trim()).filter(Boolean);
+  }
+
+  return [];
+};
+
+const sanitizeAvailability = (
+  value?: string | null,
+): 'available' | 'busy' | 'offline' => {
+  if (value === 'busy' || value === 'offline') {
+    return value;
+  }
+  return 'available';
+};
+
+const adminUserToLandingCounselor = (user: AdminUser): Counselor => {
+  const metadata = (user.metadata ?? {}) as Record<string, unknown>;
+
+  const name =
+    typeof user.fullName === 'string' && user.fullName.trim().length > 0
+      ? user.fullName
+      : typeof metadata.full_name === 'string' && metadata.full_name.trim().length > 0
+      ? metadata.full_name
+      : user.email || 'Counselor';
+
+  const title =
+    (typeof metadata.title === 'string' && metadata.title.trim().length > 0
+      ? metadata.title
+      : typeof user.specialty === 'string' && user.specialty.trim().length > 0
+      ? user.specialty
+      : 'Counselor');
+
+  const specialties = (() => {
+    const specialtyList = toStringArray(metadata.specialties ?? metadata.expertise);
+    if (specialtyList.length > 0) {
+      return specialtyList;
+    }
+    if (typeof user.specialty === 'string' && user.specialty.trim().length > 0) {
+      return [user.specialty.trim()];
+    }
+    return ['Counseling'];
+  })();
+
+  const languages = (() => {
+    if (user.languages && user.languages.length > 0) {
+      return user.languages;
+    }
+    const metadataLanguages = toStringArray(metadata.languages ?? metadata.language_preferences);
+    if (metadataLanguages.length > 0) {
+      return metadataLanguages;
+    }
+    return ['Kinyarwanda'];
+  })();
+
+  const experienceYearsRaw =
+    typeof user.experience === 'number'
+      ? user.experience
+      : typeof metadata.experience === 'number'
+      ? metadata.experience
+      : typeof metadata.experienceYears === 'number'
+      ? metadata.experienceYears
+      : typeof metadata.experience_years === 'number'
+      ? metadata.experience_years
+      : undefined;
+
+  const experienceYears =
+    typeof experienceYearsRaw === 'number' && Number.isFinite(experienceYearsRaw)
+      ? Math.max(0, Math.round(experienceYearsRaw))
+      : undefined;
+
+  const availability = sanitizeAvailability(
+    user.availability ??
+      (typeof metadata.availability === 'string' ? metadata.availability : undefined),
+  );
+
+  const bio =
+    typeof metadata.bio === 'string' && metadata.bio.trim().length > 0
+      ? metadata.bio
+      : 'This counselor is here to support you throughout your journey.';
+
+  const education =
+    typeof metadata.education === 'string' && metadata.education.trim().length > 0
+      ? metadata.education
+      : 'Details coming soon.';
+
+  const certifications =
+    toStringArray(metadata.certifications ?? metadata.credentials ?? metadata.licenses);
+
+  const consultationTypes = (() => {
+    const types = toStringArray(metadata.consultation_types ?? metadata.consultationTypes);
+    const allowed: ('chat' | 'video' | 'phone')[] = ['chat', 'video', 'phone'];
+    const filtered = types
+      .map((type) => type.toLowerCase())
+      .filter((type): type is 'chat' | 'video' | 'phone' => allowed.includes(type as any));
+    return filtered.length > 0 ? filtered : allowed;
+  })();
+
+  const reviews =
+    typeof metadata.reviews === 'number'
+      ? metadata.reviews
+      : typeof metadata.rating_count === 'number'
+      ? metadata.rating_count
+      : 0;
+
+  return {
+    id: user.id,
+    name,
+    title,
+    specialties,
+    languages,
+    experienceYears,
+    reviews,
+    availability,
+    photo: user.avatarUrl,
+    bio,
+    education,
+    certifications,
+    consultationTypes,
+  };
+};
+
+const mapProfileRecordToAdminUser = (profile: RealtimeProfile): AdminUser => {
+  const metadata = (profile.metadata ?? {}) as Record<string, unknown>;
+
+  return {
+    id: profile.id,
+    email:
+      (typeof profile.email === 'string' ? profile.email : undefined) ??
+      (typeof metadata.email === 'string' ? metadata.email : undefined) ??
+      (typeof metadata.contact_email === 'string' ? metadata.contact_email : undefined) ??
+      '',
+    fullName:
+      (typeof profile.full_name === 'string' ? profile.full_name : undefined) ??
+      (typeof metadata.full_name === 'string' ? metadata.full_name : undefined),
+    role: (profile.role as AdminUser['role']) || 'counselor',
+    isVerified: Boolean(profile.is_verified),
+    createdAt: profile.created_at ?? new Date().toISOString(),
+    lastLogin: profile.updated_at ?? undefined,
+    metadata,
+    specialty:
+      (typeof profile.specialty === 'string' ? profile.specialty : undefined) ??
+      (typeof metadata.specialty === 'string' ? metadata.specialty : undefined),
+    experience:
+      (typeof profile.experience_years === 'number' ? profile.experience_years : undefined) ??
+      (typeof metadata.experience === 'number' ? metadata.experience : undefined),
+    availability:
+      (typeof profile.availability === 'string' ? profile.availability : undefined) ??
+      (typeof metadata.availability === 'string' ? metadata.availability : undefined),
+    avatarUrl:
+      (typeof profile.avatar_url === 'string' ? profile.avatar_url : undefined) ??
+      (typeof metadata.avatar_url === 'string' ? metadata.avatar_url : undefined) ??
+      (typeof metadata.avatar === 'string' ? metadata.avatar : undefined),
+    phoneNumber:
+      (typeof profile.phone_number === 'string' ? profile.phone_number : undefined) ??
+      (typeof metadata.phoneNumber === 'string' ? metadata.phoneNumber : undefined),
+    location:
+      (typeof metadata.location === 'string' ? metadata.location : undefined),
+    languages: toStringArray(metadata.languages ?? metadata.language_preferences),
+    bio: typeof metadata.bio === 'string' ? metadata.bio : undefined,
+    credentials: metadata.credentials as string | string[] | undefined,
+  };
+};
 
 /**
  * Counselor profile card component inspired by ProfileCard design
@@ -118,7 +230,16 @@ function CounselorCard({ counselor }: { counselor: Counselor }) {
   };
 
   // Create a description that includes specialties and languages
-  const description = `${counselor.title} • ${counselor.specialties.slice(0, 2).join(', ')} • ${counselor.languages.join(', ')}`;
+  const experienceLabel =
+    typeof counselor.experienceYears === 'number' && counselor.experienceYears > 0
+      ? `${counselor.experienceYears} ${
+          counselor.experienceYears === 1 ? 'year' : 'years'
+        } experience`
+      : 'Experience info coming soon';
+
+  const description = `${counselor.title}${
+    experienceLabel ? ` • ${experienceLabel}` : ''
+  }`;
 
   return (
     <div className="relative w-80 h-96 rounded-3xl border border-border/20 text-card-foreground overflow-hidden shadow-xl shadow-black/5 cursor-pointer group backdrop-blur-sm dark:shadow-black/20 hover:shadow-2xl transition-all duration-300 hover:scale-105">
@@ -128,8 +249,6 @@ function CounselorCard({ counselor }: { counselor: Counselor }) {
         alt={counselor.name}
         className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
       />
-
-
 
       {/* Smooth Blur Overlay - Multiple layers for seamless fade */}
       <div className="absolute inset-0 bg-gradient-to-t from-background/95 via-background/40 via-background/20 via-background/10 to-transparent" />
@@ -193,14 +312,95 @@ function CounselorCard({ counselor }: { counselor: Counselor }) {
  * Counselors page component
  */
 export default function CounselorsPage() {
+  const [counselors, setCounselors] = useState<Counselor[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Filter counselors based on search
-  const filteredCounselors = counselors.filter(counselor => {
-    const matchesSearch = counselor.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         counselor.specialties.some(s => s.toLowerCase().includes(searchTerm.toLowerCase()));
-    return matchesSearch;
-  });
+  useEffect(() => {
+    const loadCounselors = async () => {
+      try {
+        setLoading(true);
+        const response = await AdminApi.listUsers({ role: 'counselor' });
+        const mapped = response.users.map(adminUserToLandingCounselor).sort((a, b) =>
+          a.name.localeCompare(b.name),
+        );
+        setCounselors(mapped);
+      } catch (error) {
+        console.error('Failed to load counselors:', error);
+        toast.error('Failed to load counselors. Please try again later.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadCounselors();
+  }, []);
+
+  const profileSubscriptionFilters = useMemo(
+    () => ({ role: 'counselor' as const }),
+    [],
+  );
+
+  const handleRealtimeProfileUpdate = useCallback(
+    (profile: RealtimeProfile, { eventType }: { eventType: string; oldRecord: Record<string, unknown> | null }) => {
+      if (!profile?.id) {
+        return;
+      }
+
+      const adminUser = mapProfileRecordToAdminUser(profile);
+      const counselor = adminUserToLandingCounselor(adminUser);
+
+      setCounselors((previous) => {
+        const existingIndex = previous.findIndex((c) => c.id === counselor.id);
+
+        if (eventType === 'DELETE') {
+          if (existingIndex === -1) {
+            return previous;
+          }
+          const next = [...previous];
+          next.splice(existingIndex, 1);
+          return next;
+        }
+
+        if (existingIndex === -1) {
+          return [...previous, counselor].sort((a, b) => a.name.localeCompare(b.name));
+        }
+
+        const next = [...previous];
+        next[existingIndex] = counselor;
+        return next;
+      });
+    },
+    [],
+  );
+
+  useProfileUpdates(
+    profileSubscriptionFilters,
+    handleRealtimeProfileUpdate,
+    (error) => {
+      console.error('Realtime counselor subscription error:', error);
+    },
+  );
+
+  const filteredCounselors = useMemo(() => {
+    const search = searchTerm.trim().toLowerCase();
+    if (!search) {
+      return counselors;
+    }
+
+    return counselors.filter((counselor) => {
+      const matchesName = counselor.name.toLowerCase().includes(search);
+      const matchesSpecialties = counselor.specialties.some((specialty) =>
+        specialty.toLowerCase().includes(search),
+      );
+      const matchesLanguages = counselor.languages.some((language) =>
+        language.toLowerCase().includes(search),
+      );
+      const matchesBio = counselor.bio.toLowerCase().includes(search);
+
+      return matchesName || matchesSpecialties || matchesLanguages || matchesBio;
+    });
+  }, [counselors, searchTerm]);
 
   return (
     <main className="min-h-screen bg-background">
@@ -240,30 +440,42 @@ export default function CounselorsPage() {
       <section className="pb-20 px-6 lg:px-12">
         <div className="max-w-7xl mx-auto">
           <div className="mb-8">
-            <p className="font-jakarta-sans text-muted-foreground">
-              {filteredCounselors.length} counselor{filteredCounselors.length !== 1 ? 's' : ''} found
-            </p>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 justify-items-center">
-            {filteredCounselors.map(counselor => (
-              <CounselorCard key={counselor.id} counselor={counselor} />
-            ))}
+            {loading ? (
+              <p className="font-jakarta-sans text-muted-foreground">Loading counselors…</p>
+            ) : (
+              <p className="font-jakarta-sans text-muted-foreground">
+                {filteredCounselors.length} counselor{filteredCounselors.length !== 1 ? 's' : ''} found
+              </p>
+            )}
           </div>
 
-          {filteredCounselors.length === 0 && (
-            <div className="text-center py-12">
-              <p className="font-jakarta-sans text-muted-foreground text-lg">
-                No counselors found matching your search.
-              </p>
-              <Button 
-                variant="outline" 
-                className="mt-4"
-                onClick={() => setSearchTerm('')}
-              >
-                Clear Search
-              </Button>
+          {loading ? (
+            <div className="flex justify-center items-center py-20">
+              <Spinner variant="bars" size={32} className="text-primary" />
             </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 justify-items-center">
+                {filteredCounselors.map((counselor) => (
+                  <CounselorCard key={counselor.id} counselor={counselor} />
+                ))}
+              </div>
+
+              {filteredCounselors.length === 0 && (
+                <div className="text-center py-12">
+                  <p className="font-jakarta-sans text-muted-foreground text-lg">
+                    No counselors found matching your search.
+                  </p>
+                  <Button
+                    variant="outline"
+                    className="mt-4"
+                    onClick={() => setSearchTerm('')}
+                  >
+                    Clear Search
+                  </Button>
+                </div>
+              )}
+            </>
           )}
         </div>
       </section>
