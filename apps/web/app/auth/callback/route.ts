@@ -73,61 +73,124 @@ export async function GET(request: Request) {
             :root { color-scheme: light; }
             body {
               margin: 0;
+              font-family: 'Ubuntu', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+              color: oklch(0.35 0.12 300);
+            }
+            .page {
+              position: relative;
               min-height: 100vh;
               display: flex;
               align-items: center;
               justify-content: center;
-              font-family: 'Ubuntu', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-              background: linear-gradient(135deg, oklch(0.92 0.04 300) 0%, oklch(0.70 0.15 280) 100%);
-              color: oklch(0.35 0.12 300);
+              padding: 2rem;
+              background: radial-gradient(circle at top left, oklch(0.95 0.05 300) 0%, oklch(0.80 0.12 290) 40%, oklch(0.70 0.15 280) 100%);
+              overflow: hidden;
+            }
+            .page::before,
+            .page::after {
+              content: '';
+              position: absolute;
+              border-radius: 999px;
+              filter: blur(80px);
+              opacity: 0.55;
+            }
+            .page::before {
+              width: 320px;
+              height: 320px;
+              background: oklch(0.88 0.08 300);
+              top: -120px;
+              right: -80px;
+            }
+            .page::after {
+              width: 360px;
+              height: 360px;
+              background: oklch(0.70 0.18 280);
+              bottom: -150px;
+              left: -120px;
             }
             .auth-card {
-              background: rgba(255, 255, 255, 0.9);
-              border-radius: 20px;
-              padding: 2.5rem 3rem;
-              max-width: 24rem;
-              width: 90%;
-              text-align: center;
-              box-shadow: 0 25px 45px rgba(80, 46, 140, 0.15);
+              position: relative;
+              max-width: 28rem;
+              width: 100%;
+              padding: 2.75rem 2.5rem;
+              border-radius: 32px;
+              background: linear-gradient(160deg, rgba(255, 255, 255, 0.95) 10%, rgba(246, 242, 255, 0.9) 100%);
               border: 1px solid oklch(0.90 0.02 300);
-              backdrop-filter: blur(16px);
+              box-shadow: 0 22px 60px rgba(72, 34, 122, 0.18);
+              backdrop-filter: blur(22px);
+              text-align: center;
+              z-index: 1;
             }
-            .auth-card h1 {
-              font-size: 1.5rem;
+            .card-badge {
+              width: 72px;
+              height: 72px;
+              border-radius: 24px;
+              margin: 0 auto 1.5rem auto;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              background: linear-gradient(140deg, oklch(0.92 0.04 300) 0%, oklch(0.75 0.12 290) 100%);
+              box-shadow: inset 0 1px 0 rgba(255,255,255,0.9), 0 10px 25px rgba(72,34,122,0.18);
+            }
+            .card-title {
+              font-size: clamp(1.6rem, 2vw, 2rem);
               font-weight: 700;
               margin-bottom: 0.75rem;
-              color: oklch(0.55 0.18 300);
+              color: oklch(0.40 0.10 295);
             }
-            .auth-card p {
+            .card-subtitle {
               margin: 0;
-              font-size: 0.95rem;
-              line-height: 1.5;
+              font-size: 1rem;
               color: oklch(0.45 0.10 300);
             }
             .auth-subtext {
               margin-top: 1rem;
-              font-size: 0.85rem;
+              font-size: 0.9rem;
               color: oklch(0.40 0.08 300);
             }
+            .status-pill {
+              display: inline-flex;
+              align-items: center;
+              gap: 0.5rem;
+              padding: 0.45rem 1rem;
+              border-radius: 999px;
+              background: oklch(0.92 0.04 300);
+              color: oklch(0.32 0.12 300);
+              font-weight: 500;
+              font-size: 0.85rem;
+              margin-top: 1.75rem;
+            }
             .spinner {
-              width: 3rem;
-              height: 3rem;
-              border-radius: 9999px;
+              width: 3.1rem;
+              height: 3.1rem;
+              border-radius: 999px;
               border: 4px solid oklch(0.92 0.04 300);
               border-top-color: oklch(0.55 0.18 300);
-              margin: 0 auto 1.5rem auto;
+              margin: 0 auto 1.75rem auto;
               animation: spin 0.9s linear infinite;
+            }
+            .bg-surface {
+              position: absolute;
+              inset: 12%;
+              border-radius: 28px;
+              background: linear-gradient(120deg, rgba(236, 230, 255, 0.4) 0%, rgba(255, 255, 255, 0.6) 60%);
+              z-index: -1;
+              filter: blur(40px);
+              opacity: 0.7;
             }
             @keyframes spin {
               to { transform: rotate(360deg); }
+            }
+            @media (max-width: 640px) {
+              .page { padding: 1.5rem; }
+              .auth-card { padding: 2.25rem 2rem; border-radius: 26px; }
+              .card-badge { width: 64px; height: 64px; border-radius: 20px; }
             }
           </style>
           <script>
             // Check if tokens are in URL fragment
             const hash = window.location.hash.substring(1);
             if (hash) {
-              // Redirect to error page with message
-              // Note: process.env is not available in browser, so we'll use a generic message
               const errorMsg = 'OAuth is not configured. Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in your environment variables.';
               window.location.href = '/auth/auth-code-error?error=' + encodeURIComponent(errorMsg);
             } else {
@@ -136,11 +199,28 @@ export async function GET(request: Request) {
           </script>
         </head>
         <body>
-          <div class="auth-card" role="status" aria-live="polite">
-            <div class="spinner" aria-hidden="true"></div>
-            <h1>Completing authentication</h1>
-            <p>We are connecting your Rwanda Cancer Relief account.</p>
-            <p class="auth-subtext">Please wait while we finish signing you in.</p>
+          <div class="page">
+            <div class="bg-surface" aria-hidden="true"></div>
+            <section class="auth-card" role="status" aria-live="polite">
+              <div class="card-badge" aria-hidden="true">
+                <svg width="36" height="36" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M24 44C24 44 6 32 6 18C6 10.268 12.268 4 20 4C24.336 4 28.336 6.136 30.774 9.56C33.212 6.136 37.212 4 41.548 4C49.28 4 55.548 10.268 55.548 18C55.548 32 37.548 44 37.548 44H24Z" fill="url(#heartGradient)"/>
+                  <defs>
+                    <linearGradient id="heartGradient" x1="6" y1="4" x2="48" y2="44" gradientUnits="userSpaceOnUse">
+                      <stop stop-color="#D6CBFF"/>
+                      <stop offset="1" stop-color="#8D6DF7"/>
+                    </linearGradient>
+                  </defs>
+                </svg>
+              </div>
+              <div class="spinner" aria-hidden="true"></div>
+              <h1 class="card-title">Completing your secure sign in</h1>
+              <p class="card-subtitle">We are preparing your Rwanda Cancer Relief experience.</p>
+              <p class="auth-subtext">This only takes a moment. Thank you for your patience.</p>
+              <div class="status-pill">
+                <span>Establishing encrypted session…</span>
+              </div>
+            </section>
           </div>
         </body>
       </html>
@@ -285,63 +365,145 @@ export async function GET(request: Request) {
               :root { color-scheme: light; }
               body {
                 margin: 0;
+                font-family: 'Ubuntu', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+                color: oklch(0.35 0.12 300);
+              }
+              .page {
+                position: relative;
                 min-height: 100vh;
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                font-family: 'Ubuntu', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-                background: linear-gradient(135deg, oklch(0.92 0.04 300) 0%, oklch(0.70 0.15 280) 100%);
-                color: oklch(0.35 0.12 300);
+                padding: 2rem;
+                background: radial-gradient(circle at top left, oklch(0.95 0.05 300) 0%, oklch(0.80 0.12 290) 40%, oklch(0.70 0.15 280) 100%);
+                overflow: hidden;
+              }
+              .page::before,
+              .page::after {
+                content: '';
+                position: absolute;
+                border-radius: 999px;
+                filter: blur(80px);
+                opacity: 0.55;
+              }
+              .page::before {
+                width: 320px;
+                height: 320px;
+                background: oklch(0.88 0.08 300);
+                top: -120px;
+                right: -80px;
+              }
+              .page::after {
+                width: 360px;
+                height: 360px;
+                background: oklch(0.70 0.18 280);
+                bottom: -150px;
+                left: -120px;
               }
               .auth-card {
-                background: rgba(255, 255, 255, 0.9);
-                border-radius: 20px;
-                padding: 2.5rem 3rem;
-                max-width: 24rem;
-                width: 90%;
-                text-align: center;
-                box-shadow: 0 25px 45px rgba(80, 46, 140, 0.15);
+                position: relative;
+                max-width: 28rem;
+                width: 100%;
+                padding: 2.75rem 2.5rem;
+                border-radius: 32px;
+                background: linear-gradient(160deg, rgba(255, 255, 255, 0.95) 10%, rgba(246, 242, 255, 0.9) 100%);
                 border: 1px solid oklch(0.90 0.02 300);
-                backdrop-filter: blur(16px);
+                box-shadow: 0 22px 60px rgba(72, 34, 122, 0.18);
+                backdrop-filter: blur(22px);
+                text-align: center;
+                z-index: 1;
               }
-              .auth-card h1 {
-                font-size: 1.5rem;
+              .card-badge {
+                width: 72px;
+                height: 72px;
+                border-radius: 24px;
+                margin: 0 auto 1.5rem auto;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                background: linear-gradient(140deg, oklch(0.92 0.04 300) 0%, oklch(0.75 0.12 290) 100%);
+                box-shadow: inset 0 1px 0 rgba(255,255,255,0.9), 0 10px 25px rgba(72,34,122,0.18);
+              }
+              .card-title {
+                font-size: clamp(1.6rem, 2vw, 2rem);
                 font-weight: 700;
                 margin-bottom: 0.75rem;
-                color: oklch(0.55 0.18 300);
+                color: oklch(0.40 0.10 295);
               }
-              .auth-card p {
+              .card-subtitle {
                 margin: 0;
-                font-size: 0.95rem;
-                line-height: 1.5;
+                font-size: 1rem;
                 color: oklch(0.45 0.10 300);
               }
               .auth-subtext {
                 margin-top: 1rem;
-                font-size: 0.85rem;
+                font-size: 0.9rem;
                 color: oklch(0.40 0.08 300);
               }
+              .status-pill {
+                display: inline-flex;
+                align-items: center;
+                gap: 0.5rem;
+                padding: 0.45rem 1rem;
+                border-radius: 999px;
+                background: oklch(0.92 0.04 300);
+                color: oklch(0.32 0.12 300);
+                font-weight: 500;
+                font-size: 0.85rem;
+                margin-top: 1.75rem;
+              }
               .spinner {
-                width: 3rem;
-                height: 3rem;
-                border-radius: 9999px;
+                width: 3.1rem;
+                height: 3.1rem;
+                border-radius: 999px;
                 border: 4px solid oklch(0.92 0.04 300);
                 border-top-color: oklch(0.55 0.18 300);
-                margin: 0 auto 1.5rem auto;
+                margin: 0 auto 1.75rem auto;
                 animation: spin 0.9s linear infinite;
+              }
+              .bg-surface {
+                position: absolute;
+                inset: 12%;
+                border-radius: 28px;
+                background: linear-gradient(120deg, rgba(236, 230, 255, 0.4) 0%, rgba(255, 255, 255, 0.6) 60%);
+                z-index: -1;
+                filter: blur(40px);
+                opacity: 0.7;
               }
               @keyframes spin {
                 to { transform: rotate(360deg); }
+              }
+              @media (max-width: 640px) {
+                .page { padding: 1.5rem; }
+                .auth-card { padding: 2.25rem 2rem; border-radius: 26px; }
+                .card-badge { width: 64px; height: 64px; border-radius: 20px; }
               }
             </style>
             <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js" onload="window.supabaseLoaded = true"></script>
           </head>
           <body>
-            <div class="auth-card" role="status" aria-live="polite">
-              <div class="spinner" aria-hidden="true"></div>
-              <h1>Completing authentication</h1>
-              <p>We are connecting your Rwanda Cancer Relief account.</p>
-              <p class="auth-subtext" id="auth-status">Please wait while we finish signing you in.</p>
+            <div class="page">
+              <div class="bg-surface" aria-hidden="true"></div>
+              <section class="auth-card" role="status" aria-live="polite">
+                <div class="card-badge" aria-hidden="true">
+                  <svg width="36" height="36" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M24 44C24 44 6 32 6 18C6 10.268 12.268 4 20 4C24.336 4 28.336 6.136 30.774 9.56C33.212 6.136 37.212 4 41.548 4C49.28 4 55.548 10.268 55.548 18C55.548 32 37.548 44 37.548 44H24Z" fill="url(#heartGradient)" />
+                    <defs>
+                      <linearGradient id="heartGradient" x1="6" y1="4" x2="48" y2="44" gradientUnits="userSpaceOnUse">
+                        <stop stop-color="#D6CBFF" />
+                        <stop offset="1" stop-color="#8D6DF7" />
+                      </linearGradient>
+                    </defs>
+                  </svg>
+                </div>
+                <div class="spinner" aria-hidden="true"></div>
+                <h1 class="card-title">Completing your secure sign in</h1>
+                <p class="card-subtitle">We are preparing your Rwanda Cancer Relief experience.</p>
+                <p class="auth-subtext" id="auth-status">Setting up your personalized support journey.</p>
+                <div class="status-pill">
+                  <span id="auth-status-pill">Connecting safely…</span>
+                </div>
+              </section>
             </div>
             <script>
               // Add timeout fallback - if script doesn't complete in 10 seconds, redirect
@@ -354,8 +516,19 @@ export async function GET(request: Request) {
               }, 10000);
               
               (async function() {
+                const statusEl = document.getElementById('auth-status');
+                const statusPillEl = document.getElementById('auth-status-pill');
+                const updateStatus = (message, pillMessage) => {
+                  if (statusEl && typeof message === 'string') {
+                    statusEl.textContent = message;
+                  }
+                  if (statusPillEl && typeof pillMessage === 'string') {
+                    statusPillEl.textContent = pillMessage;
+                  }
+                };
                 try {
                   console.log('Starting OAuth callback processing...');
+                  updateStatus('We are verifying your credentials with Rwanda Cancer Relief.', 'Verifying sign in…');
                   
                   // Extract tokens immediately from URL fragment (hash)
                   const hash = window.location.hash.substring(1);
@@ -369,6 +542,7 @@ export async function GET(request: Request) {
                   if (error) {
                     console.error('OAuth error:', error, errorDescription);
                     clearTimeout(timeoutId);
+                    updateStatus('We could not complete authentication. Redirecting you to restart the sign-in flow.', 'Redirecting…');
                       window.location.href = '/auth/auth-code-error?error=' + encodeURIComponent(errorDescription || error);
                     return;
                   }
@@ -376,11 +550,13 @@ export async function GET(request: Request) {
                   if (!accessToken) {
                     console.error('No access token found in URL');
                     clearTimeout(timeoutId);
+                    updateStatus('We could not find a secure sign-in token. Sending you back to sign in.', 'Redirecting…');
                     window.location.href = '/signin?error=missing_token';
                     return;
                   }
                   
                   console.log('Access token found, waiting for Supabase library...');
+                  updateStatus('Loading secure session tools...', 'Preparing session…');
                   
                   // Wait for Supabase library to load
                   // The UMD build exposes the library as window.supabase with createClient function
@@ -404,6 +580,7 @@ export async function GET(request: Request) {
                   if (!supabaseLib) {
                     console.error('Supabase library not loaded after timeout');
                     clearTimeout(timeoutId);
+                    updateStatus('We could not load our secure session tools. Sending you back to sign in.', 'Redirecting…');
                     window.location.href = '/signin?error=library_load_failed';
                     return;
                   }
@@ -415,6 +592,7 @@ export async function GET(request: Request) {
                   if (!supabaseUrl || !supabaseAnonKey) {
                     console.error('Supabase not configured:', { hasUrl: !!supabaseUrl, hasKey: !!supabaseAnonKey });
                     clearTimeout(timeoutId);
+                    updateStatus('Our sign-in service is misconfigured. Redirecting you to try again later.', 'Redirecting…');
                     window.location.href = '/signin?error=not_configured';
                     return;
                   }
@@ -439,6 +617,7 @@ export async function GET(request: Request) {
                   if (sessionError) {
                     console.error('Session error:', sessionError);
                     clearTimeout(timeoutId);
+                    updateStatus('We hit a snag while securing your session. Taking you back to sign in.', 'Redirecting…');
                     window.location.href = '/signin?error=session_failed&details=' + encodeURIComponent(sessionError.message || 'Unknown error');
                     return;
                   }
@@ -446,11 +625,13 @@ export async function GET(request: Request) {
                   if (!session) {
                     console.error('No session returned from setSession');
                     clearTimeout(timeoutId);
+                    updateStatus('We could not finish setting up your session. Redirecting to sign in.', 'Redirecting…');
                     window.location.href = '/signin?error=session_failed&details=No session returned';
                     return;
                   }
                   
                   console.log('Session set successfully, user:', session.user.email);
+                  updateStatus('Session secured. Preparing your personalized experience.', 'Setting preferences…');
                   
                   // Get redirect destination
                   const urlParams = new URLSearchParams(window.location.search);
@@ -483,6 +664,7 @@ export async function GET(request: Request) {
                   }
                   
                   console.log('Redirecting to:', next);
+                  updateStatus('Success! Redirecting you now.', 'Redirecting…');
                   
                   // Clear timeout since we're redirecting successfully
                   clearTimeout(timeoutId);
@@ -492,6 +674,7 @@ export async function GET(request: Request) {
                 } catch (error) {
                   console.error('Auth callback error:', error);
                   clearTimeout(timeoutId);
+                  updateStatus('We ran into an unexpected error. Redirecting you safely.', 'Redirecting…');
                   const urlParams = new URLSearchParams(window.location.search);
                   const role = urlParams.get('role') || 'patient';
                   const next = urlParams.get('next') || '/onboarding/' + role;

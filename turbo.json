@@ -10,7 +10,8 @@
         "ASSISTANT_API_KEY",
         "SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_SECRET",
         "SUPABASE_KEY",
-        "SUPABASE_ACCESS_TOKEN"
+        "SUPABASE_ACCESS_TOKEN",
+        "SUPABASE_SERVICE_ROLE_KEY"
       ]
     },
     "lint": {
