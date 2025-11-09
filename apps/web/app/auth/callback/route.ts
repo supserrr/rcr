@@ -64,9 +64,64 @@ export async function GET(request: Request) {
     // This allows the build to complete even if Supabase isn't configured
     const html = `
       <!DOCTYPE html>
-      <html>
+      <html lang="en">
         <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
           <title>OAuth Callback</title>
+          <style>
+            :root { color-scheme: light; }
+            body {
+              margin: 0;
+              min-height: 100vh;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              font-family: 'Ubuntu', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+              background: linear-gradient(135deg, oklch(0.92 0.04 300) 0%, oklch(0.70 0.15 280) 100%);
+              color: oklch(0.35 0.12 300);
+            }
+            .auth-card {
+              background: rgba(255, 255, 255, 0.9);
+              border-radius: 20px;
+              padding: 2.5rem 3rem;
+              max-width: 24rem;
+              width: 90%;
+              text-align: center;
+              box-shadow: 0 25px 45px rgba(80, 46, 140, 0.15);
+              border: 1px solid oklch(0.90 0.02 300);
+              backdrop-filter: blur(16px);
+            }
+            .auth-card h1 {
+              font-size: 1.5rem;
+              font-weight: 700;
+              margin-bottom: 0.75rem;
+              color: oklch(0.55 0.18 300);
+            }
+            .auth-card p {
+              margin: 0;
+              font-size: 0.95rem;
+              line-height: 1.5;
+              color: oklch(0.45 0.10 300);
+            }
+            .auth-subtext {
+              margin-top: 1rem;
+              font-size: 0.85rem;
+              color: oklch(0.40 0.08 300);
+            }
+            .spinner {
+              width: 3rem;
+              height: 3rem;
+              border-radius: 9999px;
+              border: 4px solid oklch(0.92 0.04 300);
+              border-top-color: oklch(0.55 0.18 300);
+              margin: 0 auto 1.5rem auto;
+              animation: spin 0.9s linear infinite;
+            }
+            @keyframes spin {
+              to { transform: rotate(360deg); }
+            }
+          </style>
           <script>
             // Check if tokens are in URL fragment
             const hash = window.location.hash.substring(1);
@@ -81,7 +136,12 @@ export async function GET(request: Request) {
           </script>
         </head>
         <body>
-          <p>Redirecting...</p>
+          <div class="auth-card" role="status" aria-live="polite">
+            <div class="spinner" aria-hidden="true"></div>
+            <h1>Completing authentication</h1>
+            <p>We are connecting your Rwanda Cancer Relief account.</p>
+            <p class="auth-subtext">Please wait while we finish signing you in.</p>
+          </div>
         </body>
       </html>
     `;
@@ -221,14 +281,67 @@ export async function GET(request: Request) {
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <title>Completing Authentication</title>
+            <style>
+              :root { color-scheme: light; }
+              body {
+                margin: 0;
+                min-height: 100vh;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-family: 'Ubuntu', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+                background: linear-gradient(135deg, oklch(0.92 0.04 300) 0%, oklch(0.70 0.15 280) 100%);
+                color: oklch(0.35 0.12 300);
+              }
+              .auth-card {
+                background: rgba(255, 255, 255, 0.9);
+                border-radius: 20px;
+                padding: 2.5rem 3rem;
+                max-width: 24rem;
+                width: 90%;
+                text-align: center;
+                box-shadow: 0 25px 45px rgba(80, 46, 140, 0.15);
+                border: 1px solid oklch(0.90 0.02 300);
+                backdrop-filter: blur(16px);
+              }
+              .auth-card h1 {
+                font-size: 1.5rem;
+                font-weight: 700;
+                margin-bottom: 0.75rem;
+                color: oklch(0.55 0.18 300);
+              }
+              .auth-card p {
+                margin: 0;
+                font-size: 0.95rem;
+                line-height: 1.5;
+                color: oklch(0.45 0.10 300);
+              }
+              .auth-subtext {
+                margin-top: 1rem;
+                font-size: 0.85rem;
+                color: oklch(0.40 0.08 300);
+              }
+              .spinner {
+                width: 3rem;
+                height: 3rem;
+                border-radius: 9999px;
+                border: 4px solid oklch(0.92 0.04 300);
+                border-top-color: oklch(0.55 0.18 300);
+                margin: 0 auto 1.5rem auto;
+                animation: spin 0.9s linear infinite;
+              }
+              @keyframes spin {
+                to { transform: rotate(360deg); }
+              }
+            </style>
             <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js" onload="window.supabaseLoaded = true"></script>
           </head>
           <body>
-            <div style="display: flex; align-items: center; justify-content: center; height: 100vh; font-family: system-ui;">
-              <div style="text-align: center;">
-                <p>Completing authentication...</p>
-                <p style="font-size: 0.875rem; color: #666; margin-top: 0.5rem;">Please wait while we sign you in</p>
-              </div>
+            <div class="auth-card" role="status" aria-live="polite">
+              <div class="spinner" aria-hidden="true"></div>
+              <h1>Completing authentication</h1>
+              <p>We are connecting your Rwanda Cancer Relief account.</p>
+              <p class="auth-subtext" id="auth-status">Please wait while we finish signing you in.</p>
             </div>
             <script>
               // Add timeout fallback - if script doesn't complete in 10 seconds, redirect
