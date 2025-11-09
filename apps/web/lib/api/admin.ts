@@ -396,7 +396,8 @@ export class AdminApi {
         normalizedMessage.includes('auth session missing') ||
         normalizedMessage.includes('session not found') ||
         normalizedMessage.includes('user not authenticated') ||
-        normalizedMessage.includes('not authenticated');
+        normalizedMessage.includes('not authenticated') ||
+        normalizedMessage.includes('sub claim in jwt does not exist');
 
       if (!isAuthMissing) {
         throw new Error(currentUserError.message || 'Failed to determine current user');

@@ -68,7 +68,8 @@ CREATE TABLE IF NOT EXISTS resource_metrics (
 CREATE INDEX IF NOT EXISTS idx_resource_metrics_resource_id ON resource_metrics(resource_id);
 CREATE INDEX IF NOT EXISTS idx_resource_metrics_user_id ON resource_metrics(user_id);
 
-CREATE VIEW resource_summary_metrics AS
+CREATE VIEW resource_summary_metrics
+WITH (security_invoker = true) AS
 SELECT
     r.id AS resource_id,
     r.title,
@@ -87,7 +88,8 @@ GROUP BY r.id, r.title, r.type, r.category, r.is_public;
 -- Session statistics views
 ------------------------------------------------------------------------------
 
-CREATE VIEW patient_session_stats AS
+CREATE VIEW patient_session_stats
+WITH (security_invoker = true) AS
 SELECT
     s.patient_id AS user_id,
     COUNT(*) AS total_sessions,
@@ -113,7 +115,8 @@ SELECT
 FROM sessions s
 GROUP BY s.patient_id;
 
-CREATE VIEW counselor_session_stats AS
+CREATE VIEW counselor_session_stats
+WITH (security_invoker = true) AS
 SELECT
     s.counselor_id AS user_id,
     COUNT(*) AS total_sessions,

@@ -49,6 +49,7 @@ CREATE OR REPLACE FUNCTION public.is_participant(chat_id uuid, user_id uuid)
 RETURNS boolean
 LANGUAGE sql
 STABLE
+SET search_path = public, auth
 AS $$
   SELECT EXISTS (
     SELECT 1
