@@ -357,7 +357,7 @@ export async function GET(request: Request) {
                   // Determine redirect path
                   const userMetadata = session.user.user_metadata || {};
                   const onboardingCompleted = userMetadata.onboarding_completed === true;
-                  const userRole = (userMetadata.role as string) || role || 'patient';
+                  const userRole = (typeof userMetadata.role === 'string' && userMetadata.role) || role || 'patient';
                   
                   if (!onboardingCompleted) {
                     next = userRole === 'counselor' ? '/onboarding/counselor' : '/onboarding/patient';
