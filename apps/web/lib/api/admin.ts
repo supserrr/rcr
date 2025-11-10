@@ -6,6 +6,7 @@
  */
 
 import { createClient } from '@/lib/supabase/client';
+import { getServiceClient } from '@/lib/supabase/service';
 import { NotificationService } from './notifications';
 import type {
   VisibilitySettings,
@@ -1858,10 +1859,19 @@ export class AdminApi {
       payload.visibility_settings = input.visibilitySettings;
     }
 
-    const { error } = await supabase.from('profiles').update(payload).eq('id', counselorId);
+    const serviceClient = getServiceClient();
+    let updateError: { message?: string } | null = null;
 
-    if (error) {
-      throw new Error(error.message || 'Failed to update counselor approval status');
+    if (serviceClient) {
+      const { error } = await serviceClient.from('profiles').update(payload).eq('id', counselorId);
+      updateError = error;
+    } else {
+      const { error } = await supabase.from('profiles').update(payload).eq('id', counselorId);
+      updateError = error;
+    }
+
+    if (updateError) {
+      throw new Error(updateError.message || 'Failed to update counselor approval status');
     }
 
     const approvalMessages: Record<CounselorApprovalStatus, { title: string; message: string }> = {

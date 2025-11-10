@@ -256,8 +256,17 @@ export default function AdminApprovalsPage() {
         approvalStatus: 'approved',
       });
       toast.success('Counselor approved successfully!');
-      // Remove approved counselor from list
-      setCounselors(prev => prev.filter(c => c.id !== counselorId));
+      setCounselors((prev) =>
+        prev.map((c) =>
+          c.id === counselorId
+            ? {
+                ...c,
+                approvalStatus: 'approved',
+                approvalReviewedAt: new Date().toISOString(),
+              }
+            : c,
+        ),
+      );
       handleCloseModal();
     } catch (error) {
       console.error('Error approving counselor:', error);
@@ -276,7 +285,18 @@ export default function AdminApprovalsPage() {
         approvalNotes: notes,
       });
       toast.success('Counselor application rejected.');
-      setCounselors((prev) => prev.filter((c) => c.id !== counselorId));
+      setCounselors((prev) =>
+        prev.map((c) =>
+          c.id === counselorId
+            ? {
+                ...c,
+                approvalStatus: 'rejected',
+                approvalNotes: notes,
+                approvalReviewedAt: new Date().toISOString(),
+              }
+            : c,
+        ),
+      );
       handleCloseModal();
     } catch (error) {
       console.error('Error rejecting counselor:', error);
@@ -307,7 +327,18 @@ export default function AdminApprovalsPage() {
         approvalNotes: requestInfoNotes.trim() || undefined,
       });
       toast.success('Requested additional information from the counselor.');
-      setCounselors((prev) => prev.filter((c) => c.id !== counselorId));
+      setCounselors((prev) =>
+        prev.map((c) =>
+          c.id === counselorId
+            ? {
+                ...c,
+                approvalStatus: 'needs_more_info',
+                approvalNotes: requestInfoNotes.trim() || undefined,
+                approvalReviewedAt: new Date().toISOString(),
+              }
+            : c,
+        ),
+      );
       setIsRequestInfoDialogOpen(false);
       handleCloseModal();
     } catch (error) {
