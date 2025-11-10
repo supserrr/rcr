@@ -97,6 +97,23 @@ export default function AdminResourcesReviewPage() {
     { value: 'type', label: 'Type' },
     { value: 'publisher', label: 'Publisher' },
   ];
+  const resourceSummary = useMemo(() => {
+    const total = resources.length;
+    const published = resources.filter((resource) => resource.isPublic).length;
+    const privateCount = total - published;
+    const totalViews = resources.reduce((sum, resource) => sum + (resource.views ?? 0), 0);
+    const totalDownloads = resources.reduce(
+      (sum, resource) => sum + (resource.downloads ?? 0),
+      0,
+    );
+    return {
+      total,
+      published,
+      privateCount,
+      totalViews,
+      totalDownloads,
+    };
+  }, [resources]);
 
   // Filter and sort resources
   const filteredResources = useMemo(() => {
@@ -360,7 +377,7 @@ export default function AdminResourcesReviewPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Total Resources</p>
-                <p className="text-2xl font-bold">{resources.length}</p>
+                <p className="text-2xl font-bold">{resourceSummary.total}</p>
               </div>
               <FileText className="h-8 w-8 text-primary" />
             </div>
@@ -372,7 +389,7 @@ export default function AdminResourcesReviewPage() {
               <div>
                 <p className="text-sm text-muted-foreground">Published</p>
                 <p className="text-2xl font-bold">
-                  {resources.filter(r => r.isPublic).length}
+                  {resourceSummary.published}
                 </p>
               </div>
               <Globe className="h-8 w-8 text-green-600" />
@@ -385,7 +402,7 @@ export default function AdminResourcesReviewPage() {
               <div>
                 <p className="text-sm text-muted-foreground">Unpublished</p>
                 <p className="text-2xl font-bold">
-                  {resources.filter(r => !r.isPublic).length}
+                  {resourceSummary.privateCount}
                 </p>
               </div>
               <Lock className="h-8 w-8 text-yellow-600" />
@@ -396,11 +413,16 @@ export default function AdminResourcesReviewPage() {
           <div className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Filtered Results</p>
-                <p className="text-2xl font-bold">{filteredResources.length}</p>
+                <p className="text-sm text-muted-foreground">Engagement</p>
+                <p className="text-2xl font-bold">
+                  {resourceSummary.totalViews.toLocaleString()} views
+                </p>
               </div>
-              <Filter className="h-8 w-8 text-blue-600" />
+              <Video className="h-8 w-8 text-purple-600" />
             </div>
+            <p className="text-xs text-muted-foreground">
+              {resourceSummary.totalDownloads.toLocaleString()} downloads
+            </p>
           </div>
         </AnimatedCard>
       </div>

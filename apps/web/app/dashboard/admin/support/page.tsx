@@ -78,6 +78,38 @@ export default function AdminSupportPage() {
       ? selectedProfileMetadata.contactPhone
       : undefined;
 
+  const ticketStats = useMemo(() => {
+    const open = tickets.filter((ticket) => ticket.status === 'open').length;
+    const inProgress = tickets.filter((ticket) => ticket.status === 'in_progress').length;
+    const resolved = tickets.filter((ticket) => ticket.status === 'resolved').length;
+    const closed = tickets.filter((ticket) => ticket.status === 'closed').length;
+    const urgent = tickets.filter((ticket) => ticket.priority === 'urgent').length;
+    const resolutionDurations = tickets
+      .filter((ticket) => ticket.resolved_at)
+      .map((ticket) => {
+        const resolvedAt = new Date(ticket.resolved_at as string).getTime();
+        const createdAt = new Date(ticket.created_at).getTime();
+        return Math.max(resolvedAt - createdAt, 0);
+      });
+    const avgResolutionHours =
+      resolutionDurations.length > 0
+        ? resolutionDurations.reduce((sum, duration) => sum + duration, 0) /
+          resolutionDurations.length /
+          (1000 * 60 * 60)
+        : 0;
+
+    return {
+      total: tickets.length,
+      open,
+      inProgress,
+      resolved,
+      closed,
+      urgent,
+      avgResolutionHours,
+      backlog: open + inProgress,
+    };
+  }, [tickets]);
+
   const loadTickets = async () => {
     setIsLoading(true);
     try {
@@ -262,7 +294,7 @@ export default function AdminSupportPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {tickets.filter(t => t.status === 'open').length}
+              {ticketStats.open}
             </div>
             <p className="text-xs text-muted-foreground">
               Need attention
@@ -277,7 +309,7 @@ export default function AdminSupportPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-               {tickets.filter(t => t.status === 'in_progress').length}
+              {ticketStats.inProgress}
             </div>
             <p className="text-xs text-muted-foreground">
               Being worked on
@@ -292,10 +324,10 @@ export default function AdminSupportPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {tickets.filter(t => t.status === 'resolved').length}
+              {ticketStats.resolved}
             </div>
             <p className="text-xs text-muted-foreground">
-              This month
+              Avg resolution {ticketStats.avgResolutionHours.toFixed(1)}h
             </p>
           </CardContent>
         </AnimatedCard>
@@ -307,7 +339,7 @@ export default function AdminSupportPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {tickets.filter(t => t.priority === 'urgent').length}
+              {ticketStats.urgent}
             </div>
             <p className="text-xs text-muted-foreground">
               High priority

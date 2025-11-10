@@ -155,6 +155,23 @@ export default function AdminTrainingResourcesPage() {
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const pagedResources = filteredResources.slice((page - 1) * pageSize, page * pageSize);
 
+  const resourceSummary = useMemo(() => {
+    const totalResources = resources.length;
+    const published = resources.filter((resource) => resource.isPublic).length;
+    const publicViews = resources.reduce((acc, resource) => acc + (resource.views ?? 0), 0);
+    const publicDownloads = resources.reduce(
+      (acc, resource) => acc + (resource.downloads ?? 0),
+      0,
+    );
+    return {
+      total: totalResources,
+      published,
+      privateCount: totalResources - published,
+      views: publicViews,
+      downloads: publicDownloads,
+    };
+  }, [resources]);
+
   // Convert API Resource to UI Resource type
   const convertToUIResource = (apiResource: Resource): any => {
     return {
@@ -352,7 +369,7 @@ export default function AdminTrainingResourcesPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {resources.length}
+              {resourceSummary.total}
             </div>
             <p className="text-xs text-muted-foreground">
               Training materials
@@ -367,11 +384,10 @@ export default function AdminTrainingResourcesPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {/* Note: View count not in Resource type, would need to be added */}
-              {resources.length}
+              {resourceSummary.views.toLocaleString()}
             </div>
             <p className="text-xs text-muted-foreground">
-              All time views
+              {resourceSummary.downloads.toLocaleString()} downloads
             </p>
           </CardContent>
         </AnimatedCard>
@@ -383,7 +399,7 @@ export default function AdminTrainingResourcesPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {resources.filter(r => r.isPublic).length}
+              {resourceSummary.published}
             </div>
             <p className="text-xs text-muted-foreground">
               Public resources

@@ -83,13 +83,36 @@ export default function AdminApprovalsPage() {
   const [selectedCounselor, setSelectedCounselor] = useState<AdminUser | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const pendingCount = useMemo(() => counselors.length, [counselors]);
+  const newThisWeekCount = useMemo(
+    () =>
+      counselors.filter(
+        (counselor) =>
+          new Date(counselor.createdAt) > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
+      ).length,
+    [counselors],
+  );
+  const highExperienceCount = useMemo(
+    () => counselors.filter((counselor) => ((counselor as any).experience || 0) >= 5).length,
+    [counselors],
+  );
+  const multilingualCount = useMemo(
+    () =>
+      counselors.filter(
+        (counselor) =>
+          Array.isArray((counselor as any).languages) &&
+          ((counselor as any).languages as string[]).length >= 3,
+      ).length,
+    [counselors],
+  );
+
 
   // Load counselors (Note: Backend would need to add a 'pending' status filter)
   useEffect(() => {
     const loadCounselors = async () => {
       try {
         setLoading(true);
-        const response = await AdminApi.listUsers({ role: 'counselor' });
+        const response = await AdminApi.listUsers({ role: 'counselor', isVerified: false });
         const pending = response.users.filter((counselor) => counselor.approvalStatus !== 'approved');
         setCounselors(pending);
       } catch (error) {
@@ -223,7 +246,7 @@ export default function AdminApprovalsPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {loading ? '...' : counselors.length}
+              {loading ? '...' : pendingCount}
             </div>
             <p className="text-xs text-muted-foreground">
               Awaiting review
@@ -238,9 +261,7 @@ export default function AdminApprovalsPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {loading ? '...' : counselors.filter(c => 
-                new Date(c.createdAt) > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
-              ).length}
+              {loading ? '...' : newThisWeekCount}
             </div>
             <p className="text-xs text-muted-foreground">
               New applications
@@ -255,7 +276,7 @@ export default function AdminApprovalsPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {loading ? '...' : counselors.filter(c => ((c as any).experience || 0) >= 5).length}
+              {loading ? '...' : highExperienceCount}
             </div>
             <p className="text-xs text-muted-foreground">
               5+ years experience
@@ -270,7 +291,7 @@ export default function AdminApprovalsPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {loading ? '...' : counselors.filter(c => ((c as any).languages && Array.isArray((c as any).languages) && (c as any).languages.length >= 3)).length}
+              {loading ? '...' : multilingualCount}
             </div>
             <p className="text-xs text-muted-foreground">
               3+ languages
