@@ -590,6 +590,54 @@ export class AdminApi {
 
     let currentRole: AdminUser['role'] | 'guest' = 'guest';
 
+    const normalizeRoleValue = (value: unknown): AdminUser['role'] | undefined => {
+      if (typeof value === 'string') {
+        const normalized = value.trim().toLowerCase();
+        if (normalized === 'patient' || normalized === 'counselor' || normalized === 'admin') {
+          return normalized as AdminUser['role'];
+        }
+        return undefined;
+      }
+      if (Array.isArray(value)) {
+        for (const entry of value) {
+          const resolved = normalizeRoleValue(entry);
+          if (resolved) {
+            return resolved;
+          }
+        }
+      }
+      return undefined;
+    };
+
+    const deriveRoleFromUser = (userRecord: unknown): AdminUser['role'] | undefined => {
+      if (!userRecord || typeof userRecord !== 'object') {
+        return undefined;
+      }
+
+      const record = userRecord as {
+        user_metadata?: Record<string, unknown>;
+        app_metadata?: Record<string, unknown>;
+      };
+
+      const candidates: unknown[] = [
+        record.user_metadata?.role,
+        record.user_metadata?.roles,
+        record.app_metadata?.role,
+        record.app_metadata?.roles,
+        record.user_metadata?.appRole,
+        record.user_metadata?.app_role,
+      ];
+
+      for (const candidate of candidates) {
+        const role = normalizeRoleValue(candidate);
+        if (role) {
+          return role;
+        }
+      }
+
+      return undefined;
+    };
+
     if (currentUserError) {
       const normalizedMessage = currentUserError.message?.toLowerCase() ?? '';
       const isAuthMissing =
@@ -603,7 +651,7 @@ export class AdminApi {
         throw new Error(currentUserError.message || 'Failed to determine current user');
       }
     } else if (currentUser) {
-      currentRole = (currentUser.user_metadata?.role as AdminUser['role']) || 'patient';
+      currentRole = deriveRoleFromUser(currentUser) ?? 'patient';
     }
     const limit = params?.limit ?? 50;
     const offset = params?.offset ?? 0;
