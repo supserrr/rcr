@@ -219,6 +219,7 @@ export default function CounselorSettingsPage() {
 
   const [profile, setProfile] = useState({
     name: user?.name || '',
+    professionalTitle: '',
     email: user?.email || '',
     phoneNumber: '',
     contactPhone: '',
@@ -283,6 +284,16 @@ export default function CounselorSettingsPage() {
 
   const approvalBadge = useMemo(() => getApprovalBadgeStyles(profile.approvalStatus), [profile.approvalStatus]);
 
+  const displayFullName = useMemo(() => {
+    if (!profile.name && !profile.professionalTitle) {
+      return 'Counselor';
+    }
+    if (profile.professionalTitle && profile.name) {
+      return `${profile.professionalTitle} ${profile.name}`.trim();
+    }
+    return profile.professionalTitle || profile.name;
+  }, [profile.name, profile.professionalTitle]);
+
   // Load user profile data
   useEffect(() => {
     const loadProfile = async () => {
@@ -296,6 +307,32 @@ export default function CounselorSettingsPage() {
         }
         const metadata = currentUser.metadata || {};
         const counselorProfile = currentUser.counselorProfile;
+        const counselorMetadata = (counselorProfile?.metadata ?? {}) as Record<string, unknown>;
+        const professionalTitle =
+          (typeof counselorMetadata.professionalTitle === 'string' && counselorMetadata.professionalTitle.length > 0
+            ? counselorMetadata.professionalTitle
+            : typeof metadata.professionalTitle === 'string' && metadata.professionalTitle.length > 0
+              ? metadata.professionalTitle
+              : typeof metadata.title === 'string' && metadata.title.length > 0
+                ? metadata.title
+                : '');
+
+        const metadataFullName =
+          (typeof metadata.full_name === 'string' && metadata.full_name.length > 0
+            ? metadata.full_name
+            : typeof metadata.fullName === 'string' && metadata.fullName.length > 0
+              ? metadata.fullName
+              : typeof metadata.name === 'string' && metadata.name.length > 0
+                ? metadata.name
+                : undefined);
+
+        const resolvedName =
+          metadataFullName ??
+          (professionalTitle &&
+          typeof currentUser.name === 'string' &&
+          currentUser.name.toLowerCase().startsWith(`${professionalTitle.toLowerCase()} `)
+            ? currentUser.name.slice(professionalTitle.length).trim()
+            : currentUser.name);
 
         const serviceRegions = Array.isArray(counselorProfile?.serviceRegions)
           ? counselorProfile?.serviceRegions
@@ -352,7 +389,8 @@ export default function CounselorSettingsPage() {
 
         setProfile((prev) => ({
           ...prev,
-          name: currentUser.name,
+          name: resolvedName ?? '',
+          professionalTitle,
           email: currentUser.email,
           phoneNumber:
             (typeof metadata.phoneNumber === 'string' && metadata.phoneNumber.length > 0
@@ -497,6 +535,7 @@ export default function CounselorSettingsPage() {
         setProfile(prev => ({
           ...prev,
           name: user.name || '',
+          professionalTitle: prev.professionalTitle || '',
           email: user.email || '',
           avatar_url: user.avatar || ''
         }));
@@ -553,10 +592,14 @@ export default function CounselorSettingsPage() {
         metadata: {
           resumeFileName: profile.resumeFileName,
           licenseFileName: profile.licenseFileName,
+          professionalTitle: profile.professionalTitle.trim() || undefined,
+          title: profile.professionalTitle.trim() || undefined,
         },
       };
 
       const metadata: Record<string, unknown> = {
+        professionalTitle: profile.professionalTitle.trim() || undefined,
+        title: profile.professionalTitle.trim() || undefined,
         practiceName: profile.practiceName,
         practiceLocation: profile.practiceLocation,
         serviceRegions: profile.serviceRegions,
@@ -597,6 +640,7 @@ export default function CounselorSettingsPage() {
 
       await AuthApi.updateProfile({
         fullName: profile.name,
+        professionalTitle: profile.professionalTitle.trim() || undefined,
         phoneNumber: profile.phoneNumber,
         contactPhone: profile.contactPhone,
         emergencyContactName: profile.emergencyContactName,
@@ -974,7 +1018,7 @@ export default function CounselorSettingsPage() {
                         </Button>
                       </div>
                       <div>
-                        <h2 className="text-2xl font-bold text-foreground">{profile.name || 'Counselor'}</h2>
+                        <h2 className="text-2xl font-bold text-foreground">{displayFullName}</h2>
                         <p className="text-primary font-medium">
                           {profile.practiceName || profile.specialty || 'Counselor'}
                         </p>
@@ -1032,6 +1076,15 @@ export default function CounselorSettingsPage() {
                           id="profile-name"
                           value={profile.name}
                           onChange={(event) => handleProfileChange('name', event.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="professional-title">Professional Title</Label>
+                        <Input
+                          id="professional-title"
+                          value={profile.professionalTitle}
+                          onChange={(event) => handleProfileChange('professionalTitle', event.target.value)}
+                          placeholder="e.g., Dr., Counselor, Pastor"
                         />
                       </div>
                       <div className="space-y-2">

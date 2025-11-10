@@ -89,6 +89,7 @@ export interface NavigationItem {
 export interface User {
   id: string;
   name: string;
+  title?: string;
   email: string;
   role: UserRole;
   avatar?: string;

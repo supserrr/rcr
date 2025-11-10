@@ -51,6 +51,7 @@ export interface UserProfile {
   id: string;
   email: string;
   fullName?: string;
+  professionalTitle?: string;
   role: 'patient' | 'counselor' | 'admin';
   phoneNumber?: string;
   avatar?: string;
@@ -794,10 +795,25 @@ export class AuthApi {
 
     // Transform user to User type
     const userMetadata = data.user.user_metadata || {};
+    const professionalTitleSignUp =
+      coerceStringValue(userMetadata.professionalTitle) ??
+      coerceStringValue((userMetadata as Record<string, unknown>).professional_title) ??
+      coerceStringValue(userMetadata.title);
+    const baseNameSignUp =
+      coerceStringValue(userMetadata.full_name) ??
+      coerceStringValue(userMetadata.name) ??
+      credentials.name ??
+      data.user.email ??
+      credentials.email;
+    const displayNameSignUp = professionalTitleSignUp
+      ? `${professionalTitleSignUp} ${baseNameSignUp}`.trim()
+      : baseNameSignUp;
+
     const user: User = {
       id: data.user.id,
       email: data.user.email || credentials.email,
-      name: userMetadata.full_name || credentials.name,
+      name: displayNameSignUp,
+      title: professionalTitleSignUp,
       role: (userMetadata.role as User['role']) || credentials.role,
       avatar: userMetadata.avatar_url,
       isVerified: data.user.email_confirmed_at !== null,
@@ -839,10 +855,24 @@ export class AuthApi {
 
     // Transform user to User type
     const userMetadata = data.user.user_metadata || {};
+    const professionalTitleSignIn =
+      coerceStringValue(userMetadata.professionalTitle) ??
+      coerceStringValue((userMetadata as Record<string, unknown>).professional_title) ??
+      coerceStringValue(userMetadata.title);
+    const baseNameSignIn =
+      coerceStringValue(userMetadata.full_name) ??
+      coerceStringValue(userMetadata.name) ??
+      data.user.email ??
+      '';
+    const displayNameSignIn = professionalTitleSignIn
+      ? `${professionalTitleSignIn} ${baseNameSignIn}`.trim()
+      : baseNameSignIn;
+
     const user: User = {
       id: data.user.id,
       email: data.user.email || credentials.email,
-      name: userMetadata.full_name || data.user.email || '',
+      name: displayNameSignIn,
+      title: professionalTitleSignIn,
       role: (userMetadata.role as User['role']) || 'patient',
       avatar: userMetadata.avatar_url,
       isVerified: data.user.email_confirmed_at !== null,
@@ -1066,10 +1096,23 @@ export class AuthApi {
       }
     }
 
+    const professionalTitle =
+      coerceStringValue(mergedMetadata.professionalTitle) ??
+      coerceStringValue((mergedMetadata as Record<string, unknown>).professional_title) ??
+      coerceStringValue(mergedMetadata.title);
+
+    if (professionalTitle) {
+      mergedMetadata.professionalTitle = professionalTitle;
+      mergedMetadata.professional_title = professionalTitle;
+      mergedMetadata.title = professionalTitle;
+      displayName = displayName ? `${professionalTitle} ${displayName}`.trim() : professionalTitle;
+    }
+
     const userData: User = {
       id: user.id,
       email: user.email || '',
       name: displayName,
+      title: professionalTitle ?? undefined,
       role: derivedRole,
       avatar: avatarUrl,
       isVerified: user.email_confirmed_at !== null,
@@ -1119,6 +1162,7 @@ export class AuthApi {
    */
   static async updateProfile(data: {
     fullName?: string;
+    professionalTitle?: string;
     phoneNumber?: string;
     contactPhone?: string;
     emergencyContactName?: string;
@@ -1156,6 +1200,11 @@ export class AuthApi {
 
     if (data.fullName !== undefined) {
       updateData.full_name = data.fullName;
+    }
+    if (data.professionalTitle !== undefined) {
+      updateData.professionalTitle = data.professionalTitle;
+      updateData.professional_title = data.professionalTitle;
+      updateData.title = data.professionalTitle;
     }
     if (data.phoneNumber !== undefined) {
       updateData.phone_number = data.phoneNumber;
@@ -1247,6 +1296,12 @@ export class AuthApi {
     };
 
     const sanitizedFullName = coerceStringValue(data.fullName);
+    const sanitizedProfessionalTitle =
+      coerceStringValue(data.professionalTitle) ??
+      getMetadataString('professionalTitle', 'professional_title', 'title') ??
+      coerceStringValue(userMetadata.professionalTitle) ??
+      coerceStringValue((userMetadata as Record<string, unknown>)['professional_title']) ??
+      coerceStringValue(userMetadata.title);
     const sanitizedPhoneNumber =
       coerceStringValue(data.phoneNumber) ??
       coerceStringValue(userMetadata.phone_number) ??
@@ -1308,8 +1363,12 @@ export class AuthApi {
     try {
       await syncProfileRecord(supabase, user.id, {
         fullName: sanitizedFullName,
+        metadata: {
+          ...(data.metadata ?? {}),
+          professionalTitle: sanitizedProfessionalTitle ?? undefined,
+          title: sanitizedProfessionalTitle ?? undefined,
+        },
         avatarUrl: sanitizedAvatar,
-        metadata: data.metadata,
         userMetadata,
         availability: sanitizedAvailability,
         specialty: sanitizedSpecialty,
@@ -1371,6 +1430,11 @@ export class AuthApi {
     if (sanitizedPreferredLanguage) {
       mergedMetadata.preferredLanguage = sanitizedPreferredLanguage;
       mergedMetadata.language = sanitizedPreferredLanguage;
+    }
+    if (sanitizedProfessionalTitle) {
+      mergedMetadata.professionalTitle = sanitizedProfessionalTitle;
+      mergedMetadata.professional_title = sanitizedProfessionalTitle;
+      mergedMetadata.title = sanitizedProfessionalTitle;
     }
     if (sanitizedTreatmentStage) {
       mergedMetadata.treatmentStage = sanitizedTreatmentStage;
@@ -1434,15 +1498,21 @@ export class AuthApi {
       }
     }
 
+    const baseName =
+      sanitizedFullName ||
+      coerceStringValue(userMetadata.full_name) ||
+      coerceStringValue(userMetadata.name) ||
+      user.email ||
+      '';
+    const displayName = sanitizedProfessionalTitle
+      ? `${sanitizedProfessionalTitle} ${baseName}`.trim()
+      : baseName;
+
     const userData: User = {
       id: user.id,
       email: user.email || '',
-      name:
-        sanitizedFullName ||
-        coerceStringValue(userMetadata.full_name) ||
-        coerceStringValue(userMetadata.name) ||
-        user.email ||
-        '',
+      name: displayName,
+      title: sanitizedProfessionalTitle ?? undefined,
       role: derivedRole,
       avatar: finalAvatar,
       isVerified: user.email_confirmed_at !== null,

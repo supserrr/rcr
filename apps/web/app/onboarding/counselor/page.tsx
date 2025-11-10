@@ -38,6 +38,7 @@ import { useAuth } from '@/components/auth/AuthProvider';
 import type { VisibilitySurface, VisibilitySettings, CounselorAvailabilityStatus } from '../../../lib/types';
 
 interface CounselorOnboardingData {
+  professionalTitle: string;
   practiceName: string;
   practiceLocation: string;
   serviceRegionsNote: string;
@@ -58,6 +59,7 @@ interface CounselorOnboardingData {
   highestDegree: string;
   university: string;
   graduationYear: string;
+  hasLicense: boolean;
   resumeFile: File | null;
   licenseFile: File | null;
   certificationFiles: File[];
@@ -179,6 +181,7 @@ const AVAILABILITY_OPTIONS: Array<{ value: CounselorAvailabilityStatus; label: s
 ];
 
 const createInitialFormData = (): CounselorOnboardingData => ({
+  professionalTitle: '',
   practiceName: '',
   practiceLocation: '',
   serviceRegionsNote: '',
@@ -199,6 +202,7 @@ const createInitialFormData = (): CounselorOnboardingData => ({
   highestDegree: '',
   university: '',
   graduationYear: '',
+  hasLicense: true,
   resumeFile: null,
   licenseFile: null,
   certificationFiles: [],
@@ -343,6 +347,9 @@ export default function CounselorOnboardingPage() {
   };
 
   const handleFileListChange = (files: FileList | null, key: 'resumeFile' | 'licenseFile' | 'certificationFiles') => {
+    if (!formData.hasLicense && (key === 'licenseFile' || key === 'certificationFiles')) {
+      return;
+    }
     if (!files || files.length === 0) {
       if (key === 'certificationFiles') {
         setFormData((prev) => ({ ...prev, certificationFiles: [] }));
@@ -364,6 +371,28 @@ export default function CounselorOnboardingPage() {
       ...prev,
       [key]: files[0],
     }));
+  };
+
+  const handleLicenseToggle = (value: boolean) => {
+    setFormData((prev) => {
+      if (value) {
+        return {
+          ...prev,
+          hasLicense: false,
+          licenseNumber: '',
+          issuingAuthority: '',
+          licenseJurisdiction: '',
+          licenseExpiry: '',
+          licenseFile: null,
+          certificationFiles: [],
+        };
+      }
+
+      return {
+        ...prev,
+        hasLicense: true,
+      };
+    });
   };
 
   const handleNext = async () => {
@@ -403,6 +432,8 @@ export default function CounselorOnboardingPage() {
       }
 
       const visibilitySettings = toVisibilitySettings(formData.visibility);
+      const trimmedProfessionalTitle = formData.professionalTitle.trim();
+      const hasLicense = formData.hasLicense;
 
       const counselorProfilePayload = {
         practiceName: formData.practiceName.trim() || undefined,
@@ -424,15 +455,17 @@ export default function CounselorOnboardingPage() {
         bio: formData.bio.trim() || undefined,
         yearsExperience: formData.yearsExperience ? Number.parseInt(formData.yearsExperience, 10) : undefined,
         professionalHighlights: formData.professionalHighlights,
-        licenseNumber: formData.licenseNumber.trim() || undefined,
-        licenseJurisdiction: formData.licenseJurisdiction.trim() || undefined,
-        licenseExpiry: formData.licenseExpiry || undefined,
-        certificationDocuments: formData.certificationFiles.map((file) => ({
-          name: file.name,
-          issuedAt: undefined,
-          expiresAt: undefined,
-          url: undefined,
-        })),
+        licenseNumber: hasLicense ? formData.licenseNumber.trim() || undefined : undefined,
+        licenseJurisdiction: hasLicense ? formData.licenseJurisdiction.trim() || undefined : undefined,
+        licenseExpiry: hasLicense ? formData.licenseExpiry || undefined : undefined,
+        certificationDocuments: hasLicense
+          ? formData.certificationFiles.map((file) => ({
+              name: file.name,
+              issuedAt: undefined,
+              expiresAt: undefined,
+              url: undefined,
+            }))
+          : [],
         cpdStatus: formData.cpdStatus.trim() || undefined,
         cpdRenewalDueAt: formData.cpdRenewalDueAt || undefined,
         professionalReferences: parseProfessionalReferences(formData.professionalReferencesNote),
@@ -440,13 +473,17 @@ export default function CounselorOnboardingPage() {
         emergencyContactName: formData.emergencyContactName.trim() || undefined,
         emergencyContactPhone: formData.emergencyContactPhone.trim() || undefined,
         metadata: {
+          professionalTitle: trimmedProfessionalTitle || undefined,
+          licenseProvided: hasLicense,
           certificationFileNames: formData.certificationFiles.map((file) => file.name),
           resumeFileName: formData.resumeFile?.name,
-          licenseFileName: formData.licenseFile?.name,
+          licenseFileName: hasLicense ? formData.licenseFile?.name : undefined,
         },
       };
 
       const metadata: Record<string, unknown> = {
+        professionalTitle: trimmedProfessionalTitle || undefined,
+        title: trimmedProfessionalTitle || undefined,
         practiceName: formData.practiceName,
         practiceLocation: formData.practiceLocation,
         serviceRegions: formData.serviceRegions,
@@ -458,10 +495,10 @@ export default function CounselorOnboardingPage() {
         approachSummary: formData.approachSummary,
         yearsOfExperience: formData.yearsExperience,
         professionalHighlights: formData.professionalHighlights,
-        licenseNumber: formData.licenseNumber,
-        licenseJurisdiction: formData.licenseJurisdiction,
-        licenseExpiry: formData.licenseExpiry,
-        issuingAuthority: formData.issuingAuthority,
+        licenseNumber: hasLicense ? formData.licenseNumber : undefined,
+        licenseJurisdiction: hasLicense ? formData.licenseJurisdiction : undefined,
+        licenseExpiry: hasLicense ? formData.licenseExpiry : undefined,
+        issuingAuthority: hasLicense ? formData.issuingAuthority : undefined,
         highestDegree: formData.highestDegree,
         university: formData.university,
         graduationYear: formData.graduationYear,
@@ -476,6 +513,7 @@ export default function CounselorOnboardingPage() {
         inPersonOffered: formData.inPersonOffered,
         cpdStatus: formData.cpdStatus,
         cpdRenewalDueAt: formData.cpdRenewalDueAt,
+        licenseProvided: hasLicense,
         professionalReferencesRaw: formData.professionalReferencesNote,
         motivation: formData.motivationStatement,
         emergencyContactName: formData.emergencyContactName,
@@ -486,6 +524,7 @@ export default function CounselorOnboardingPage() {
       };
 
       const updatePayload = {
+        professionalTitle: trimmedProfessionalTitle || undefined,
         contactPhone: formData.contactPhone.trim() || undefined,
         emergencyContactName: formData.emergencyContactName.trim() || undefined,
         emergencyContactPhone: formData.emergencyContactPhone.trim() || undefined,
@@ -522,36 +561,62 @@ export default function CounselorOnboardingPage() {
         </p>
       </div>
 
+      <div>
+        <label className="block text-sm font-medium text-foreground mb-2">
+          Professional Title <span className="text-muted-foreground">(optional)</span>
+        </label>
+        <Input
+          type="text"
+          placeholder="e.g., Dr., Counselor, Reverend"
+          value={formData.professionalTitle}
+          onChange={(event) => setFormData((prev) => ({ ...prev, professionalTitle: event.target.value }))}
+        />
+        <p className="mt-1 text-xs text-muted-foreground">
+          Add an honorific or role label that should appear before your name.
+        </p>
+      </div>
+
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
         <div>
-          <label className="block text-sm font-medium text-foreground mb-2">Practice or Organization Name</label>
+          <label className="block text-sm font-medium text-foreground mb-2">
+            Practice or Organization Name <span className="text-muted-foreground">(optional)</span>
+          </label>
           <Input
             type="text"
             placeholder="Rwanda Cancer Relief Counseling Center"
             value={formData.practiceName}
             onChange={(event) => setFormData((prev) => ({ ...prev, practiceName: event.target.value }))}
           />
+          <p className="mt-1 text-xs text-muted-foreground">Leave blank if you practice independently.</p>
         </div>
         <div>
-          <label className="block text-sm font-medium text-foreground mb-2">Primary Contact Phone</label>
+          <label className="block text-sm font-medium text-foreground mb-2">
+            Primary Contact Phone <span className="text-muted-foreground">(optional)</span>
+          </label>
           <Input
             type="tel"
             placeholder="e.g., +250 700 000 000"
             value={formData.contactPhone}
             onChange={(event) => setFormData((prev) => ({ ...prev, contactPhone: event.target.value }))}
           />
+          <p className="mt-1 text-xs text-muted-foreground">Shared with the Rwanda Cancer Relief team for coordination only.</p>
         </div>
         <div>
-          <label className="block text-sm font-medium text-foreground mb-2">Primary Practice Location</label>
+          <label className="block text-sm font-medium text-foreground mb-2">
+            Primary Practice Location <span className="text-muted-foreground">(optional)</span>
+          </label>
           <Input
             type="text"
             placeholder="City, facility, or telehealth"
             value={formData.practiceLocation}
             onChange={(event) => setFormData((prev) => ({ ...prev, practiceLocation: event.target.value }))}
           />
+          <p className="mt-1 text-xs text-muted-foreground">Mention where patients will typically meet you, even if remote.</p>
         </div>
         <div>
-          <label className="block text-sm font-medium text-foreground mb-2">Primary Timezone</label>
+          <label className="block text-sm font-medium text-foreground mb-2">
+            Primary Timezone <span className="text-muted-foreground">(choose the one you use most)</span>
+          </label>
           <select
             className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground"
             value={formData.primaryTimezone}
@@ -563,6 +628,7 @@ export default function CounselorOnboardingPage() {
               </option>
             ))}
           </select>
+          <p className="mt-1 text-xs text-muted-foreground">We use this to schedule sessions at the right hours.</p>
         </div>
       </div>
 
@@ -720,40 +786,66 @@ export default function CounselorOnboardingPage() {
         </p>
       </div>
 
+      <div className="flex items-start gap-3 rounded-lg border border-border bg-muted/10 p-4">
+        <Switch
+          checked={!formData.hasLicense}
+          onCheckedChange={handleLicenseToggle}
+          aria-label="Toggle license requirement"
+        />
+        <div>
+          <p className="text-sm font-medium text-foreground">I don’t have an active license yet</p>
+          <p className="text-xs text-muted-foreground">
+            If you are still in training or awaiting documentation, you can skip the license upload for now and add it later from your settings.
+          </p>
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
         <div>
-          <label className="block text-sm font-medium text-foreground mb-2">License Number</label>
+          <label className="block text-sm font-medium text-foreground mb-2">
+            License Number <span className="text-muted-foreground">(optional)</span>
+          </label>
           <Input
             type="text"
             placeholder="e.g., RCR-2025-1234"
             value={formData.licenseNumber}
             onChange={(event) => setFormData((prev) => ({ ...prev, licenseNumber: event.target.value }))}
+            disabled={!formData.hasLicense}
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-foreground mb-2">Issuing Authority</label>
+          <label className="block text-sm font-medium text-foreground mb-2">
+            Issuing Authority <span className="text-muted-foreground">(optional)</span>
+          </label>
           <Input
             type="text"
             placeholder="Rwanda Medical Council"
             value={formData.issuingAuthority}
             onChange={(event) => setFormData((prev) => ({ ...prev, issuingAuthority: event.target.value }))}
+            disabled={!formData.hasLicense}
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-foreground mb-2">License Jurisdiction</label>
+          <label className="block text-sm font-medium text-foreground mb-2">
+            License Jurisdiction <span className="text-muted-foreground">(optional)</span>
+          </label>
           <Input
             type="text"
             placeholder="Province, country, or licensing board"
             value={formData.licenseJurisdiction}
             onChange={(event) => setFormData((prev) => ({ ...prev, licenseJurisdiction: event.target.value }))}
+            disabled={!formData.hasLicense}
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-foreground mb-2">License Expiry Date</label>
+          <label className="block text-sm font-medium text-foreground mb-2">
+            License Expiry Date <span className="text-muted-foreground">(optional)</span>
+          </label>
           <Input
             type="date"
             value={formData.licenseExpiry}
             onChange={(event) => setFormData((prev) => ({ ...prev, licenseExpiry: event.target.value }))}
+            disabled={!formData.hasLicense}
           />
         </div>
       </div>
@@ -813,10 +905,18 @@ export default function CounselorOnboardingPage() {
         </div>
         <div>
           <label className="block text-sm font-medium text-foreground mb-2">Upload License (PDF/Image)</label>
-          <div className="border-2 border-dashed border-border rounded-lg p-6 text-center">
+          <div
+            className={`border-2 border-dashed rounded-lg p-6 text-center ${
+              formData.hasLicense ? 'border-border' : 'border-border/50 bg-muted/30 text-muted-foreground'
+            }`}
+          >
             <Upload className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
             <p className="text-sm text-muted-foreground mb-2">
-              {formData.licenseFile ? formData.licenseFile.name : 'Click to upload or drag and drop'}
+              {formData.hasLicense
+                ? formData.licenseFile
+                  ? formData.licenseFile.name
+                  : 'Click to upload or drag and drop'
+                : 'You can add your license later from settings.'}
             </p>
             <input
               ref={licenseFileInputRef}
@@ -826,19 +926,31 @@ export default function CounselorOnboardingPage() {
               className="hidden"
               id="license-upload"
             />
-            <Button variant="outline" size="sm" type="button" onClick={() => licenseFileInputRef.current?.click()}>
+            <Button
+              variant="outline"
+              size="sm"
+              type="button"
+              onClick={() => licenseFileInputRef.current?.click()}
+              disabled={!formData.hasLicense}
+            >
               Choose File
             </Button>
           </div>
         </div>
         <div>
           <label className="block text-sm font-medium text-foreground mb-2">Certifications (PDF/Image)</label>
-          <div className="border-2 border-dashed border-border rounded-lg p-6 text-center">
+          <div
+            className={`border-2 border-dashed rounded-lg p-6 text-center ${
+              formData.hasLicense ? 'border-border' : 'border-border/50 bg-muted/30 text-muted-foreground'
+            }`}
+          >
             <Upload className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
             <p className="text-sm text-muted-foreground mb-2">
-              {formData.certificationFiles.length > 0
-                ? `${formData.certificationFiles.length} file(s) selected`
-                : 'Click to upload or drag and drop'}
+              {formData.hasLicense
+                ? formData.certificationFiles.length > 0
+                  ? `${formData.certificationFiles.length} file(s) selected`
+                  : 'Click to upload or drag and drop'
+                : 'You can upload certifications once they are issued.'}
             </p>
             <input
               ref={certificationFileInputRef}
@@ -854,6 +966,7 @@ export default function CounselorOnboardingPage() {
               size="sm"
               type="button"
               onClick={() => certificationFileInputRef.current?.click()}
+              disabled={!formData.hasLicense}
             >
               Choose File(s)
             </Button>
@@ -1119,21 +1232,31 @@ export default function CounselorOnboardingPage() {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
         <div>
-          <label className="block text-sm font-medium text-foreground mb-2">Continuing Professional Development Status</label>
+          <label className="block text-sm font-medium text-foreground mb-2">
+            Continuing Professional Development Status <span className="text-muted-foreground">(optional)</span>
+          </label>
           <Input
             type="text"
             placeholder="e.g., Current, Renewal in progress"
             value={formData.cpdStatus}
             onChange={(event) => setFormData((prev) => ({ ...prev, cpdStatus: event.target.value }))}
           />
+          <p className="mt-1 text-xs text-muted-foreground">
+            Let us know if you are up to date or still working toward renewal.
+          </p>
         </div>
         <div>
-          <label className="block text-sm font-medium text-foreground mb-2">Next Renewal Date</label>
+          <label className="block text-sm font-medium text-foreground mb-2">
+            Next Renewal Date <span className="text-muted-foreground">(optional)</span>
+          </label>
           <Input
             type="date"
             value={formData.cpdRenewalDueAt}
             onChange={(event) => setFormData((prev) => ({ ...prev, cpdRenewalDueAt: event.target.value }))}
           />
+          <p className="mt-1 text-xs text-muted-foreground">
+            Leave blank if you do not have a scheduled CPD renewal date yet.
+          </p>
         </div>
       </div>
 

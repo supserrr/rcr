@@ -286,12 +286,19 @@ const mapAdminUserToCounselor = (user: AdminUser): CounselorProfile => {
 
   const patients = toStringArray(metadata.patients);
 
-  const name =
+  const baseName =
     toString(user.fullName) ??
     toString(metadata.full_name) ??
     toString(metadata.name) ??
     toString(user.email) ??
     'Counselor';
+  const professionalTitle =
+    toString(metadata.professionalTitle) ??
+    toString(metadata.professional_title) ??
+    toString(metadata.title);
+  const displayName = professionalTitle
+    ? `${professionalTitle} ${baseName}`.trim()
+    : baseName;
 
   const createdAt =
     toString(user.createdAt) ??
@@ -308,7 +315,7 @@ const mapAdminUserToCounselor = (user: AdminUser): CounselorProfile => {
 
   return {
     id: user.id,
-    name,
+    name: displayName,
     email,
     role: 'counselor',
     avatar,

@@ -21,6 +21,7 @@ export interface User {
   id: string
   email: string
   name: string
+  title?: string
   role: UserRole
   avatar?: string
   isVerified: boolean
@@ -309,6 +310,7 @@ export class AuthService {
 
   static async updateProfile(data: {
     fullName?: string;
+    professionalTitle?: string;
     phoneNumber?: string;
     avatar?: string;
     metadata?: Record<string, unknown>;
