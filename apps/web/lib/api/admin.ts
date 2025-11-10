@@ -410,26 +410,21 @@ export class AdminApi {
       throw new Error('Supabase is not configured. Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.');
     }
 
-    const [overviewRow, verifiedResult, unverifiedResult] = await Promise.all([
-      supabase.from('admin_metrics_overview').select('total_users,total_patients,total_counselors,total_admins,new_users_this_month,active_users_last_30_days').maybeSingle(),
+    const overview = await this.getPlatformMetrics();
+
+    const [verifiedResult, unverifiedResult] = await Promise.all([
       supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('is_verified', true),
       supabase.from('profiles').select('*', { count: 'exact', head: true }).neq('is_verified', true),
     ]);
 
-    if (overviewRow.error) {
-      throw new Error(overviewRow.error.message || 'Failed to load user overview metrics');
-    }
-
-    const overview = overviewRow.data ?? {};
-
     return {
       totals: {
-        total: Number(overview.total_users ?? 0),
-        patients: Number(overview.total_patients ?? 0),
-        counselors: Number(overview.total_counselors ?? 0),
-        admins: Number(overview.total_admins ?? 0),
-        newThisMonth: Number(overview.new_users_this_month ?? 0),
-        activeLast30Days: Number(overview.active_users_last_30_days ?? 0),
+        total: overview.totalUsers,
+        patients: overview.patientUsers,
+        counselors: overview.counselorUsers,
+        admins: overview.adminUsers,
+        newThisMonth: overview.newUsersThisMonth,
+        activeLast30Days: overview.activeUsersLast30Days,
       },
       verification: {
         verified: verifiedResult.count ?? 0,
