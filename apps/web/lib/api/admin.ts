@@ -7,6 +7,7 @@
 
 import { createClient } from '@/lib/supabase/client';
 import { NotificationService } from './notifications';
+import { getServiceClient } from '@/lib/supabase/service';
 
 declare function mapToAdminUser(raw: any): AdminUser;
 import type {
@@ -1849,19 +1850,73 @@ export class AdminApi {
       throw new Error('You must be signed in as an administrator to change approval status.');
     }
 
-    const updatedRaw = await this.invokeAdminFunction<any>(
-      supabase,
-      {
-        action: 'updateCounselorApproval',
-        counselorId,
-        approvalStatus: input.approvalStatus,
-        approvalNotes: input.approvalNotes ?? null,
-        visibilitySettings: input.visibilitySettings ?? null,
-      },
-      'updateCounselorApproval',
-    );
+    let updatedRaw: any;
 
-    const updatedCounselor = AdminApi.mapRawToAdminUser(updatedRaw);
+    try {
+      updatedRaw = await this.invokeAdminFunction<any>(
+        supabase,
+        {
+          action: 'updateCounselorApproval',
+          counselorId,
+          approvalStatus: input.approvalStatus,
+          approvalNotes: input.approvalNotes ?? null,
+          visibilitySettings: input.visibilitySettings ?? null,
+        },
+        'updateCounselorApproval',
+      );
+    } catch (error) {
+      console.warn(
+        '[AdminApi.updateCounselorApproval] Falling back to direct update path:',
+        error instanceof Error ? error.message : error,
+      );
+
+      const updatePayload: Record<string, unknown> = {
+        approval_status: input.approvalStatus,
+        approval_reviewed_at: new Date().toISOString(),
+        approval_reviewed_by: user.id,
+        approval_notes: input.approvalNotes ?? null,
+      };
+
+      if (input.visibilitySettings !== undefined) {
+        updatePayload.visibility_settings = input.visibilitySettings;
+      }
+
+      const serviceClient = getServiceClient();
+      const client = serviceClient ?? supabase;
+
+      const { data: updatedProfile, error: updateError } = await client
+        .from('profiles')
+        .update(updatePayload)
+        .eq('id', counselorId)
+        .select(
+          'id,full_name,role,is_verified,metadata,specialty,experience_years,availability,avatar_url,assigned_counselor_id,' +
+            'created_at,updated_at,visibility_settings,approval_status,approval_submitted_at,approval_reviewed_at,' +
+            'approval_notes,counselor_profiles(*)',
+        )
+        .maybeSingle();
+
+      if (updateError || !updatedProfile) {
+        throw new Error(updateError?.message || 'Failed to update counselor approval status');
+      }
+
+      const { data: documents, error: documentsError } = await client
+        .from('counselor_documents')
+        .select('*')
+        .eq('profile_id', counselorId);
+
+      if (documentsError) {
+        console.warn(
+          '[AdminApi.updateCounselorApproval] Failed to load counselor documents:',
+          documentsError,
+        );
+      }
+
+      updatedRaw = Object.assign({}, updatedProfile, {
+        counselor_documents: documents ?? [],
+      });
+    }
+
+    const updatedCounselor = mapToAdminUser(updatedRaw);
 
     const approvalMessages: Record<CounselorApprovalStatus, { title: string; message: string }> = {
       approved: {
@@ -1910,10 +1965,6 @@ export class AdminApi {
     }
 
     return updatedCounselor;
-  }
-
-  private static mapRawToAdminUser(raw: any): AdminUser {
-    return mapToAdminUser(raw);
   }
 
   private static normalizeRoleValue(value: unknown): AdminUser['role'] | undefined {
