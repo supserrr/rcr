@@ -110,9 +110,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               createdAt: new Date(supabaseUser.created_at),
               updatedAt: new Date(supabaseUser.updated_at || supabaseUser.created_at),
               metadata: userMetadata,
-              twoFactorEnabled:
-                (typeof userMetadata.two_factor_enabled === 'boolean' && userMetadata.two_factor_enabled) ||
-                false,
             };
             
             setUser(currentUser);

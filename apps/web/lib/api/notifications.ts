@@ -87,11 +87,11 @@ export interface PatientAssignmentPayload {
   patientId: string;
   counselorId: string;
   assignedBy?: string | null;
-}
+    }
 
 export interface SessionReminderPayload {
   sessionId: string;
-}
+  }
 
 export class NotificationsApi {
   static async getNotificationSummary(): Promise<NotificationSummary> {
@@ -163,7 +163,7 @@ export class NotificationsApi {
     }
     if (params?.isRead !== undefined) {
       query = query.eq('is_read', params.isRead);
-    }
+        }
 
     const limit = params?.limit ?? 50;
     const offset = params?.offset ?? 0;
@@ -181,7 +181,7 @@ export class NotificationsApi {
       .select('*', { count: 'exact', head: true })
       .eq('user_id', user.id)
       .eq('is_read', false);
-
+    
     return {
       notifications: (data ?? []).map(NotificationsApi.mapNotificationFromDb),
       total: count ?? 0,

@@ -31,7 +31,6 @@ export interface User {
   notificationPreferences?: Record<string, unknown>
   securityPreferences?: Record<string, unknown>
   supportPreferences?: Record<string, unknown>
-  twoFactorEnabled?: boolean
 }
 
 export interface AuthState {

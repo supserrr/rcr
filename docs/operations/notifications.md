@@ -15,16 +15,6 @@ The notification system powers in-app alerts for messages, patient assignments, 
 
 User notification preferences are stored in `profiles.notification_preferences` and mapped automatically when enqueuing events.
 
-## Two-Factor Authentication (2FA)
-
-- Enabling/disabling 2FA triggers the following API routes:
-  - `POST /api/account/2fa/request` – issues an email OTP code.
-  - `POST /api/account/2fa/verify` – verifies the OTP and toggles the flag.
-- Tables:
-  - `profiles.two_factor_enabled` – primary 2FA flag.
-  - `two_factor_email_codes` – hashed OTP codes with expiry metadata.
-- Environment requirements: `RESEND_API_KEY` or equivalent SMTP provider for email delivery. Without configuration, codes are logged server-side for development.
-
 ## Dispatch Workflow
 
 1. **Event ingestion**
@@ -55,12 +45,7 @@ User notification preferences are stored in `profiles.notification_preferences` 
    ```
    Expected output: enqueue status (`pending`/`scheduled`) and number of dispatched notifications.
 
-3. **2FA Verification**
-   - Navigate to `Dashboard → Settings → Security`.
-   - Enable 2FA to trigger email OTP workflow.
-   - Confirm `profiles.two_factor_enabled` flips to `true` and the OTP notification email is received.
-
-4. **Notifications Inbox**
+3. **Notifications Inbox**
    - Send a chat message between two accounts.
    - Verify the recipient sees a live in-app notification with the correct status badge and priority.
 
