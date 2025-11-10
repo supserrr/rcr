@@ -952,7 +952,11 @@ export class AdminApi {
     }
 
     if (params?.isVerified !== undefined) {
-      profileQuery = profileQuery.eq('is_verified', params.isVerified);
+      if (params.isVerified) {
+        profileQuery = profileQuery.eq('is_verified', true);
+      } else {
+        profileQuery = profileQuery.not('is_verified', 'is', true);
+      }
     }
 
     if (params?.search) {

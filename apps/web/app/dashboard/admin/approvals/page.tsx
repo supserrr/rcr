@@ -112,7 +112,7 @@ export default function AdminApprovalsPage() {
     const loadCounselors = async () => {
       try {
         setLoading(true);
-        const response = await AdminApi.listUsers({ role: 'counselor', isVerified: false });
+        const response = await AdminApi.listUsers({ role: 'counselor' });
         const pending = response.users.filter((counselor) => counselor.approvalStatus !== 'approved');
         setCounselors(pending);
       } catch (error) {
