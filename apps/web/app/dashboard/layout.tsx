@@ -28,9 +28,13 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       return;
     }
 
+    const pendingAllowedRoutes = ['/dashboard/counselor/pending', '/dashboard/counselor/settings'];
+    const isPendingAllowedRoute = pendingAllowedRoutes.some(
+      (route) => pathname === route || pathname.startsWith(`${route}/`),
+    );
     const isPendingRoute = pathname === '/dashboard/counselor/pending';
 
-    if (user.approvalStatus !== 'approved' && !isPendingRoute) {
+    if (user.approvalStatus !== 'approved' && !isPendingAllowedRoute) {
       router.replace('/dashboard/counselor/pending');
     }
 
