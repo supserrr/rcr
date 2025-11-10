@@ -687,12 +687,13 @@ export class AuthApi {
       notification_preferences?: Record<string, unknown> | null;
       security_preferences?: Record<string, unknown> | null;
       support_preferences?: Record<string, unknown> | null;
+      two_factor_enabled?: boolean | null;
     };
 
     const { data: profileRow } = await supabase
       .from('profiles')
       .select(
-      'full_name, avatar_url, metadata, specialty, experience_years, availability, phone_number, languages, preferred_language, treatment_stage, contact_phone, emergency_contact_name, emergency_contact_phone, notification_preferences, security_preferences, support_preferences',
+        'full_name, avatar_url, metadata, specialty, experience_years, availability, phone_number, languages, preferred_language, treatment_stage, contact_phone, emergency_contact_name, emergency_contact_phone, notification_preferences, security_preferences, support_preferences, two_factor_enabled',
       )
       .eq('id', user.id)
       .maybeSingle<ProfileRow>();
@@ -752,6 +753,9 @@ export class AuthApi {
       if (profileRow.support_preferences) {
         mergedMetadata.supportPreferences = profileRow.support_preferences;
       }
+      if (typeof profileRow.two_factor_enabled === 'boolean') {
+        mergedMetadata.two_factor_enabled = profileRow.two_factor_enabled;
+      }
     }
 
     const metadataAvatar =
@@ -777,6 +781,11 @@ export class AuthApi {
       }
     }
 
+    const twoFactorEnabled =
+      typeof mergedMetadata.two_factor_enabled === 'boolean'
+        ? mergedMetadata.two_factor_enabled
+        : false;
+
     const userData: User = {
       id: user.id,
       email: user.email || '',
@@ -787,6 +796,7 @@ export class AuthApi {
       createdAt: new Date(user.created_at),
       updatedAt: new Date(user.updated_at || user.created_at),
       metadata: mergedMetadata,
+      twoFactorEnabled,
     } as User & { metadata?: Record<string, unknown> };
 
     return userData;

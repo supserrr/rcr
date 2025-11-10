@@ -81,6 +81,12 @@ export default function PatientSettingsPage() {
   });
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isSendingTwoFactorCode, setIsSendingTwoFactorCode] = useState(false);
+  const [isVerifyingTwoFactorCode, setIsVerifyingTwoFactorCode] = useState(false);
+  const [twoFactorModalOpen, setTwoFactorModalOpen] = useState(false);
+  const [twoFactorAction, setTwoFactorAction] = useState<'enable' | 'disable'>('enable');
+  const [twoFactorCode, setTwoFactorCode] = useState('');
+
   const handleAvatarButtonClick = () => {
     if (isUploadingAvatar) return;
     fileInputRef.current?.click();
@@ -117,6 +123,106 @@ export default function PatientSettingsPage() {
     } finally {
       setIsUploadingAvatar(false);
       event.target.value = '';
+    }
+  };
+
+  const requestTwoFactorCode = async (action: 'enable' | 'disable') => {
+    if (!user?.id) {
+      toast.error('You must be signed in to manage two-factor authentication.');
+      return;
+    }
+
+    setTwoFactorAction(action);
+    setIsSendingTwoFactorCode(true);
+    setTwoFactorCode('');
+
+    try {
+      const response = await fetch('/api/account/2fa/request', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ action }),
+      });
+
+      const payload = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        const errorMessage =
+          payload && typeof payload.error === 'string'
+            ? payload.error
+            : 'Failed to send verification code. Please try again.';
+        throw new Error(errorMessage);
+      }
+
+      toast.success(
+        'Verification code sent. Please check your email and enter the code below.',
+      );
+      setTwoFactorModalOpen(true);
+    } catch (error) {
+      console.error('Failed to request 2FA code:', error);
+      toast.error(
+        error instanceof Error ? error.message : 'Failed to send verification code.',
+      );
+    } finally {
+      setIsSendingTwoFactorCode(false);
+    }
+  };
+
+  const handleVerifyTwoFactorCode = async () => {
+    if (twoFactorCode.trim().length === 0) {
+      toast.error('Please enter the verification code sent to your email.');
+      return;
+    }
+
+    setIsVerifyingTwoFactorCode(true);
+    try {
+      const response = await fetch('/api/account/2fa/verify', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          code: twoFactorCode.trim(),
+          action: twoFactorAction,
+        }),
+      });
+
+      const payload = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        const errorMessage =
+          payload && typeof payload.error === 'string'
+            ? payload.error
+            : 'Failed to verify the code. Please try again.';
+        throw new Error(errorMessage);
+      }
+
+      const enabled =
+        payload && typeof payload.twoFactorEnabled === 'boolean'
+          ? payload.twoFactorEnabled
+          : twoFactorAction === 'enable';
+
+      setProfile((prev) => ({
+        ...prev,
+        twoFactorEnabled: enabled,
+      }));
+
+      toast.success(
+        enabled
+          ? 'Two-factor authentication is now enabled.'
+          : 'Two-factor authentication has been disabled.',
+      );
+
+      setTwoFactorModalOpen(false);
+      setTwoFactorCode('');
+    } catch (error) {
+      console.error('Two-factor verification failed:', error);
+      toast.error(
+        error instanceof Error ? error.message : 'Failed to verify the code. Please try again.',
+      );
+    } finally {
+      setIsVerifyingTwoFactorCode(false);
     }
   };
 
@@ -157,7 +263,8 @@ export default function PatientSettingsPage() {
     preferredLanguage: '',
     timezone: 'Africa/Kigali',
     additionalLanguages: [] as string[],
-  lastSignInAt: '',
+    twoFactorEnabled: false,
+    lastSignInAt: '',
     // Onboarding data
     age: '',
     gender: '',
@@ -258,6 +365,11 @@ export default function PatientSettingsPage() {
           preferredLanguage: preferredLanguage || '',
           timezone: (typeof metadata.timezone === 'string' ? metadata.timezone : 'Africa/Kigali') || 'Africa/Kigali',
           additionalLanguages,
+          twoFactorEnabled:
+            (typeof currentUser.metadata?.two_factor_enabled === 'boolean' &&
+              currentUser.metadata.two_factor_enabled) ||
+            (typeof metadata.two_factor_enabled === 'boolean' && metadata.two_factor_enabled) ||
+            false,
           lastSignInAt:
             typeof metadata.lastSignInAt === 'string'
               ? metadata.lastSignInAt
@@ -344,7 +456,9 @@ export default function PatientSettingsPage() {
             mfaEnabled:
               securityPrefs.mfaEnabled !== undefined
                 ? Boolean(securityPrefs.mfaEnabled)
-                : prev.mfaEnabled,
+                : typeof metadata.two_factor_enabled === 'boolean'
+                  ? metadata.two_factor_enabled
+                  : prev.mfaEnabled,
             loginAlerts:
               securityPrefs.loginAlerts !== undefined
                 ? Boolean(securityPrefs.loginAlerts)
@@ -1432,17 +1546,52 @@ export default function PatientSettingsPage() {
 
                     <div className="flex items-center justify-between p-4 border border-primary/20 rounded-xl bg-gradient-to-r from-primary/5 to-transparent">
                       <div className="space-y-1">
-                        <Label className="text-base font-medium text-foreground">Two-Factor Authentication</Label>
+                        <Label className="text-base font-medium text-foreground">
+                          Email Two-Factor Authentication
+                        </Label>
                         <p className="text-sm text-muted-foreground">
-                          Require an additional verification step when signing in.
+                          {profile.twoFactorEnabled
+                            ? 'A verification code from your email is required at sign-in.'
+                            : 'Add an additional email verification step to secure your account.'}
                         </p>
                       </div>
-                      <Switch
-                        checked={securityPreferences.mfaEnabled}
-                        onCheckedChange={(checked) =>
-                          handleSecurityPreferenceChange('mfaEnabled', checked)
-                        }
-                      />
+                      {profile.twoFactorEnabled ? (
+                        <Button
+                          variant="outline"
+                          className="border-primary/20 hover:bg-primary/10"
+                          onClick={() => requestTwoFactorCode('disable')}
+                          disabled={isSendingTwoFactorCode || isVerifyingTwoFactorCode}
+                        >
+                          {isSendingTwoFactorCode && twoFactorAction === 'disable' ? (
+                            <>
+                              <Spinner variant="bars" size={16} className="text-primary mr-2" />
+                              Sending...
+                            </>
+                          ) : (
+                            <>
+                              <Shield className="h-4 w-4 mr-2" />
+                              Disable
+                            </>
+                          )}
+                        </Button>
+                      ) : (
+                        <Button
+                          onClick={() => requestTwoFactorCode('enable')}
+                          disabled={isSendingTwoFactorCode || isVerifyingTwoFactorCode}
+                        >
+                          {isSendingTwoFactorCode && twoFactorAction === 'enable' ? (
+                            <>
+                              <Spinner variant="bars" size={16} className="text-white mr-2" />
+                              Sending...
+                            </>
+                          ) : (
+                            <>
+                              <Shield className="h-4 w-4 mr-2" />
+                              Enable Email 2FA
+                            </>
+                          )}
+                        </Button>
+                      )}
                     </div>
 
                     <div className="flex items-center justify-between p-4 border border-primary/20 rounded-xl bg-gradient-to-r from-primary/5 to-transparent">
@@ -1912,6 +2061,88 @@ export default function PatientSettingsPage() {
                 <>
                   <Shield className="h-4 w-4 mr-2" />
                   Change Password
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      <Dialog
+        open={twoFactorModalOpen}
+        onOpenChange={(open) => {
+          if (!isVerifyingTwoFactorCode) {
+            setTwoFactorModalOpen(open);
+            setTwoFactorCode('');
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {twoFactorAction === 'disable'
+                ? 'Disable Two-Factor Authentication'
+                : 'Enable Two-Factor Authentication'}
+            </DialogTitle>
+            <DialogDescription className="space-y-2">
+              <p>
+                Enter the 6-digit verification code we sent to your email. The code expires in 10 minutes.
+              </p>
+              <p className="text-muted-foreground">
+                Didn&apos;t receive the email? Check your spam folder or{' '}
+                <button
+                  type="button"
+                  className="underline underline-offset-2"
+                  onClick={() => requestTwoFactorCode(twoFactorAction)}
+                  disabled={isSendingTwoFactorCode || isVerifyingTwoFactorCode}
+                >
+                  resend the code
+                </button>
+                .
+              </p>
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 pt-4">
+            <Label htmlFor="twoFactorCode">Verification Code</Label>
+            <Input
+              id="twoFactorCode"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              maxLength={6}
+              value={twoFactorCode}
+              onChange={(event) => setTwoFactorCode(event.target.value)}
+              placeholder="Enter 6-digit code"
+              className="text-center text-lg tracking-widest"
+            />
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                if (!isVerifyingTwoFactorCode) {
+                  setTwoFactorModalOpen(false);
+                  setTwoFactorCode('');
+                }
+              }}
+              disabled={isVerifyingTwoFactorCode}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleVerifyTwoFactorCode}
+              disabled={isVerifyingTwoFactorCode}
+            >
+              {isVerifyingTwoFactorCode ? (
+                <>
+                  <Spinner variant="bars" size={16} className="text-white mr-2" />
+                  Verifying...
+                </>
+              ) : (
+                <>
+                  <Shield className="h-4 w-4 mr-2" />
+                  Confirm
                 </>
               )}
             </Button>
