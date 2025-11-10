@@ -544,11 +544,14 @@ export class AdminApi {
       throw new Error('Supabase is not configured. Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.');
     }
 
+    const accessToken = await this.getAccessToken(supabase);
+
     const { data, error } = await supabase.functions.invoke('admin', {
       method: 'POST',
       body: { action: 'getUser', userId },
       headers: {
         'Content-Type': 'application/json',
+        Authorization: `Bearer ${accessToken}`,
       },
     });
 
@@ -950,6 +953,8 @@ export class AdminApi {
 
     if (currentRole === 'admin') {
       try {
+        const accessToken = await this.getAccessToken(supabase);
+
         const { data, error } = await supabase.functions.invoke('admin', {
           method: 'POST',
           body: {
@@ -962,6 +967,7 @@ export class AdminApi {
           },
           headers: {
             'Content-Type': 'application/json',
+            Authorization: `Bearer ${accessToken}`,
           },
         });
 
@@ -1071,11 +1077,14 @@ export class AdminApi {
       throw new Error('Supabase is not configured. Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.');
     }
 
+    const accessToken = await this.getAccessToken(supabase);
+
     const { data: result, error } = await supabase.functions.invoke('admin', {
       method: 'POST',
       body: { action: 'updateUserRole', userId, role: data.role },
       headers: {
         'Content-Type': 'application/json',
+        Authorization: `Bearer ${accessToken}`,
       },
     });
 
@@ -1110,11 +1119,14 @@ export class AdminApi {
       throw new Error('Supabase is not configured. Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.');
     }
 
+    const accessToken = await this.getAccessToken(supabase);
+
     const { data, error } = await supabase.functions.invoke('admin', {
       method: 'POST',
       body: { action: 'deleteUser', userId },
       headers: {
         'Content-Type': 'application/json',
+        Authorization: `Bearer ${accessToken}`,
       },
     });
 
@@ -1245,6 +1257,22 @@ export class AdminApi {
       metadata: (row.metadata as Record<string, unknown>) ?? {},
       createdAt: row.created_at as string,
     };
+  }
+
+  private static async getAccessToken(supabase: ReturnType<typeof createClient>): Promise<string> {
+    const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+
+    if (sessionError) {
+      throw new Error(sessionError.message || 'Failed to retrieve auth session.');
+    }
+
+    const accessToken = sessionData.session?.access_token;
+
+    if (!accessToken) {
+      throw new Error('You must be signed in to perform this action.');
+    }
+
+    return accessToken;
   }
 }
 
