@@ -2,7 +2,7 @@
  * React hook for managing resources
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { ResourcesApi, type Resource, type CreateResourceInput, type UpdateResourceInput, type ResourceQueryParams } from '@/lib/api/resources';
 import { ApiError } from '@/lib/api/client';
 
@@ -24,11 +24,17 @@ export function useResources(params?: ResourceQueryParams): UseResourcesReturn {
   const [error, setError] = useState<string | null>(null);
   const [total, setTotal] = useState(0);
 
+  const paramsKey = useMemo(() => JSON.stringify(params ?? null), [params]);
+
   const fetchResources = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const response = await ResourcesApi.listResources(params);
+      const effectiveParams =
+        paramsKey === 'null'
+          ? undefined
+          : (JSON.parse(paramsKey) as ResourceQueryParams);
+      const response = await ResourcesApi.listResources(effectiveParams);
       setResources(response.resources);
       setTotal(response.total);
     } catch (err) {
@@ -38,7 +44,7 @@ export function useResources(params?: ResourceQueryParams): UseResourcesReturn {
     } finally {
       setLoading(false);
     }
-  }, [params]);
+  }, [paramsKey]);
 
   useEffect(() => {
     fetchResources();

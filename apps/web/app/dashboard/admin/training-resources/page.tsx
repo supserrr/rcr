@@ -92,7 +92,15 @@ export default function AdminTrainingResourcesPage() {
   });
 
   // Load training resources (public resources)
-  const { resources, loading, createResource, updateResource, deleteResource } = useResources({ isPublic: true });
+  const {
+    resources,
+    loading,
+    error,
+    createResource,
+    updateResource,
+    deleteResource,
+    refreshResources,
+  } = useResources({ isPublic: true });
 
   // Dynamically generate categories and types from resources
   const categories = useMemo(() => {
@@ -306,6 +314,33 @@ export default function AdminTrainingResourcesPage() {
         title="Training Resources"
         description="Manage training materials for counselor development"
       />
+
+      {error ? (
+        <AnimatedCard delay={0.1}>
+          <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-destructive/10">
+                <AlertTriangle className="h-5 w-5 text-destructive" />
+              </div>
+              <div>
+                <CardTitle className="text-base sm:text-lg">Unable to load resources</CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  {error}. You can retry or add a new training resource manually.
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+              <Button variant="outline" onClick={refreshResources}>
+                Retry
+              </Button>
+              <Button onClick={() => setIsUploadModalOpen(true)}>
+                <Plus className="mr-2 h-4 w-4" />
+                Add Resource
+              </Button>
+            </div>
+          </CardHeader>
+        </AnimatedCard>
+      ) : null}
 
       {/* Stats Cards */}
       <div className="grid gap-4 md:grid-cols-4">
