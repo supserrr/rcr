@@ -52,7 +52,8 @@ import {
   GraduationCap,
   Tag,
   Calendar,
-  Award
+  Award,
+  AlertTriangle,
 } from 'lucide-react';
 import { ResourceViewerModalV2 } from '../../../../components/viewers/resource-viewer-modal-v2';
 import { Resource } from '@/lib/api/resources';
