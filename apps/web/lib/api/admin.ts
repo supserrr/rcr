@@ -7,6 +7,8 @@
 
 import { createClient } from '@/lib/supabase/client';
 import { NotificationService } from './notifications';
+
+declare function mapToAdminUser(raw: any): AdminUser;
 import type {
   VisibilitySettings,
   CounselorApprovalStatus,
@@ -1859,7 +1861,7 @@ export class AdminApi {
       'updateCounselorApproval',
     );
 
-    const updatedCounselor = mapToAdminUser(updatedRaw);
+    const updatedCounselor = AdminApi.mapRawToAdminUser(updatedRaw);
 
     const approvalMessages: Record<CounselorApprovalStatus, { title: string; message: string }> = {
       approved: {
@@ -1908,6 +1910,10 @@ export class AdminApi {
     }
 
     return updatedCounselor;
+  }
+
+  private static mapRawToAdminUser(raw: any): AdminUser {
+    return mapToAdminUser(raw);
   }
 
   private static normalizeRoleValue(value: unknown): AdminUser['role'] | undefined {
