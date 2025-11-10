@@ -5,9 +5,9 @@ import { AnimatedStatCard } from '@workspace/ui/components/animated-stat-card';
 import { AnimatedPageHeader } from '@workspace/ui/components/animated-page-header';
 import { AnimatedCard } from '@workspace/ui/components/animated-card';
 import { Card, CardContent, CardHeader, CardTitle } from '@workspace/ui/components/card';
-import { Badge } from '@workspace/ui/components/badge';
 import { Button } from '@workspace/ui/components/button';
 import { SlidingNumber } from '@workspace/ui/components/animate-ui/primitives/texts/sliding-number';
+import { Spinner } from '@workspace/ui/components/ui/shadcn-io/spinner';
 import {
   Users,
   Calendar,
@@ -21,7 +21,6 @@ import { useAuth } from '../../../components/auth/AuthProvider';
 import {
   AdminApi,
   type Analytics,
-  type SystemHealthStatus,
   type AdminActivityEntry,
 } from '../../../lib/api/admin';
 import { toast } from 'sonner';
@@ -31,56 +30,25 @@ export default function AdminDashboard() {
   const [analytics, setAnalytics] = useState<Analytics | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [systemHealth, setSystemHealth] = useState<SystemHealthStatus[]>([]);
-  const [systemHealthLoading, setSystemHealthLoading] = useState(true);
   const [activityEntries, setActivityEntries] = useState<AdminActivityEntry[]>([]);
   const [activityLoading, setActivityLoading] = useState(true);
 
-  const statsLoading = authLoading || loading || systemHealthLoading || activityLoading;
-
-  const getStatusIndicatorClass = (status: SystemHealthStatus['status']) => {
-    switch (status) {
-      case 'operational':
-        return 'bg-green-500';
-      case 'degraded':
-        return 'bg-amber-500';
-      case 'maintenance':
-        return 'bg-purple-500';
-      case 'offline':
-        return 'bg-red-500';
-      default:
-        return 'bg-gray-400';
-    }
-  };
-
-  const getSeverityBadgeClasses = (severity: SystemHealthStatus['severity']) => {
-    switch (severity) {
-      case 'critical':
-        return 'bg-red-100 text-red-800 border-red-200 dark:bg-red-900/30 dark:text-red-200';
-      case 'warning':
-        return 'bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-900/30 dark:text-amber-200';
-      default:
-        return 'bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/30 dark:text-blue-200';
-    }
-  };
+  const statsLoading = authLoading || loading || activityLoading;
 
   // Load analytics data
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
         setLoading(true);
-        setSystemHealthLoading(true);
         setActivityLoading(true);
         setError(null);
 
-        const [analyticsData, healthData, activityData] = await Promise.all([
+        const [analyticsData, activityData] = await Promise.all([
           AdminApi.getAnalytics(),
-          AdminApi.listSystemHealth(),
           AdminApi.listAdminActivity({ limit: 8 }),
         ]);
 
         setAnalytics(analyticsData);
-        setSystemHealth(healthData);
         setActivityEntries(activityData);
       } catch (err) {
         console.error('Error fetching admin dashboard data:', err);
@@ -90,7 +58,6 @@ export default function AdminDashboard() {
         toast.error(message);
       } finally {
         setLoading(false);
-        setSystemHealthLoading(false);
         setActivityLoading(false);
       }
     };
@@ -102,8 +69,11 @@ export default function AdminDashboard() {
 
   if (statsLoading) {
     return (
-      <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      <div className="flex h-64 items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <Spinner variant="bars" size={40} className="text-primary" />
+          <span className="text-sm text-muted-foreground">Loading admin insights...</span>
+        </div>
       </div>
     );
   }
@@ -127,7 +97,7 @@ export default function AdminDashboard() {
     <div className="space-y-6">
       <AnimatedPageHeader
         title="Admin Dashboard"
-        description="Overview of platform statistics and system health"
+        description="Overview of platform statistics and recent activity"
       />
 
       {/* Main Stats Cards */}
@@ -218,53 +188,7 @@ export default function AdminDashboard() {
         </AnimatedCard>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        {/* System Health */}
-        <AnimatedCard delay={0.5}>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Activity className="h-5 w-5" />
-              System Health
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {systemHealth.length > 0 ? (
-              systemHealth.map((item) => (
-                <div
-                  key={item.id}
-                  className="flex items-start justify-between gap-3 rounded-lg border border-border/40 p-3"
-                >
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <div className={`w-3 h-3 rounded-full ${getStatusIndicatorClass(item.status)}`} />
-                      <span className="text-sm font-medium capitalize">
-                        {item.component.replace(/_/g, ' ')}
-                      </span>
-                    </div>
-                    {item.summary ? (
-                      <p className="text-xs text-muted-foreground">{item.summary}</p>
-                    ) : null}
-                    <p className="text-xs text-muted-foreground">
-                      Last checked{' '}
-                      {new Date(item.lastCheckedAt).toLocaleString(undefined, {
-                        dateStyle: 'medium',
-                        timeStyle: 'short',
-                      })}
-                    </p>
-                  </div>
-                  <Badge className={`${getSeverityBadgeClasses(item.severity)} border`}>
-                    {item.status.replace(/_/g, ' ')}
-                  </Badge>
-                </div>
-              ))
-            ) : (
-              <div className="py-4 text-center text-sm text-muted-foreground">
-                No system health data available.
-              </div>
-            )}
-          </CardContent>
-        </AnimatedCard>
-
+      <div className="grid gap-6">
         {/* Recent Activity */}
         <AnimatedCard delay={0.5}>
           <CardHeader>
@@ -328,7 +252,7 @@ export default function AdminDashboard() {
             </Button>
             <Button variant="outline" className="h-20 flex flex-col items-center justify-center space-y-2">
               <Activity className="h-6 w-6" />
-              <span className="text-sm">System Logs</span>
+              <span className="text-sm">Review Activity</span>
             </Button>
           </div>
         </CardContent>
