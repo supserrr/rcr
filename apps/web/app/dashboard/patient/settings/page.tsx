@@ -653,7 +653,7 @@ export default function PatientSettingsPage() {
         priority: 'medium',
         description: '',
       });
-
+      
       setMyTickets((prev) => [ticket, ...prev]);
       toast.success('Support ticket created successfully.');
     } catch (error) {
@@ -794,7 +794,7 @@ export default function PatientSettingsPage() {
                         <Calendar className="h-4 w-4" />
                         <span>Patient since {user?.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'N/A'}</span>
                       </div>
-                  <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                      <div className="flex items-center gap-1 text-sm text-muted-foreground">
                     <Clock className="h-4 w-4" />
                     <span>
                       Last sign-in{' '}
@@ -802,7 +802,7 @@ export default function PatientSettingsPage() {
                         ? new Date(profile.lastSignInAt).toLocaleString()
                         : 'N/A'}
                     </span>
-                  </div>
+                      </div>
                     </div>
                     <Badge variant="secondary" className="mt-2 bg-primary/10 text-primary border-primary/20">
                       <UserCheck className="h-3 w-3 mr-1" />
@@ -940,7 +940,7 @@ export default function PatientSettingsPage() {
                       onValueChange={(value) => handleProfileChange('preferredLanguage', value)}
                     >
                         <SelectTrigger className="border-input focus:ring-primary/20">
-                        <SelectValue placeholder="Select language" />
+                          <SelectValue placeholder="Select language" />
                         </SelectTrigger>
                         <SelectContent>
                         <SelectItem value="kinyarwanda">Kinyarwanda</SelectItem>
@@ -1581,7 +1581,7 @@ export default function PatientSettingsPage() {
                         <div className="space-y-2">
                           <Label htmlFor="ticket-category">Category *</Label>
                           <Select 
-                          value={ticketForm.category}
+                            value={ticketForm.category} 
                           onValueChange={(value) =>
                             setTicketForm(prev => ({
                               ...prev,
@@ -1606,7 +1606,7 @@ export default function PatientSettingsPage() {
                         <div className="space-y-2">
                           <Label htmlFor="ticket-priority">Priority</Label>
                           <Select 
-                          value={ticketForm.priority}
+                            value={ticketForm.priority} 
                           onValueChange={(value) =>
                             setTicketForm(prev => ({
                               ...prev,
@@ -1722,14 +1722,14 @@ export default function PatientSettingsPage() {
                                     <span>
                                       Updated {new Date(ticket.updated_at).toLocaleDateString()}
                                     </span>
-                                  </div>
+                                </div>
                                   {ticket.resolved_at && (
                                     <div className="flex items-center gap-1 text-xs text-emerald-600">
                                       <CheckCircle className="h-3 w-3" />
                                       <span>
                                         Resolved {new Date(ticket.resolved_at).toLocaleDateString()}
                                       </span>
-                                    </div>
+                              </div>
                                   )}
                                 </div>
                                 {ticket.admin_notes && (

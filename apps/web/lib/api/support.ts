@@ -57,7 +57,7 @@ export class SupportApi {
 
     const { data, error } = await supabase
       .from('support_tickets')
-      .select('*, profile:profiles(full_name, avatar_url, metadata)')
+      .select('*, profile:profiles!support_tickets_user_id_fkey(full_name, avatar_url, metadata)')
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -78,7 +78,7 @@ export class SupportApi {
 
     const { data, error } = await supabase
       .from('support_tickets')
-      .select('*, profile:profiles(full_name, avatar_url, metadata)')
+      .select('*, profile:profiles!support_tickets_user_id_fkey(full_name, avatar_url, metadata)')
       .order('created_at', { ascending: false });
 
     if (error) {

@@ -109,10 +109,10 @@ export default function AdminSupportPage() {
       const matchesSearch =
         ticket.subject.toLowerCase().includes(searchLower) ||
         ticket.description.toLowerCase().includes(searchLower);
-      const matchesStatus = selectedStatus === 'all' || ticket.status === selectedStatus;
-      const matchesPriority = selectedPriority === 'all' || ticket.priority === selectedPriority;
-      return matchesSearch && matchesStatus && matchesPriority;
-    });
+    const matchesStatus = selectedStatus === 'all' || ticket.status === selectedStatus;
+    const matchesPriority = selectedPriority === 'all' || ticket.priority === selectedPriority;
+    return matchesSearch && matchesStatus && matchesPriority;
+  });
   }, [tickets, searchTerm, selectedStatus, selectedPriority]);
 
   const handleViewTicket = (ticket: SupportTicketWithProfile) => {
@@ -404,7 +404,7 @@ export default function AdminSupportPage() {
                   (metadata.email as string | undefined) ??
                   (metadata.contactEmail as string | undefined) ??
                   undefined;
-                return (
+              return (
                 <TableRow key={ticket.id}>
                   <TableCell>
                     <div>
@@ -603,8 +603,8 @@ export default function AdminSupportPage() {
               <div className="grid gap-4 md:grid-cols-2 border-t pt-4">
                 <div className="space-y-2">
                   <Label>Status</Label>
-                  <Select
-                    value={selectedTicket.status}
+                  <Select 
+                    value={selectedTicket.status} 
                     onValueChange={(value) => handleUpdateTicketStatus(value as SupportTicketStatus)}
                     disabled={isUpdatingStatus}
                   >
@@ -621,8 +621,8 @@ export default function AdminSupportPage() {
                 </div>
                 <div className="space-y-2">
                   <Label>Priority</Label>
-                  <Select
-                    value={selectedTicket.priority}
+                  <Select 
+                    value={selectedTicket.priority} 
                     onValueChange={(value) => handleUpdateTicketPriority(value as SupportTicketPriority)}
                     disabled={isUpdatingStatus}
                   >
