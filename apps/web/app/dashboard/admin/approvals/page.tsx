@@ -252,7 +252,7 @@ export default function AdminApprovalsPage() {
   const handleApprove = async (counselorId: string) => {
     setIsProcessing(true);
     try {
-      await AdminApi.updateCounselorApproval(counselorId, {
+      const updatedCounselor = await AdminApi.updateCounselorApproval(counselorId, {
         approvalStatus: 'approved',
       });
       toast.success('Counselor approved successfully!');
@@ -260,9 +260,7 @@ export default function AdminApprovalsPage() {
         prev.map((c) =>
           c.id === counselorId
             ? {
-                ...c,
-                approvalStatus: 'approved',
-                approvalReviewedAt: new Date().toISOString(),
+                ...updatedCounselor,
               }
             : c,
         ),
@@ -280,7 +278,7 @@ export default function AdminApprovalsPage() {
     setIsProcessing(true);
     try {
       const notes = window.prompt('Share a short note to send with the rejection (optional):', selectedCounselor?.approvalNotes ?? '') || undefined;
-      await AdminApi.updateCounselorApproval(counselorId, {
+      const updatedCounselor = await AdminApi.updateCounselorApproval(counselorId, {
         approvalStatus: 'rejected',
         approvalNotes: notes,
       });
@@ -289,10 +287,7 @@ export default function AdminApprovalsPage() {
         prev.map((c) =>
           c.id === counselorId
             ? {
-                ...c,
-                approvalStatus: 'rejected',
-                approvalNotes: notes,
-                approvalReviewedAt: new Date().toISOString(),
+                ...updatedCounselor,
               }
             : c,
         ),
@@ -322,7 +317,7 @@ export default function AdminApprovalsPage() {
 
     setIsProcessing(true);
     try {
-      await AdminApi.updateCounselorApproval(counselorId, {
+      const updatedCounselor = await AdminApi.updateCounselorApproval(counselorId, {
         approvalStatus: 'needs_more_info',
         approvalNotes: requestInfoNotes.trim() || undefined,
       });
@@ -331,10 +326,7 @@ export default function AdminApprovalsPage() {
         prev.map((c) =>
           c.id === counselorId
             ? {
-                ...c,
-                approvalStatus: 'needs_more_info',
-                approvalNotes: requestInfoNotes.trim() || undefined,
-                approvalReviewedAt: new Date().toISOString(),
+                ...updatedCounselor,
               }
             : c,
         ),

@@ -8,7 +8,12 @@
  */
 import { createClient, type SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.46.1';
 
-type AdminAction = 'listUsers' | 'getUser' | 'updateUserRole' | 'deleteUser';
+type AdminAction =
+  | 'listUsers'
+  | 'getUser'
+  | 'updateUserRole'
+  | 'deleteUser'
+  | 'updateCounselorApproval';
 
 interface BaseAdminRequest {
   action: AdminAction;
@@ -34,12 +39,25 @@ interface UpdateUserRoleRequest extends BaseAdminRequest {
   role: 'patient' | 'counselor' | 'admin';
 }
 
+interface UpdateCounselorApprovalRequest extends BaseAdminRequest {
+  action: 'updateCounselorApproval';
+  counselorId: string;
+  approvalStatus: string;
+  approvalNotes?: string | null;
+  visibilitySettings?: Record<string, unknown> | null;
+}
+
 interface DeleteUserRequest extends BaseAdminRequest {
   action: 'deleteUser';
   userId: string;
 }
 
-type AdminRequestBody = ListUsersRequest | GetUserRequest | UpdateUserRoleRequest | DeleteUserRequest;
+type AdminRequestBody =
+  | ListUsersRequest
+  | GetUserRequest
+  | UpdateUserRoleRequest
+  | DeleteUserRequest
+  | UpdateCounselorApprovalRequest;
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL');
 const supabaseServiceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
@@ -406,6 +424,80 @@ const handleUpdateUserRole = async (
   );
 };
 
+const handleUpdateCounselorApproval = async (
+  serviceClient: SupabaseClient,
+  payload: UpdateCounselorApprovalRequest,
+  reviewerId: string,
+): Promise<Response> => {
+  if (!payload.counselorId || !payload.approvalStatus) {
+    return new Response(JSON.stringify({ success: false, error: 'Invalid approval payload.' }), {
+      status: 400,
+      headers: corsHeaders,
+    });
+  }
+
+  const updatePayload: Record<string, unknown> = {
+    approval_status: payload.approvalStatus,
+    approval_reviewed_at: new Date().toISOString(),
+    approval_reviewed_by: reviewerId,
+    approval_notes: payload.approvalNotes ?? null,
+  };
+
+  if (payload.visibilitySettings !== undefined) {
+    updatePayload.visibility_settings = payload.visibilitySettings;
+  }
+
+  const { data: updatedProfile, error: updateError } = await serviceClient
+    .from('profiles')
+    .update(updatePayload)
+    .eq('id', payload.counselorId)
+    .select(
+      'id,full_name,role,is_verified,metadata,specialty,experience_years,availability,avatar_url,assigned_counselor_id,' +
+        'created_at,updated_at,visibility_settings,approval_status,approval_submitted_at,approval_reviewed_at,' +
+        'approval_notes,counselor_profiles(*)',
+    )
+    .maybeSingle();
+
+  if (updateError) {
+    return new Response(
+      JSON.stringify({
+        success: false,
+        error: updateError.message ?? 'Failed to update counselor approval status.',
+      }),
+      { status: 500, headers: corsHeaders },
+    );
+  }
+
+  if (!updatedProfile) {
+    return new Response(JSON.stringify({ success: false, error: 'Counselor not found.' }), {
+      status: 404,
+      headers: corsHeaders,
+    });
+  }
+
+  const authUser = await fetchAuthUsers(serviceClient, [payload.counselorId]);
+  const authData = authUser.get(payload.counselorId);
+
+  const { data: documents } = await serviceClient
+    .from('counselor_documents')
+    .select('*')
+    .eq('profile_id', payload.counselorId);
+
+  return new Response(
+    JSON.stringify({
+      success: true,
+      data: {
+        ...updatedProfile,
+        email: authData?.email ?? updatedProfile.metadata?.email ?? null,
+        lastLogin: authData?.last_login ?? updatedProfile.updated_at,
+        createdAt: authData?.created_at ?? updatedProfile.created_at,
+        counselor_documents: documents ?? [],
+      },
+    }),
+    { status: 200, headers: corsHeaders },
+  );
+};
+
 /**
  * Handle deleting a user account.
  *
@@ -515,6 +607,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
       return handleUpdateUserRole(serviceClient, payload);
     case 'deleteUser':
       return handleDeleteUser(serviceClient, payload);
+    case 'updateCounselorApproval':
+      return handleUpdateCounselorApproval(serviceClient, payload, user.id);
     default:
       return new Response(JSON.stringify({ success: false, error: 'Unsupported admin action.' }), {
         status: 400,

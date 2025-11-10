@@ -6,7 +6,6 @@
  */
 
 import { createClient } from '@/lib/supabase/client';
-import { getServiceClient } from '@/lib/supabase/service';
 import { NotificationService } from './notifications';
 import type {
   VisibilitySettings,
@@ -1829,7 +1828,7 @@ export class AdminApi {
       approvalNotes?: string;
       visibilitySettings?: VisibilitySettings;
     },
-  ): Promise<void> {
+  ): Promise<AdminUser> {
     const supabase = createClient();
     if (!supabase) {
       throw new Error('Supabase is not configured. Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.');
@@ -1848,31 +1847,19 @@ export class AdminApi {
       throw new Error('You must be signed in as an administrator to change approval status.');
     }
 
-    const payload: Record<string, unknown> = {
-      approval_status: input.approvalStatus,
-      approval_reviewed_at: new Date().toISOString(),
-      approval_reviewed_by: user.id,
-      approval_notes: input.approvalNotes ?? null,
-    };
+    const updatedRaw = await this.invokeAdminFunction<any>(
+      supabase,
+      {
+        action: 'updateCounselorApproval',
+        counselorId,
+        approvalStatus: input.approvalStatus,
+        approvalNotes: input.approvalNotes ?? null,
+        visibilitySettings: input.visibilitySettings ?? null,
+      },
+      'updateCounselorApproval',
+    );
 
-    if (input.visibilitySettings) {
-      payload.visibility_settings = input.visibilitySettings;
-    }
-
-    const serviceClient = getServiceClient();
-    let updateError: { message?: string } | null = null;
-
-    if (serviceClient) {
-      const { error } = await serviceClient.from('profiles').update(payload).eq('id', counselorId);
-      updateError = error;
-    } else {
-      const { error } = await supabase.from('profiles').update(payload).eq('id', counselorId);
-      updateError = error;
-    }
-
-    if (updateError) {
-      throw new Error(updateError.message || 'Failed to update counselor approval status');
-    }
+    const updatedCounselor = mapToAdminUser(updatedRaw);
 
     const approvalMessages: Record<CounselorApprovalStatus, { title: string; message: string }> = {
       approved: {
@@ -1919,6 +1906,8 @@ export class AdminApi {
     } catch (notificationError) {
       console.warn('[AdminApi.updateCounselorApproval] Failed to enqueue approval notification', notificationError);
     }
+
+    return updatedCounselor;
   }
 
   private static normalizeRoleValue(value: unknown): AdminUser['role'] | undefined {
