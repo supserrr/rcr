@@ -1197,6 +1197,7 @@ export class AuthApi {
       if (profileRow.approval_status) {
         approvalStatus = profileRow.approval_status;
         mergedMetadata.approvalStatus = profileRow.approval_status;
+        mergedMetadata.approval_status = profileRow.approval_status;
       }
       if (profileRow.approval_submitted_at) {
         approvalSubmittedAt = profileRow.approval_submitted_at;

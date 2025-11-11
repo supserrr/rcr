@@ -1947,15 +1947,15 @@ export class AdminApi {
       if (!updatedRaw) {
         try {
           const updatePayload: Record<string, unknown> = {
-            approval_status: input.approvalStatus,
-            approval_reviewed_at: new Date().toISOString(),
-            approval_reviewed_by: user.id,
-            approval_notes: input.approvalNotes ?? null,
-          };
+      approval_status: input.approvalStatus,
+      approval_reviewed_at: new Date().toISOString(),
+      approval_reviewed_by: user.id,
+      approval_notes: input.approvalNotes ?? null,
+    };
 
           if (input.visibilitySettings !== undefined) {
             updatePayload.visibility_settings = input.visibilitySettings;
-          }
+    }
 
           const serviceClient = getServiceClient();
           const client = serviceClient ?? supabase;
@@ -2004,7 +2004,7 @@ export class AdminApi {
           throw directUpdateError instanceof Error
             ? directUpdateError
             : new Error('Failed to update counselor approval status');
-        }
+    }
       }
 
       if (!updatedRaw) {
