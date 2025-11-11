@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Button } from './button';
 import { Badge } from './badge';
@@ -16,6 +16,7 @@ interface LandingStyleCounselorCardProps {
   availability?: 'available' | 'busy' | 'offline';
   experience?: number;
   availabilityStatus?: string;
+  availabilityDisplay?: string;
   services?: string[];
   onBookSession?: (id: string) => void;
   onViewProfile?: (id: string) => void;
@@ -31,6 +32,7 @@ export function LandingStyleCounselorCard({
   availability,
   experience,
   availabilityStatus,
+  availabilityDisplay,
   services,
   onBookSession,
   onViewProfile,
@@ -38,6 +40,11 @@ export function LandingStyleCounselorCard({
   className
 }: LandingStyleCounselorCardProps) {
   const [isFollowing, setIsFollowing] = useState(false);
+  const [imageFailed, setImageFailed] = useState(false);
+
+  useEffect(() => {
+    setImageFailed(false);
+  }, [avatar]);
 
   const handleFollow = () => {
     setIsFollowing(!isFollowing);
@@ -89,19 +96,34 @@ export function LandingStyleCounselorCard({
     inperson: { label: 'In-Person', icon: CircleDot },
     'in-person': { label: 'In-Person', icon: CircleDot },
   };
-  const placeholderImages: string[] = [
-    'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=400&h=400&fit=crop&auto=format&q=80',
-    'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=400&h=400&fit=crop&auto=format&q=80',
-    'https://images.unsplash.com/photo-1582750433449-648ed127bb54?w=400&h=400&fit=crop&auto=format&q=80',
-    'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=400&fit=crop&auto=format&q=80'
-  ];
+  const placeholderGradient = useMemo(() => {
+    const palette = [
+      'from-primary/25 via-background to-primary/5',
+      'from-indigo-400/30 via-background to-indigo-900/20',
+      'from-emerald-400/25 via-background to-emerald-900/20',
+      'from-amber-400/25 via-background to-amber-900/20',
+    ];
+    const hash = Math.abs(Array.from(id).reduce((acc, char) => acc + char.charCodeAt(0), 0));
+    return palette[hash % palette.length];
+  }, [id]);
+
+  const initials = useMemo(() => {
+    const letters = name
+      .split(/\s+/)
+      .map((segment) => segment[0])
+      .filter(Boolean)
+      .join('')
+      .slice(0, 2)
+      .toUpperCase();
+    return letters || 'C';
+  }, [name]);
 
   const getAvailabilityBadge = () => {
     const rawStatus = availabilityStatus ?? availability;
     if (!rawStatus) {
       return null;
     }
-
+    
     const config: Record<
       string,
       { className: string; icon: React.ComponentType<{ className?: string }>; text: string }
@@ -161,28 +183,21 @@ export function LandingStyleCounselorCard({
     }
 
     const Icon = badgeConfig.icon;
+    const label = availabilityDisplay ?? badgeConfig.text;
 
     return (
       <Badge className={`absolute top-4 right-4 ${badgeConfig.className} backdrop-blur-sm border-0 shadow-lg`}>
         <Icon className="w-3 h-3 mr-1" />
-        {badgeConfig.text}
+        {label}
       </Badge>
     );
   };
 
   const imageUrl = useMemo(() => {
     const normalized = normalizeAvatarUrl(avatar);
-    if (normalized) {
-      return normalized;
-    }
-
-    const parsedIndex = Number.isFinite(Number.parseInt(id))
-      ? Number.parseInt(id) % placeholderImages.length
-      : Math.abs(Array.from(id).reduce((acc, char) => acc + char.charCodeAt(0), 0)) % placeholderImages.length;
-
-    const fallback = placeholderImages[parsedIndex];
-    return fallback || placeholderImages[0];
-  }, [avatar, id]);
+    return normalized;
+  }, [avatar]);
+  const hasImage = Boolean(imageUrl) && !imageFailed;
 
   return (
     <motion.div
@@ -192,15 +207,20 @@ export function LandingStyleCounselorCard({
       className={cn('relative w-full h-96 rounded-3xl border border-border/20 text-card-foreground overflow-hidden shadow-xl shadow-black/5 cursor-pointer group backdrop-blur-sm dark:shadow-black/20 hover:shadow-2xl transition-all duration-300 hover:scale-105', className)}
     >
       {/* Full Cover Image */}
-      <img
-        src={imageUrl}
-        alt={name}
-        className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-        onError={(e) => {
-          // Fallback to first placeholder if image fails to load
-          e.currentTarget.src = placeholderImages[0] || '';
-        }}
-      />
+      {hasImage ? (
+        <img
+          src={imageUrl}
+          alt={name}
+          className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+          onError={() => setImageFailed(true)}
+        />
+      ) : (
+        <div
+          className={`absolute inset-0 flex items-center justify-center bg-gradient-to-br ${placeholderGradient}`}
+        >
+          <span className="text-5xl font-semibold text-primary/70 drop-shadow-sm">{initials}</span>
+        </div>
+      )}
 
       {/* Smooth Blur Overlay - Multiple layers for seamless fade */}
       <div className="absolute inset-0 bg-gradient-to-t from-sidebar/95 via-sidebar/40 via-sidebar/20 via-sidebar/10 to-transparent" />
@@ -239,7 +259,7 @@ export function LandingStyleCounselorCard({
               >
                 {Icon ? <Icon className="w-3 h-3 mr-1" /> : null}
                 {label}
-              </Badge>
+            </Badge>
             );
           })}
         </div>

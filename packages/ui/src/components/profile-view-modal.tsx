@@ -50,7 +50,22 @@ export function ProfileViewModal({
   const counselor = isCounselor ? user as Counselor : null;
   const patient = !isCounselor ? user as Patient : null;
 
-  const avatarUrl = useMemo(() => normalizeAvatarUrl(user.avatar), [user.avatar]);
+  const userMetadata = (user as any).metadata ?? {};
+  const avatarSource =
+    (user as any).avatar ??
+    (user as any).avatarUrl ??
+    (user as any).picture ??
+    userMetadata.avatar ??
+    userMetadata.avatar_url ??
+    userMetadata.picture ??
+    userMetadata.photo ??
+    userMetadata.photo_url ??
+    undefined;
+
+  const avatarUrl = useMemo(
+    () => normalizeAvatarUrl(avatarSource),
+    [avatarSource],
+  );
   const availabilityDisplayOverride =
     typeof (user as any).availabilityDisplay === 'string'
       ? ((user as any).availabilityDisplay as string)
@@ -104,10 +119,77 @@ export function ProfileViewModal({
     }
   };
 
-  const counselorAvailability =
-    availabilityDisplayOverride ??
-    formatAvailabilityStatus(rawAvailabilityStatusValue) ??
-    formatAvailabilityStatus(availabilityRawFallback);
+  const availabilityResolution = useMemo(() => {
+    const config: Record<string, { label: string; indicatorClass: string }> = {
+      available: { label: 'Available', indicatorClass: 'bg-green-500' },
+      busy: { label: 'Busy', indicatorClass: 'bg-yellow-500' },
+      limited: { label: 'Limited Spots', indicatorClass: 'bg-amber-500' },
+      waitlist: { label: 'Waitlist', indicatorClass: 'bg-orange-500' },
+      offline: { label: 'Offline', indicatorClass: 'bg-gray-500' },
+      unavailable: { label: 'Unavailable', indicatorClass: 'bg-gray-500' },
+    };
+
+    const rawCandidates = [
+      rawAvailabilityStatusValue,
+      availabilityRawFallback,
+      (counselor as unknown as { availability?: string | undefined })?.availability,
+    ];
+
+    let lookupKey: keyof typeof config = 'available';
+    let matchedRaw: string | undefined;
+
+    for (const candidate of rawCandidates) {
+      if (!candidate || typeof candidate !== 'string') {
+        continue;
+      }
+      const trimmed = candidate.trim();
+      if (trimmed.length === 0) {
+        continue;
+      }
+      const normalized = trimmed.toLowerCase();
+      const compact = normalized.replace(/[\s_-]+/g, '');
+      let mapped = compact;
+      if (compact === 'limitedspots' || compact === 'limitedavailability') {
+        mapped = 'limited';
+      } else if (compact === 'booked' || compact === 'partial') {
+        mapped = 'busy';
+      } else if (compact === 'notavailable' || compact === 'outofoffice') {
+        mapped = 'unavailable';
+      }
+      if (
+        mapped === 'available' ||
+        mapped === 'busy' ||
+        mapped === 'limited' ||
+        mapped === 'waitlist' ||
+        mapped === 'offline' ||
+        mapped === 'unavailable'
+      ) {
+        lookupKey = mapped as keyof typeof config;
+        matchedRaw = trimmed;
+        break;
+      }
+    }
+
+    const fallback = config[lookupKey] ?? config.available;
+    const label =
+      availabilityDisplayOverride ??
+      formatAvailabilityStatus(matchedRaw) ??
+      fallback?.label ??
+      'Available';
+
+    return {
+      label,
+      indicatorClass: fallback?.indicatorClass ?? 'bg-gray-500',
+    };
+  }, [
+    availabilityDisplayOverride,
+    availabilityRawFallback,
+    counselor,
+    rawAvailabilityStatusValue,
+  ]);
+
+  const counselorAvailability = availabilityResolution.label;
+  const availabilityIndicatorClass = availabilityResolution.indicatorClass;
 
   const mergeStringArrays = (...values: unknown[]): string[] | undefined => {
     const merged = new Set<string>();
@@ -140,6 +222,13 @@ export function ProfileViewModal({
       : undefined,
     (counselor as unknown as { consultationTypes?: string[] | undefined })?.consultationTypes,
   );
+
+  const counselorExperience =
+    typeof counselor?.experience === 'number' && counselor.experience > 0
+      ? counselor.experience
+      : typeof (user as any).experienceYears === 'number'
+        ? (user as any).experienceYears
+        : undefined;
 
   const formatServiceLabel = (service: string) => {
     const normalized = service.toLowerCase().replace(/\s+/g, '');
@@ -205,7 +294,7 @@ export function ProfileViewModal({
                       {user.name?.split(' ').map(n => n[0]).join('') || 'U'}
                     </AvatarFallback>
                   </Avatar>
-                  <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-green-500 rounded-full border-2 border-background flex items-center justify-center">
+                  <div className={`absolute -bottom-1 -right-1 w-6 h-6 ${availabilityIndicatorClass} rounded-full border-2 border-background flex items-center justify-center`}>
                     <div className="w-2 h-2 bg-white rounded-full" />
                   </div>
                 </div>
@@ -293,14 +382,14 @@ export function ProfileViewModal({
                 {/* Professional/Health Information */}
                 {isCounselor && counselor ? (
                   <>
-                    {typeof counselor.experience === 'number' && (
+                    {typeof counselorExperience === 'number' && (
                       <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/30">
                         <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-900/30">
                           <Clock className="h-4 w-4 text-blue-600 dark:text-blue-400" />
                         </div>
                         <div>
                           <p className="text-sm font-medium">Experience</p>
-                          <p className="text-sm text-muted-foreground">{counselor.experience} years</p>
+                          <p className="text-sm text-muted-foreground">{counselorExperience} years</p>
                         </div>
                       </div>
                     )}

@@ -29,6 +29,7 @@ import { Spinner } from '@workspace/ui/components/ui/shadcn-io/spinner';
 import type { Counselor } from '@workspace/ui/lib/types';
 import { useProfileUpdates } from '../../../../hooks/useRealtime';
 import type { RealtimeProfile } from '../../../../lib/realtime/client';
+import { normalizeAvatarUrl } from '@workspace/ui/lib/avatar';
 
 type CounselorProfile = Counselor & {
   metadata?: Record<string, unknown>;
@@ -42,6 +43,7 @@ type CounselorProfile = Counselor & {
   availabilityStatus?: CounselorAvailabilityStatus;
   rawAvailabilityStatus?: string;
   availabilityDisplay?: string;
+  experienceYears?: number;
   sessionModalities?: string[];
   consultationTypes?: string[];
   acceptingNewPatients?: boolean;
@@ -246,6 +248,8 @@ const AVATAR_KEYS = createKeySet([
   'image_url',
   'imageurl',
   'picture',
+  'google_avatar',
+  'googleavatar',
 ]);
 
 const EMAIL_KEYS = createKeySet(['email', 'contact_email', 'primary_email', 'work_email']);
@@ -286,6 +290,7 @@ const mapAdminUserToCounselor = (user: AdminUser): CounselorProfile => {
   const specialty =
     toString(user.specialty) ??
     toString(metadata['specialty']) ??
+    toStringArray(metadata['specializations'])?.[0] ??
     toStringArray(metadata['specialties'])?.[0] ??
     toStringArray(counselorProfileRecord?.specializations)?.[0] ??
     (counselorProfileFromMetadata
@@ -297,29 +302,33 @@ const mapAdminUserToCounselor = (user: AdminUser): CounselorProfile => {
   const experienceCandidates: unknown[] = [
     user.experience,
     (user as unknown as { experienceYears?: unknown }).experienceYears,
+    (user as unknown as { yearsOfExperience?: unknown }).yearsOfExperience,
     counselorProfileRecord?.yearsExperience,
     metadata['experience'],
     metadata['experienceYears'],
     metadata['experience_years'],
     metadata['years_experience'],
+    metadata['yearsOfExperience'],
+    metadata['years_of_experience'],
     counselorProfileFromMetadata?.['experience'],
     counselorProfileFromMetadata?.['experienceYears'],
+    counselorProfileFromMetadata?.['yearsExperience'],
     counselorProfileFromMetadata?.['experience_years'],
+    counselorProfileFromMetadata?.['years_of_experience'],
+    counselorProfileFromMetadata?.['yearsOfExperience'],
   ];
 
-  let experienceValue: number | undefined;
-  for (const candidate of experienceCandidates) {
-    const parsed = toNumberLoose(candidate);
-    if (parsed !== undefined) {
-      experienceValue = parsed;
-      break;
-    }
-  }
-  const experience = experienceValue ?? 0;
+  const experienceNumbers = experienceCandidates
+    .map((candidate) => toNumberLoose(candidate))
+    .filter((value): value is number => value !== undefined && Number.isFinite(value) && value >= 0);
+  const resolvedExperience = experienceNumbers.length > 0 ? Math.max(...experienceNumbers) : undefined;
+  const experience = resolvedExperience ?? 0;
 
   const availabilitySources: unknown[] = [
-    user.availabilityStatus,
     user.availability,
+    metadata['availability'],
+    counselorProfileFromMetadata?.['availability'],
+    user.availabilityStatus,
     counselorProfileRecord?.availabilityStatus,
     counselorProfileFromMetadata?.['availabilityStatus'],
     counselorProfileFromMetadata?.['availability'],
@@ -427,9 +436,10 @@ const mapAdminUserToCounselor = (user: AdminUser): CounselorProfile => {
       counselorProfileFromMetadata?.['consultation_types'],
     ) ?? undefined;
 
-  const avatar =
+  const rawAvatar =
     toString(user.avatarUrl) ??
     findStringByKeys(metadata, AVATAR_KEYS);
+  const avatar = normalizeAvatarUrl(rawAvatar);
 
   const phoneNumber =
     toString(user.phoneNumber) ??
@@ -507,6 +517,7 @@ const mapAdminUserToCounselor = (user: AdminUser): CounselorProfile => {
     availability,
     rawAvailabilityStatus,
     availabilityDisplay,
+    experienceYears: resolvedExperience,
     patients,
     metadata,
     phoneNumber,
@@ -832,6 +843,7 @@ export default function PatientCounselorsPage() {
                 counselor.availabilityStatus ??
                 counselor.availability
               }
+              availabilityDisplay={counselor.availabilityDisplay}
               experience={counselor.experience}
               services={counselor.sessionModalities ?? counselor.consultationTypes}
               onBookSession={handleBookSession}
@@ -887,6 +899,7 @@ export default function PatientCounselorsPage() {
                       counselor.availabilityStatus ??
                       counselor.availability
                     }
+                    availabilityDisplay={counselor.availabilityDisplay}
                     experience={counselor.experience}
                     services={counselor.sessionModalities ?? counselor.consultationTypes}
                     onBookSession={handleBookSession}
