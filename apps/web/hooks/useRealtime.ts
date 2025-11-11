@@ -151,6 +151,10 @@ export function useProfileUpdates(
   const filtersKey = JSON.stringify(filters ?? {});
 
   useEffect(() => {
+    if (!filters || (Array.isArray(filters.ids) && filters.ids.length === 0 && !filters.role)) {
+      return;
+    }
+
     const unsubscribe = subscribeToProfiles(filters, onUpdate, onError);
 
     return () => {

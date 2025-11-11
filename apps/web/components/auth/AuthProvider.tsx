@@ -1,9 +1,10 @@
 'use client';
 
-import React, { createContext, useContext, useEffect, useState, useMemo } from 'react';
+import React, { createContext, useContext, useEffect, useState, useMemo, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { AuthService, AuthSession, User, UserRole, getDashboardRoute, getOnboardingRoute, isOnboardingComplete, ROLES } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/client';
+import { useProfileUpdates } from '@/hooks/useRealtime';
 
 const PUBLIC_PATHS = ['/', '/about', '/contact', '/counselors', '/get-help'];
 
@@ -63,6 +64,51 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return null;
     }
   }, []);
+
+  /**
+   * Refresh the authenticated user when realtime profile updates arrive.
+   * Keeps approval status and metadata in sync without requiring manual refresh.
+   */
+  const refreshUserFromRealtime = useCallback(async () => {
+    if (!user?.id) {
+      return;
+    }
+    try {
+      const refreshedUser = await AuthService.getCurrentUser();
+      if (refreshedUser) {
+        setUser(refreshedUser);
+        AuthSession.setUser(refreshedUser);
+      }
+    } catch (error) {
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('Failed to refresh user from realtime update:', error);
+      }
+    }
+  }, [user?.id]);
+
+  /**
+   * Subscribe to realtime profile updates for the current user to enable instant UI refresh.
+   */
+  useProfileUpdates(
+    user?.id ? { ids: [user.id] } : null,
+    useCallback(
+      (profile, context) => {
+        if (!user?.id || profile.id !== user.id) {
+          return;
+        }
+        if (context.eventType === 'DELETE') {
+          return;
+        }
+        void refreshUserFromRealtime();
+      },
+      [refreshUserFromRealtime, user?.id],
+    ),
+    (error) => {
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('Profile realtime subscription error:', error);
+      }
+    },
+  );
 
   /**
    * Check authentication status from storage and verify with backend
