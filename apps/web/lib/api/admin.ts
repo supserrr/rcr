@@ -6,10 +6,8 @@
  */
 
 import { createClient } from '@/lib/supabase/client';
-import { NotificationService } from './notifications';
 import { getServiceClient } from '@/lib/supabase/service';
-
-declare function mapToAdminUser(raw: any): AdminUser;
+import { NotificationService } from './notifications';
 import type {
   VisibilitySettings,
   CounselorApprovalStatus,
@@ -280,6 +278,15 @@ export interface ListUsersResponse {
   total: number;
   limit: number;
   offset: number;
+}
+
+let mapToAdminUserRef: ((raw: any) => AdminUser) | undefined;
+
+function ensureMapToAdminUser(): (raw: any) => AdminUser {
+  if (!mapToAdminUserRef) {
+    throw new Error('mapToAdminUserRef is not initialized');
+  }
+  return mapToAdminUserRef;
 }
 
 /**
@@ -1616,6 +1623,8 @@ export class AdminApi {
     };
   }
 
+  mapToAdminUserRef = mapToAdminUser;
+
     if (currentRole === 'admin') {
       const functionPayload: Record<string, unknown> = {
             action: 'listUsers',
@@ -1645,6 +1654,7 @@ export class AdminApi {
         }>(supabase, functionPayload, 'listUsers');
 
         const usersFromResponse = Array.isArray(response.users) ? response.users : [];
+        const mapper = ensureMapToAdminUser();
 
         if (process.env.NODE_ENV !== 'production') {
           console.info(
@@ -1655,7 +1665,7 @@ export class AdminApi {
         }
 
           return {
-          users: usersFromResponse.map((u: any) => mapToAdminUser(u)),
+          users: usersFromResponse.map((u: any) => mapper(u)),
           total: response.total ?? response.count ?? usersFromResponse.length,
           limit: response.limit ?? limit,
           offset: response.offset ?? offset,
@@ -1714,9 +1724,11 @@ export class AdminApi {
       throw new Error(profilesError.message || 'Failed to list users');
     }
 
+    const mapper = ensureMapToAdminUser();
+
     return {
       users: (profiles || []).map((profile) =>
-        mapToAdminUser({
+        mapper({
           id: profile.id,
           email:
             (profile.metadata?.email as string | undefined) ||
@@ -1870,53 +1882,140 @@ export class AdminApi {
         error instanceof Error ? error.message : error,
       );
 
-      const updatePayload: Record<string, unknown> = {
-        approval_status: input.approvalStatus,
-        approval_reviewed_at: new Date().toISOString(),
-        approval_reviewed_by: user.id,
-        approval_notes: input.approvalNotes ?? null,
-      };
+      let fallbackError: unknown = null;
 
-      if (input.visibilitySettings !== undefined) {
-        updatePayload.visibility_settings = input.visibilitySettings;
+      if (!updatedRaw) {
+        try {
+          let accessTokenForFallback: string | null = null;
+          try {
+            accessTokenForFallback = await this.getAccessToken(supabase);
+          } catch (tokenError) {
+            console.warn(
+              '[AdminApi.updateCounselorApproval] Unable to retrieve access token for fallback API call:',
+              tokenError,
+            );
+          }
+
+          const fallbackRequestBody: Record<string, unknown> = {
+            counselorId,
+            approvalStatus: input.approvalStatus,
+            approvalNotes: input.approvalNotes ?? null,
+          };
+
+          if (input.visibilitySettings != null) {
+            fallbackRequestBody.visibilitySettings = input.visibilitySettings;
+          }
+
+          const fallbackResponse = await fetch('/api/admin/counselors/approval', {
+            method: 'POST',
+            credentials: 'include',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(accessTokenForFallback ? { Authorization: `Bearer ${accessTokenForFallback}` } : {}),
+            },
+            body: JSON.stringify(fallbackRequestBody),
+          });
+
+          if (!fallbackResponse.ok) {
+            let errorMessage = `Fallback approval API returned status ${fallbackResponse.status}`;
+            try {
+              const errorPayload = await fallbackResponse.json();
+              if (errorPayload?.error) {
+                errorMessage = errorPayload.error;
+              }
+            } catch (_jsonError) {
+              // Ignore JSON parse errors and use default message.
+            }
+            throw new Error(errorMessage);
+          }
+
+          const fallbackResponsePayload: { success: boolean; data?: unknown } = await fallbackResponse.json();
+          if (!fallbackResponsePayload?.success || !fallbackResponsePayload.data) {
+            throw new Error('Approval API response did not include updated data.');
+          }
+
+          updatedRaw = fallbackResponsePayload.data;
+        } catch (fallbackApiError) {
+          fallbackError = fallbackApiError;
+          console.warn(
+            '[AdminApi.updateCounselorApproval] Fallback API call failed:',
+            fallbackApiError instanceof Error ? fallbackApiError.message : fallbackApiError,
+          );
+        }
       }
 
-      const serviceClient = getServiceClient();
-      const client = serviceClient ?? supabase;
+      if (!updatedRaw) {
+        try {
+          const updatePayload: Record<string, unknown> = {
+            approval_status: input.approvalStatus,
+            approval_reviewed_at: new Date().toISOString(),
+            approval_reviewed_by: user.id,
+            approval_notes: input.approvalNotes ?? null,
+          };
 
-      const { data: updatedProfile, error: updateError } = await client
-        .from('profiles')
-        .update(updatePayload)
-        .eq('id', counselorId)
-        .select(
-          'id,full_name,role,is_verified,metadata,specialty,experience_years,availability,avatar_url,assigned_counselor_id,' +
-            'created_at,updated_at,visibility_settings,approval_status,approval_submitted_at,approval_reviewed_at,' +
-            'approval_notes,counselor_profiles(*)',
-        )
-        .maybeSingle();
+          if (input.visibilitySettings !== undefined) {
+            updatePayload.visibility_settings = input.visibilitySettings;
+          }
 
-      if (updateError || !updatedProfile) {
-        throw new Error(updateError?.message || 'Failed to update counselor approval status');
+          const serviceClient = getServiceClient();
+          const client = serviceClient ?? supabase;
+
+          const { data: updatedProfile, error: updateError } = await client
+            .from('profiles')
+            .update(updatePayload)
+            .eq('id', counselorId)
+            .select(
+              'id,full_name,role,is_verified,metadata,specialty,experience_years,availability,avatar_url,assigned_counselor_id,' +
+                'created_at,updated_at,visibility_settings,approval_status,approval_submitted_at,approval_reviewed_at,' +
+                'approval_notes,counselor_profiles(*)',
+            )
+            .maybeSingle();
+
+          if (updateError || !updatedProfile) {
+            throw updateError ?? new Error('Failed to update counselor approval status');
+          }
+
+          const { data: documents, error: documentsError } = await client
+            .from('counselor_documents')
+            .select('*')
+            .eq('profile_id', counselorId);
+
+          if (documentsError) {
+            console.warn(
+              '[AdminApi.updateCounselorApproval] Failed to load counselor documents during direct update:',
+              documentsError,
+            );
+          }
+
+          updatedRaw = Object.assign({}, updatedProfile, {
+            counselor_documents: documents ?? [],
+          });
+        } catch (directUpdateError) {
+          console.error(
+            '[AdminApi.updateCounselorApproval] Direct profile update failed:',
+            directUpdateError instanceof Error ? directUpdateError.message : directUpdateError,
+          );
+          if (fallbackError) {
+            console.error(
+              '[AdminApi.updateCounselorApproval] Fallback API error:',
+              fallbackError instanceof Error ? fallbackError.message : fallbackError,
+            );
+          }
+          throw directUpdateError instanceof Error
+            ? directUpdateError
+            : new Error('Failed to update counselor approval status');
+        }
       }
 
-      const { data: documents, error: documentsError } = await client
-        .from('counselor_documents')
-        .select('*')
-        .eq('profile_id', counselorId);
-
-      if (documentsError) {
-        console.warn(
-          '[AdminApi.updateCounselorApproval] Failed to load counselor documents:',
-          documentsError,
-        );
+      if (!updatedRaw) {
+        throw fallbackError instanceof Error
+          ? fallbackError
+          : new Error('Failed to update counselor approval status.');
       }
-
-      updatedRaw = Object.assign({}, updatedProfile, {
-        counselor_documents: documents ?? [],
-      });
     }
 
-    const updatedCounselor = mapToAdminUser(updatedRaw);
+    const mapper = ensureMapToAdminUser();
+    const updatedCounselor = mapper(updatedRaw);
 
     const approvalMessages: Record<CounselorApprovalStatus, { title: string; message: string }> = {
       approved: {
