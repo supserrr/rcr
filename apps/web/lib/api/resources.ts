@@ -323,7 +323,25 @@ export class ResourcesApi {
           detailedError = statusText;
         }
         
-        // Check if it's a 400 error
+        // Check for file size errors first (most common issue)
+        const isFileSizeError = errorMessage.includes('exceeded the maximum allowed size') ||
+                               errorMessage.includes('file too large') ||
+                               errorMessage.includes('size limit') ||
+                               errorMessage.includes('too big') ||
+                               errorMessage.includes('413') ||
+                               statusCode === '413' ||
+                               statusCode === 413 ||
+                               status === 413;
+        
+        if (isFileSizeError) {
+          const fileSizeMB = (file.size / 1024 / 1024).toFixed(2);
+          throw new Error(
+            `File too large. Your file is ${fileSizeMB}MB. The maximum allowed size is 500MB. ` +
+            `Please compress your file or choose a smaller file.`
+          );
+        }
+        
+        // Check if it's a 400 error (but not file size, already handled above)
         const is400Error = errorMessage.includes('400') || 
                           errorMessage.includes('Bad Request') || 
                           statusCode === '400' || 
@@ -337,18 +355,13 @@ export class ResourcesApi {
             `File: ${file.name}, ` +
             `Size: ${(file.size / 1024 / 1024).toFixed(2)}MB, ` +
             `Type: ${file.type || 'unknown'}, ` +
-            `Extension: ${fileExt}, ` +
-            `Path: ${filePath}. ` +
+            `Extension: ${fileExt}. ` +
             `Error: ${detailedError}. ` +
             `Please check the browser console for full error details.`
           );
         } else if (errorMessage.includes('403') || errorMessage.includes('Forbidden') || errorMessage.includes('Permission denied') || statusCode === '403' || statusCode === 403 || status === 403) {
           throw new Error(
             `Permission denied (403). Please check if you have permission to upload files to the resources bucket. Error: ${detailedError}`
-          );
-        } else if (errorMessage.includes('413') || errorMessage.includes('Payload Too Large') || errorMessage.includes('file too large') || statusCode === '413' || statusCode === 413 || status === 413) {
-          throw new Error(
-            `File too large (413). Maximum file size is 500MB. Your file is ${(file.size / 1024 / 1024).toFixed(2)}MB.`
           );
         } else if (errorMessage.includes('Bucket not found') || errorMessage.includes('bucket') || errorMessage.includes('404') || status === 404 || statusCode === 404) {
           throw new Error(

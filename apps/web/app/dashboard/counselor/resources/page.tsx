@@ -498,6 +498,19 @@ export default function CounselorResourcesPage() {
   const handleAudioFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
+      // Validate file size (100MB limit for audio)
+      const maxFileSize = 100 * 1024 * 1024; // 100MB
+      if (file.size > maxFileSize) {
+        toast.error(
+          `File size (${(file.size / 1024 / 1024).toFixed(2)}MB) exceeds the maximum allowed size of 100MB. ` +
+          `Please compress your audio or choose a smaller file.`
+        );
+        // Reset input value
+        if (event.target) {
+          event.target.value = '';
+        }
+        return;
+      }
       setUploadFormData(prev => ({
         ...prev,
         audio: {
@@ -517,6 +530,19 @@ export default function CounselorResourcesPage() {
   const handleVideoFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
+      // Validate file size (500MB limit for videos)
+      const maxFileSize = 500 * 1024 * 1024; // 500MB
+      if (file.size > maxFileSize) {
+        toast.error(
+          `File size (${(file.size / 1024 / 1024).toFixed(2)}MB) exceeds the maximum allowed size of 500MB. ` +
+          `Please compress your video or choose a smaller file.`
+        );
+        // Reset input value
+        if (event.target) {
+          event.target.value = '';
+        }
+        return;
+      }
       setUploadFormData(prev => ({
         ...prev,
         video: {
@@ -536,6 +562,19 @@ export default function CounselorResourcesPage() {
   const handlePdfFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
+      // Validate file size (50MB limit for PDFs)
+      const maxFileSize = 50 * 1024 * 1024; // 50MB
+      if (file.size > maxFileSize) {
+        toast.error(
+          `File size (${(file.size / 1024 / 1024).toFixed(2)}MB) exceeds the maximum allowed size of 50MB. ` +
+          `Please compress your PDF or choose a smaller file.`
+        );
+        // Reset input value
+        if (event.target) {
+          event.target.value = '';
+        }
+        return;
+      }
       setUploadFormData(prev => ({
         ...prev,
         pdf: {
