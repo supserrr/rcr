@@ -187,58 +187,158 @@ export class ResourcesApi {
     }
 
     // Get current user for publisher
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      throw new Error('User not authenticated');
+    const { data: { user }, error: getUserError } = await supabase.auth.getUser();
+    if (getUserError || !user) {
+      throw new Error(getUserError?.message || 'User not authenticated');
     }
 
-    // Upload file to Supabase Storage
-    const fileExt = file.name.split('.').pop();
+    // Validate file size (500MB limit)
+    const maxFileSize = 500 * 1024 * 1024; // 500MB
+    if (file.size > maxFileSize) {
+      throw new Error(`File size (${(file.size / 1024 / 1024).toFixed(2)}MB) exceeds the maximum allowed size of 500MB`);
+    }
+
+    // Get file extension and validate
+    const fileExt = file.name.split('.').pop()?.toLowerCase();
+    if (!fileExt) {
+      throw new Error('File must have an extension');
+    }
+
+    // Determine content type based on file type
+    const getContentType = (fileType: ResourceType, extension: string): string => {
+      switch (fileType) {
+        case 'audio':
+          const audioTypes: Record<string, string> = {
+            mp3: 'audio/mpeg',
+            wav: 'audio/wav',
+            m4a: 'audio/mp4',
+            aac: 'audio/aac',
+            ogg: 'audio/ogg',
+            flac: 'audio/flac',
+          };
+          return audioTypes[extension] || 'audio/mpeg';
+        case 'video':
+          const videoTypes: Record<string, string> = {
+            mp4: 'video/mp4',
+            mov: 'video/quicktime',
+            avi: 'video/x-msvideo',
+            mkv: 'video/x-matroska',
+            webm: 'video/webm',
+            flv: 'video/x-flv',
+          };
+          return videoTypes[extension] || 'video/mp4';
+        case 'pdf':
+          return 'application/pdf';
+        default:
+          return file.type || 'application/octet-stream';
+      }
+    };
+
+    const contentType = getContentType(data.type, fileExt);
+
+    // Generate file path - use simple structure like avatars bucket
     const fileName = `${user.id}-${Date.now()}.${fileExt}`;
-    const filePath = `resources/${fileName}`;
+    // Use simple path: just the filename (bucket handles organization)
+    const filePath = fileName;
 
-    const { data: uploadData, error: uploadError } = await supabase.storage
-      .from('resources')
-      .upload(filePath, file, {
-        cacheControl: '3600',
-        upsert: false,
-      });
+    try {
+      // Upload file to Supabase Storage
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('resources')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false,
+          contentType: contentType,
+        });
 
-    if (uploadError) {
-      throw new Error(uploadError.message || 'Failed to upload file');
+      if (uploadError) {
+        const errorMessage = uploadError.message || 'Unknown error';
+        const errorString = String(uploadError);
+        
+        console.error('Supabase storage upload error:', {
+          message: errorMessage,
+          error: uploadError,
+          errorString,
+          filePath,
+          fileSize: file.size,
+          contentType,
+          fileType: data.type,
+          bucket: 'resources',
+        });
+        
+        // Provide more helpful error messages based on error content
+        if (errorMessage.includes('400') || errorMessage.includes('Bad Request')) {
+          throw new Error(
+            `Invalid file upload request. Please check: (1) The file format is correct, (2) File size is under 500MB, (3) The resources storage bucket exists and is configured correctly. Original error: ${errorMessage}`
+          );
+        } else if (errorMessage.includes('403') || errorMessage.includes('Forbidden') || errorMessage.includes('Permission denied')) {
+          throw new Error(
+            `Permission denied. Please check if you have permission to upload files to the resources bucket. Original error: ${errorMessage}`
+          );
+        } else if (errorMessage.includes('413') || errorMessage.includes('Payload Too Large') || errorMessage.includes('file too large')) {
+          throw new Error(
+            `File too large. Maximum file size is 500MB. Your file is ${(file.size / 1024 / 1024).toFixed(2)}MB.`
+          );
+        } else if (errorMessage.includes('Bucket not found') || errorMessage.includes('bucket')) {
+          throw new Error(
+            `Storage bucket 'resources' not found. Please create the resources bucket in Supabase Storage. Original error: ${errorMessage}`
+          );
+        } else {
+          throw new Error(
+            `Failed to upload file: ${errorMessage}. Please check the browser console for more details.`
+          );
+        }
+      }
+
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('resources')
+        .getPublicUrl(filePath);
+
+      if (!publicUrl) {
+        // Clean up uploaded file if URL generation fails
+        await supabase.storage.from('resources').remove([filePath]).catch(() => undefined);
+        throw new Error('Failed to generate public URL for uploaded file');
+      }
+
+      // Create resource with file URL
+      const { data: resource, error: insertError } = await supabase
+        .from('resources')
+        .insert({
+          title: data.title,
+          description: data.description,
+          type: data.type,
+          url: publicUrl,
+          thumbnail: data.thumbnail,
+          tags: data.tags,
+          is_public: data.isPublic ?? true,
+          publisher: user.id,
+          youtube_url: data.youtubeUrl,
+          content: data.content,
+          category: data.category,
+          views: 0,
+          downloads: 0,
+        })
+        .select()
+        .single();
+
+      if (insertError) {
+        // Clean up uploaded file if database insert fails
+        await supabase.storage.from('resources').remove([filePath]).catch(() => undefined);
+        console.error('Failed to create resource record:', insertError);
+        throw new Error(insertError.message || 'Failed to create resource record');
+      }
+
+      return this.mapResourceFromDb(resource);
+    } catch (error) {
+      // Re-throw if it's already our custom error
+      if (error instanceof Error) {
+        throw error;
+      }
+      // Otherwise wrap in a generic error
+      console.error('Unexpected error during resource upload:', error);
+      throw new Error('Failed to upload resource');
     }
-
-    // Get public URL
-    const { data: { publicUrl } } = supabase.storage
-      .from('resources')
-      .getPublicUrl(filePath);
-
-    // Create resource with file URL
-    const { data: resource, error } = await supabase
-      .from('resources')
-      .insert({
-        title: data.title,
-        description: data.description,
-        type: data.type,
-        url: publicUrl,
-        thumbnail: data.thumbnail,
-        tags: data.tags,
-        is_public: data.isPublic ?? true,
-        publisher: user.id,
-        youtube_url: data.youtubeUrl,
-        content: data.content,
-        category: data.category,
-        views: 0,
-        downloads: 0,
-      })
-      .select()
-      .single();
-
-    if (error) {
-      throw new Error(error.message || 'Failed to create resource');
-    }
-
-    return this.mapResourceFromDb(resource);
   }
 
   /**

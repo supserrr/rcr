@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { AnimatedPageHeader } from '@workspace/ui/components/animated-page-header';
 import { AnimatedCard } from '@workspace/ui/components/animated-card';
 import { Button } from '@workspace/ui/components/button';
@@ -54,6 +54,7 @@ import {
   Calendar,
   Award,
   AlertTriangle,
+  X,
 } from 'lucide-react';
 import { ResourceViewerModalV2 } from '../../../../components/viewers/resource-viewer-modal-v2';
 import { Resource } from '@/lib/api/resources';
@@ -80,6 +81,10 @@ export default function AdminTrainingResourcesPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
 
+  // File input ref
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+
   const [uploadForm, setUploadForm] = useState({
     title: '',
     description: '',
@@ -98,6 +103,7 @@ export default function AdminTrainingResourcesPage() {
     loading,
     error,
     createResource,
+    createResourceWithFile,
     updateResource,
     deleteResource,
     refreshResources,
@@ -184,32 +190,120 @@ export default function AdminTrainingResourcesPage() {
     };
   };
 
+  // Map training resource types to API resource types
+  const mapTrainingTypeToResourceType = (type: string): 'audio' | 'pdf' | 'video' | 'article' => {
+    switch (type) {
+      case 'video':
+        return 'video';
+      case 'document':
+      case 'presentation':
+        return 'pdf';
+      case 'course':
+      case 'workshop':
+        return 'article';
+      default:
+        return 'article';
+    }
+  };
+
+  // Get accept attribute based on resource type
+  const getAcceptAttribute = (type: string): string => {
+    switch (type) {
+      case 'video':
+        return 'video/*,.mp4,.mov,.avi,.mkv,.webm';
+      case 'document':
+      case 'presentation':
+        return '.pdf,.doc,.docx,.ppt,.pptx';
+      case 'course':
+      case 'workshop':
+        return '.pdf,.doc,.docx';
+      default:
+        return '*';
+    }
+  };
+
+  // Handle file selection
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      // Validate file size (100MB limit for training resources)
+      const maxFileSize = 100 * 1024 * 1024; // 100MB
+      if (file.size > maxFileSize) {
+        toast.error(`File size (${(file.size / 1024 / 1024).toFixed(2)}MB) exceeds the maximum allowed size of 100MB`);
+        return;
+      }
+      setSelectedFile(file);
+      toast.success('File selected');
+      // Auto-fill title if empty
+      if (!uploadForm.title) {
+        const fileName = file.name.replace(/\.[^/.]+$/, '');
+        setUploadForm(prev => ({ ...prev, title: fileName }));
+      }
+    }
+    // Reset input value to allow selecting the same file again
+    if (event.target) {
+      event.target.value = '';
+    }
+  };
+
+  // Handle file input click
+  const handleChooseFile = () => {
+    fileInputRef.current?.click();
+  };
+
   const handleUpload = async () => {
+    if (!uploadForm.title || !uploadForm.description) {
+      toast.error('Please fill in all required fields');
+      return;
+    }
+
+    // For new resources, require a file unless it's an article type
+    if (!isEditing && !selectedFile && uploadForm.type !== 'course' && uploadForm.type !== 'workshop') {
+      toast.error('Please select a file to upload');
+      return;
+    }
+
     setIsUploading(true);
     try {
+      const tagsArray = uploadForm.tags.split(',').map(t => t.trim()).filter(Boolean);
+      
       if (isEditing && editingResource) {
+        // Update existing resource
         await updateResource(editingResource.id, {
           title: uploadForm.title,
           description: uploadForm.description,
-          type: uploadForm.type as any,
-          tags: uploadForm.tags.split(',').map(t => t.trim()).filter(Boolean),
+          type: mapTrainingTypeToResourceType(uploadForm.type),
+          tags: tagsArray,
+          category: uploadForm.category,
         });
         toast.success('Training resource updated successfully!');
       } else {
-        await createResource({
+        // Create new resource
+        const resourceData = {
           title: uploadForm.title,
           description: uploadForm.description,
-          type: uploadForm.type as any,
-          tags: uploadForm.tags.split(',').map(t => t.trim()).filter(Boolean),
+          type: mapTrainingTypeToResourceType(uploadForm.type),
+          tags: tagsArray,
           isPublic: true,
-        });
-        toast.success('Training resource uploaded successfully!');
+          category: uploadForm.category,
+        };
+
+        if (selectedFile) {
+          // Upload with file
+          await createResourceWithFile(selectedFile, resourceData);
+          toast.success('Training resource uploaded successfully!');
+        } else {
+          // Create without file (for articles/courses)
+          await createResource(resourceData);
+          toast.success('Training resource created successfully!');
+        }
       }
       setIsUploadModalOpen(false);
       resetForm();
+      setSelectedFile(null);
     } catch (error) {
       console.error('Error uploading resource:', error);
-      toast.error('Failed to upload resource. Please try again.');
+      toast.error(error instanceof Error ? error.message : 'Failed to upload resource. Please try again.');
     } finally {
       setIsUploading(false);
     }
@@ -295,6 +389,7 @@ export default function AdminTrainingResourcesPage() {
     });
     setIsEditing(false);
     setEditingResource(null);
+    setSelectedFile(null);
   };
 
   const getTypeIcon = (type: string) => {
@@ -757,6 +852,15 @@ export default function AdminTrainingResourcesPage() {
               />
             </div>
 
+            {/* Hidden file input */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept={getAcceptAttribute(uploadForm.type)}
+              onChange={handleFileChange}
+              className="hidden"
+            />
+
             <div className="grid gap-4 md:grid-cols-3">
               <div className="space-y-2">
                 <label className="text-sm font-medium">Type *</label>
@@ -825,18 +929,88 @@ export default function AdminTrainingResourcesPage() {
               />
             </div>
 
-            <div className="space-y-2">
-              <label className="text-sm font-medium">File Upload *</label>
-              <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-6 text-center">
-                <Upload className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
-                <p className="text-sm text-muted-foreground mb-2">
-                  Click to upload or drag and drop
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  PDF, DOC, MP4, PPT files up to 100MB
-                </p>
+            {(uploadForm.type === 'video' || uploadForm.type === 'document' || uploadForm.type === 'presentation') && (
+              <div className="space-y-2">
+                <label className="text-sm font-medium">
+                  File Upload {!isEditing ? '*' : ''}
+                </label>
+                {selectedFile && (
+                  <div className="mb-3 p-3 bg-primary/10 rounded-lg">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-primary">
+                          {selectedFile.name}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
+                        </p>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setSelectedFile(null)}
+                        className="h-8 w-8 p-0"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                )}
+                <div 
+                  className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-6 text-center cursor-pointer hover:border-primary/50 transition-colors"
+                  onClick={handleChooseFile}
+                >
+                  <Upload className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+                  <p className="text-sm text-muted-foreground mb-2">
+                    {selectedFile ? 'Click to change file' : 'Click to upload or drag and drop'}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {uploadForm.type === 'video' 
+                      ? 'MP4, MOV, AVI, MKV files up to 100MB'
+                      : 'PDF, DOC, DOCX, PPT, PPTX files up to 100MB'}
+                  </p>
+                </div>
               </div>
-            </div>
+            )}
+
+            {(uploadForm.type === 'course' || uploadForm.type === 'workshop') && (
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Content</label>
+                <Textarea
+                  placeholder="Enter course/workshop content or description"
+                  value={uploadForm.description}
+                  onChange={(e) => setUploadForm({...uploadForm, description: e.target.value})}
+                  rows={6}
+                />
+                <p className="text-xs text-muted-foreground">
+                  For courses and workshops, you can enter content directly or upload a document.
+                </p>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleChooseFile}
+                    type="button"
+                  >
+                    <Upload className="h-4 w-4 mr-2" />
+                    Upload Document (Optional)
+                  </Button>
+                  {selectedFile && (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <span>{selectedFile.name}</span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setSelectedFile(null)}
+                        className="h-6 w-6 p-0"
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
 
           <DialogFooter className="gap-2">
