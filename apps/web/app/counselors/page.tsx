@@ -16,6 +16,8 @@ import { Spinner } from '@workspace/ui/components/ui/shadcn-io/spinner';
 import { toast } from 'sonner';
 import { useProfileUpdates } from '@/hooks/useRealtime';
 import type { RealtimeProfile } from '@/lib/realtime/client';
+import { normalizeAvatarUrl } from '@workspace/ui/lib/avatar';
+import type { CounselorProfileRecord } from '@/lib/types';
 
 /**
  * Counselor profile data structure
@@ -29,123 +31,395 @@ interface Counselor {
   experienceYears?: number | null;
   reviews: number;
   availability: 'available' | 'busy' | 'offline';
+  availabilityStatus?: string;
+  availabilityDisplay?: string;
   photo?: string;
   bio: string;
   education: string;
   certifications: string[];
   consultationTypes: ('chat' | 'video' | 'phone')[];
+  completedSessions?: number;
 }
 
-const toStringArray = (value: unknown): string[] => {
-  if (Array.isArray(value)) {
-    return value.filter((item): item is string => typeof item === 'string').map((item) => item.trim()).filter(Boolean);
-  }
-
+const toString = (value: unknown): string | undefined => {
   if (typeof value === 'string') {
     const trimmed = value.trim();
-    if (!trimmed) {
-      return [];
-    }
-    return trimmed.split(',').map((item) => item.trim()).filter(Boolean);
+    return trimmed.length > 0 ? trimmed : undefined;
   }
-
-  return [];
+  return undefined;
 };
 
-const sanitizeAvailability = (
-  value?: string | null,
-): 'available' | 'busy' | 'offline' => {
-  if (value === 'busy' || value === 'offline') {
+const toNumberLoose = (value: unknown): number | undefined => {
+  if (typeof value === 'number' && Number.isFinite(value)) {
     return value;
   }
-  return 'available';
+  if (typeof value === 'string') {
+    const match = value.match(/-?\d+(\.\d+)?/);
+    if (match) {
+      const parsed = Number.parseFloat(match[0]);
+      if (!Number.isNaN(parsed)) {
+        return parsed;
+      }
+    }
+  }
+  return undefined;
 };
 
+const toStringArray = (value: unknown): string[] | undefined => {
+  if (Array.isArray(value)) {
+    const normalized = value
+      .filter((item): item is string => typeof item === 'string')
+      .map((item) => item.trim())
+      .filter((item) => item.length > 0);
+    return normalized.length > 0 ? normalized : undefined;
+  }
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? [trimmed] : undefined;
+  }
+  return undefined;
+};
+
+const mergeStringArrays = (...values: unknown[]): string[] | undefined => {
+  const merged = new Set<string>();
+  values.forEach((value) => {
+    const array = toStringArray(value);
+    if (array) {
+      array.forEach((item) => {
+        const normalized = item.trim();
+        if (normalized.length > 0) {
+          merged.add(normalized);
+        }
+      });
+    }
+  });
+  return merged.size > 0 ? Array.from(merged) : undefined;
+};
+
+const createKeySet = (keys: string[]): Set<string> =>
+  new Set(keys.map((key) => key.toLowerCase()));
+
+const extractStringCandidate = (value: unknown): string | undefined => {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value.toString();
+  }
+
+  const direct = toString(value);
+  if (direct) {
+    return direct;
+  }
+
+  if (value && typeof value === 'object') {
+    const source = value as Record<string, unknown>;
+    return (
+      toString(source.url) ??
+      toString(source.href) ??
+      toString(source.value) ??
+      (typeof source.text === 'string' ? source.text.trim() : undefined)
+    );
+  }
+
+  return undefined;
+};
+
+const findStringByKeys = (
+  subject: unknown,
+  keys: Set<string>,
+  visited: WeakSet<object> = new WeakSet(),
+): string | undefined => {
+  if (Array.isArray(subject)) {
+    for (const item of subject) {
+      const nested = findStringByKeys(item, keys, visited);
+      if (nested) {
+        return nested;
+      }
+    }
+    return undefined;
+  }
+
+  if (!subject || typeof subject !== 'object') {
+    return undefined;
+  }
+
+  const obj = subject as Record<string, unknown>;
+  if (visited.has(obj)) {
+    return undefined;
+  }
+  visited.add(obj);
+
+  for (const [rawKey, rawValue] of Object.entries(obj)) {
+    const normalizedKey = rawKey.toLowerCase();
+    if (keys.has(normalizedKey)) {
+      const candidate = extractStringCandidate(rawValue);
+      if (candidate) {
+        return candidate;
+      }
+    }
+    const nested = findStringByKeys(rawValue, keys, visited);
+    if (nested) {
+      return nested;
+    }
+  }
+
+  return undefined;
+};
+
+const AVATAR_KEYS = createKeySet([
+  'avatar',
+  'avatar_url',
+  'avatarurl',
+  'profileimage',
+  'profile_image',
+  'profile_image_url',
+  'profilepicture',
+  'profile_picture',
+  'photo',
+  'photo_url',
+  'photoUrl',
+  'image',
+  'image_url',
+  'imageurl',
+  'picture',
+  'google_avatar',
+  'googleavatar',
+]);
+
+const BIO_KEYS = createKeySet(['bio', 'about', 'description', 'summary', 'profile_bio']);
+
 const adminUserToLandingCounselor = (user: AdminUser): Counselor | null => {
+  // Only show approved counselors on public page
+  if (user.approvalStatus && user.approvalStatus !== 'approved') {
+    return null;
+  }
+  
+  // Respect visibility settings if set
   if (user.visibilitySettings && user.visibilitySettings.publicLanding === false) {
     return null;
   }
 
   const metadata = (user.metadata ?? {}) as Record<string, unknown>;
+  const rawMetadataCounselorProfile =
+    (metadata['counselorProfile'] as unknown) ?? metadata['counselor_profile'];
+  const counselorProfileFromMetadata =
+    rawMetadataCounselorProfile && typeof rawMetadataCounselorProfile === 'object'
+      ? (rawMetadataCounselorProfile as Record<string, unknown>)
+      : undefined;
+  const counselorProfileRecord = user.counselorProfile ?? undefined;
 
-  const name =
-    typeof user.fullName === 'string' && user.fullName.trim().length > 0
-      ? user.fullName
-      : typeof metadata.full_name === 'string' && metadata.full_name.trim().length > 0
-      ? metadata.full_name
-      : user.email || 'Counselor';
+  const specialty =
+    toString(user.specialty) ??
+    toString(metadata['specialty']) ??
+    toStringArray(metadata['specializations'])?.[0] ??
+    toStringArray(metadata['specialties'])?.[0] ??
+    toStringArray(counselorProfileRecord?.specializations)?.[0] ??
+    (counselorProfileFromMetadata
+      ? toStringArray(counselorProfileFromMetadata['specializations'])?.[0]
+      : undefined) ??
+    toString(metadata['expertise']) ??
+    'General Counseling';
 
-  const title =
-    (typeof metadata.title === 'string' && metadata.title.trim().length > 0
-      ? metadata.title
-      : typeof user.specialty === 'string' && user.specialty.trim().length > 0
-      ? user.specialty
-      : 'Counselor');
+  const experienceCandidates: unknown[] = [
+    user.experience,
+    (user as unknown as { experienceYears?: unknown }).experienceYears,
+    counselorProfileRecord?.yearsExperience,
+    metadata['experience'],
+    metadata['experienceYears'],
+    metadata['experience_years'],
+    metadata['years_experience'],
+    metadata['yearsOfExperience'],
+    metadata['years_of_experience'],
+    counselorProfileFromMetadata?.['experience'],
+    counselorProfileFromMetadata?.['experienceYears'],
+    counselorProfileFromMetadata?.['yearsExperience'],
+    counselorProfileFromMetadata?.['experience_years'],
+    counselorProfileFromMetadata?.['years_of_experience'],
+    counselorProfileFromMetadata?.['yearsOfExperience'],
+  ];
+
+  const experienceNumbers = experienceCandidates
+    .map((candidate) => toNumberLoose(candidate))
+    .filter((value): value is number => value !== undefined && Number.isFinite(value) && value >= 0);
+  const resolvedExperience = experienceNumbers.length > 0 ? Math.max(...experienceNumbers) : undefined;
+  const experienceYears = resolvedExperience ?? undefined;
+
+  const availabilitySources: unknown[] = [
+    user.availability,
+    metadata['availability'],
+    counselorProfileFromMetadata?.['availability'],
+    user.availabilityStatus,
+    counselorProfileRecord?.availabilityStatus,
+    counselorProfileFromMetadata?.['availabilityStatus'],
+    metadata['availabilityStatus'],
+    metadata['availability_status'],
+    metadata['status'],
+    metadata['currentAvailability'],
+  ];
+
+  const availabilityDisplayMap: Record<string, string> = {
+    available: 'Available',
+    busy: 'Busy',
+    limited: 'Limited Spots',
+    waitlist: 'Waitlist',
+    offline: 'Offline',
+    unavailable: 'Unavailable',
+  };
+
+  let availabilityKey = 'available';
+
+  for (const source of availabilitySources) {
+    const str = toString(source);
+    if (!str) {
+      continue;
+    }
+    const normalized = str.trim().toLowerCase();
+    const compact = normalized.replace(/[\s_-]+/g, '');
+    let mapped = compact;
+    if (compact === 'limitedspots' || compact === 'limitedavailability') {
+      mapped = 'limited';
+    } else if (compact === 'booked' || compact === 'partial') {
+      mapped = 'busy';
+    } else if (compact === 'notavailable' || compact === 'outofoffice') {
+      mapped = 'unavailable';
+    } else if (compact === 'away' || compact === 'inactive') {
+      mapped = 'unavailable';
+    }
+
+    if (
+      ['available', 'busy', 'limited', 'waitlist', 'offline', 'unavailable'].includes(mapped)
+    ) {
+      availabilityKey = mapped;
+      break;
+    }
+  }
+
+  const availabilityDisplay =
+    availabilityDisplayMap[availabilityKey] ?? availabilityDisplayMap.available;
+
+  let availability: 'available' | 'busy' | 'offline';
+  if (availabilityKey === 'offline' || availabilityKey === 'unavailable') {
+    availability = 'offline';
+  } else if (availabilityKey === 'busy' || availabilityKey === 'limited' || availabilityKey === 'waitlist') {
+    availability = 'busy';
+  } else {
+    availability = 'available';
+  }
+
+  const sessionModalities =
+    mergeStringArrays(
+      user.sessionModalities,
+      user.consultationTypes,
+      counselorProfileRecord?.sessionModalities,
+      metadata['sessionModalities'],
+      metadata['session_modalities'],
+      metadata['consultationTypes'],
+      metadata['consultation_types'],
+      metadata['modalities'],
+      counselorProfileFromMetadata?.['sessionModalities'],
+      counselorProfileFromMetadata?.['session_modalities'],
+      counselorProfileFromMetadata?.['consultationTypes'],
+      counselorProfileFromMetadata?.['consultation_types'],
+    ) ?? undefined;
+
+  const consultationTypesRaw = sessionModalities ?? user.consultationTypes ?? metadata['consultationTypes'] ?? metadata['consultation_types'];
+
+  const consultationTypes = (() => {
+    const types = toStringArray(consultationTypesRaw);
+    const allowed: ('chat' | 'video' | 'phone')[] = ['chat', 'video', 'phone'];
+    if (!types || types.length === 0) {
+      return allowed;
+    }
+    const filtered = types
+      .map((type) => type.toLowerCase())
+      .filter((type): type is 'chat' | 'video' | 'phone' => {
+        const normalized = type.toLowerCase();
+        if (normalized.includes('chat') || normalized === 'messaging' || normalized === 'text') {
+          return allowed.includes('chat');
+        }
+        if (normalized.includes('video') || normalized === 'videocall' || normalized === 'videoconference') {
+          return allowed.includes('video');
+        }
+        if (normalized.includes('phone') || normalized === 'call' || normalized === 'voice' || normalized === 'audio') {
+          return allowed.includes('phone');
+        }
+        return allowed.includes(normalized as any);
+      });
+    return filtered.length > 0 ? filtered : allowed;
+  })();
+
+  const rawAvatar =
+    toString(user.avatarUrl) ??
+    findStringByKeys(metadata, AVATAR_KEYS);
+  const photo = normalizeAvatarUrl(rawAvatar);
+
+  const baseName =
+    toString(user.fullName) ??
+    toString(metadata.full_name) ??
+    toString(metadata.name) ??
+    toString(user.email) ??
+    'Counselor';
+  const professionalTitle =
+    toString(metadata.professionalTitle) ??
+    toString(metadata.professional_title) ??
+    toString(metadata.title);
+  const name = professionalTitle
+    ? `${professionalTitle} ${baseName}`.trim()
+    : baseName;
+
+  const title = specialty;
 
   const specialties = (() => {
-    const specialtyList = toStringArray(metadata.specialties ?? metadata.expertise);
-    if (specialtyList.length > 0) {
-      return specialtyList;
-    }
-    if (typeof user.specialty === 'string' && user.specialty.trim().length > 0) {
-      return [user.specialty.trim()];
-    }
-    return ['Counseling'];
+    const specialtyList = mergeStringArrays(
+      user.specializations,
+      metadata['specializations'],
+      metadata['specialties'],
+      counselorProfileRecord?.specializations,
+      counselorProfileFromMetadata?.['specializations'],
+      specialty ? [specialty] : undefined,
+    );
+    return specialtyList && specialtyList.length > 0 ? specialtyList : [specialty || 'Counseling'];
   })();
 
   const languages = (() => {
-    if (user.languages && user.languages.length > 0) {
-      return user.languages;
-    }
-    const metadataLanguages = toStringArray(metadata.languages ?? metadata.language_preferences);
-    if (metadataLanguages.length > 0) {
-      return metadataLanguages;
-    }
-    return ['Kinyarwanda'];
+    const langList = mergeStringArrays(
+      user.languages,
+      counselorProfileRecord?.languages,
+      metadata['languages'],
+      metadata['languagePreferences'],
+      metadata['language_preferences'],
+    );
+    return langList && langList.length > 0 ? langList : ['Kinyarwanda'];
   })();
-
-  const experienceYearsRaw =
-    typeof user.experience === 'number'
-      ? user.experience
-      : typeof metadata.experience === 'number'
-      ? metadata.experience
-      : typeof metadata.experienceYears === 'number'
-      ? metadata.experienceYears
-      : typeof metadata.experience_years === 'number'
-      ? metadata.experience_years
-      : undefined;
-
-  const experienceYears =
-    typeof experienceYearsRaw === 'number' && Number.isFinite(experienceYearsRaw)
-      ? Math.max(0, Math.round(experienceYearsRaw))
-      : undefined;
-
-  const availability = sanitizeAvailability(
-    user.availability ??
-      (typeof metadata.availability === 'string' ? metadata.availability : undefined),
-  );
 
   const bio =
-    typeof metadata.bio === 'string' && metadata.bio.trim().length > 0
-      ? metadata.bio
-      : 'This counselor is here to support you throughout your journey.';
+    toString(user.bio) ??
+    toString(counselorProfileRecord?.bio) ??
+    (counselorProfileFromMetadata
+      ? toString(counselorProfileFromMetadata['bio'])
+      : undefined) ??
+    findStringByKeys(metadata, BIO_KEYS) ??
+    'This counselor is here to support you throughout your journey.';
 
   const education =
-    typeof metadata.education === 'string' && metadata.education.trim().length > 0
-      ? metadata.education
-      : 'Details coming soon.';
+    toString(metadata.education) ??
+    toString(metadata['educationHistory']) ??
+    'Details coming soon.';
 
-  const certifications =
-    toStringArray(metadata.certifications ?? metadata.credentials ?? metadata.licenses);
-
-  const consultationTypes = (() => {
-    const types = toStringArray(metadata.consultation_types ?? metadata.consultationTypes);
-    const allowed: ('chat' | 'video' | 'phone')[] = ['chat', 'video', 'phone'];
-    const filtered = types
-      .map((type) => type.toLowerCase())
-      .filter((type): type is 'chat' | 'video' | 'phone' => allowed.includes(type as any));
-    return filtered.length > 0 ? filtered : allowed;
+  const certifications = (() => {
+    const certList = mergeStringArrays(
+      metadata['certifications'],
+      metadata['credentials'],
+      metadata['licenses'],
+      user.credentials ? (Array.isArray(user.credentials) ? user.credentials : [user.credentials]) : undefined,
+    );
+    return certList && certList.length > 0 ? certList : [];
   })();
+
+  const sessionStats = user.sessionStats;
+  const completedSessions =
+    toNumberLoose(user.completedSessions) ??
+    toNumberLoose(sessionStats?.completedSessions) ??
+    toNumberLoose(metadata['completedSessions']) ??
+    toNumberLoose(metadata['completed_sessions']);
 
   const reviews =
     typeof metadata.reviews === 'number'
@@ -163,11 +437,14 @@ const adminUserToLandingCounselor = (user: AdminUser): Counselor | null => {
     experienceYears,
     reviews,
     availability,
-    photo: user.avatarUrl,
+    availabilityStatus: availabilityKey,
+    availabilityDisplay,
+    photo,
     bio,
     education,
     certifications,
     consultationTypes,
+    completedSessions,
   };
 };
 
@@ -191,25 +468,45 @@ const mapProfileRecordToAdminUser = (profile: RealtimeProfile): AdminUser => {
     metadata,
     specialty:
       (typeof profile.specialty === 'string' ? profile.specialty : undefined) ??
-      (typeof metadata.specialty === 'string' ? metadata.specialty : undefined),
+      (typeof metadata.specialty === 'string' ? metadata.specialty : undefined) ??
+      toStringArray(metadata.specializations)?.[0] ??
+      toString(metadata.expertise),
     experience:
       (typeof profile.experience_years === 'number' ? profile.experience_years : undefined) ??
-      (typeof metadata.experience === 'number' ? metadata.experience : undefined),
+      toNumberLoose(metadata.experience) ??
+      toNumberLoose(metadata.experienceYears) ??
+      toNumberLoose(metadata.experience_years),
+    experienceYears:
+      (typeof profile.experience_years === 'number' ? profile.experience_years : undefined) ??
+      toNumberLoose(metadata.experienceYears) ??
+      toNumberLoose(metadata.experience_years) ??
+      toNumberLoose(metadata.yearsOfExperience) ??
+      toNumberLoose(metadata.years_of_experience),
     availability:
       (typeof profile.availability === 'string' ? profile.availability : undefined) ??
       (typeof metadata.availability === 'string' ? metadata.availability : undefined),
+    availabilityStatus:
+      (typeof profile.approval_status === 'string' ? profile.approval_status : undefined) ??
+      (typeof metadata.availabilityStatus === 'string' ? metadata.availabilityStatus : undefined) ??
+      (typeof metadata.availability_status === 'string' ? metadata.availability_status : undefined),
     avatarUrl:
       (typeof profile.avatar_url === 'string' ? profile.avatar_url : undefined) ??
       (typeof metadata.avatar_url === 'string' ? metadata.avatar_url : undefined) ??
       (typeof metadata.avatar === 'string' ? metadata.avatar : undefined),
     phoneNumber:
       (typeof profile.phone_number === 'string' ? profile.phone_number : undefined) ??
-      (typeof metadata.phoneNumber === 'string' ? metadata.phoneNumber : undefined),
+      (typeof metadata.phoneNumber === 'string' ? metadata.phoneNumber : undefined) ??
+      (typeof metadata.contact_phone === 'string' ? metadata.contact_phone : undefined),
     location:
       (typeof metadata.location === 'string' ? metadata.location : undefined),
     languages: toStringArray(metadata.languages ?? metadata.language_preferences),
     bio: typeof metadata.bio === 'string' ? metadata.bio : undefined,
     credentials: metadata.credentials as string | string[] | undefined,
+    specializations: toStringArray(metadata.specializations ?? metadata.specialties),
+    sessionModalities: toStringArray(metadata.sessionModalities ?? metadata.session_modalities),
+    consultationTypes: toStringArray(metadata.consultationTypes ?? metadata.consultation_types),
+    visibilitySettings: (profile.visibility_settings as any) ?? (metadata.visibilitySettings as any),
+    approvalStatus: (profile.approval_status as any) ?? (metadata.approvalStatus as any),
   };
 };
 
@@ -239,20 +536,96 @@ function CounselorCard({ counselor }: { counselor: Counselor }) {
       ? `${counselor.experienceYears} ${
           counselor.experienceYears === 1 ? 'year' : 'years'
         } experience`
-      : 'Experience info coming soon';
+      : undefined;
 
   const description = `${counselor.title}${
     experienceLabel ? ` • ${experienceLabel}` : ''
   }`;
 
+  // Get availability badge styling
+  const getAvailabilityBadgeStyle = () => {
+    const status = counselor.availabilityStatus ?? counselor.availability;
+    if (status === 'available') {
+      return 'bg-green-500/90 text-white border-green-400';
+    } else if (status === 'busy' || status === 'limited' || status === 'waitlist') {
+      return 'bg-yellow-500/90 text-white border-yellow-400';
+    } else {
+      return 'bg-gray-500/90 text-white border-gray-400';
+    }
+  };
+
+  const availabilityDisplay = counselor.availabilityDisplay ?? 
+    (counselor.availability === 'available' ? 'Available' : 
+     counselor.availability === 'busy' ? 'Busy' : 'Offline');
+
+  // Generate initials for fallback
+  const getInitials = (name: string) => {
+    const trimmed = name.trim();
+    if (!trimmed) {
+      return '??';
+    }
+    const parts = trimmed.split(/\s+/).filter((p) => p.length > 0);
+    if (parts.length >= 2) {
+      const first = parts[0]?.[0];
+      const last = parts[parts.length - 1]?.[0];
+      if (first && last) {
+        return `${first}${last}`.toUpperCase();
+      }
+    }
+    return trimmed.substring(0, 2).toUpperCase() || '??';
+  };
+
+  const initials = counselor.photo ? undefined : getInitials(counselor.name);
+
   return (
     <div className="relative w-80 h-96 rounded-3xl border border-border/20 text-card-foreground overflow-hidden shadow-xl shadow-black/5 cursor-pointer group backdrop-blur-sm dark:shadow-black/20 hover:shadow-2xl transition-all duration-300 hover:scale-105">
-      {/* Full Cover Image */}
+      {/* Full Cover Image or Gradient Background */}
+      {counselor.photo ? (
       <img
         src={counselor.photo}
         alt={counselor.name}
         className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-      />
+          onError={(e) => {
+            // Fallback to gradient background if image fails to load
+            const target = e.currentTarget;
+            target.style.display = 'none';
+            const parent = target.parentElement;
+            if (parent) {
+              const fallback = parent.querySelector('.avatar-fallback') as HTMLElement;
+              if (fallback) {
+                fallback.style.display = 'flex';
+              }
+            }
+          }}
+        />
+      ) : null}
+      {/* Gradient background with initials fallback */}
+      <div 
+        className={`avatar-fallback absolute inset-0 w-full h-full ${counselor.photo ? 'hidden' : 'flex'} items-center justify-center bg-gradient-to-br from-primary/20 via-primary/10 to-background/50`}
+        style={{ display: counselor.photo ? 'none' : 'flex' }}
+      >
+        {initials && (
+          <span className="text-6xl font-bold text-primary/60">{initials}</span>
+        )}
+      </div>
+      
+      {/* Availability Badge */}
+      <div className="absolute top-4 right-4 z-10 flex flex-col gap-2 items-end">
+        <Badge 
+          variant="outline" 
+          className={`${getAvailabilityBadgeStyle()} border backdrop-blur-sm text-xs font-semibold shadow-lg`}
+        >
+          {availabilityDisplay}
+        </Badge>
+        {counselor.completedSessions !== undefined && counselor.completedSessions > 0 && (
+          <Badge 
+            variant="outline" 
+            className="bg-background/80 backdrop-blur-sm text-xs border-border shadow-lg"
+          >
+            {counselor.completedSessions} session{counselor.completedSessions === 1 ? '' : 's'}
+          </Badge>
+        )}
+      </div>
 
       {/* Smooth Blur Overlay - Multiple layers for seamless fade */}
       <div className="absolute inset-0 bg-gradient-to-t from-background/95 via-background/40 via-background/20 via-background/10 to-transparent" />
