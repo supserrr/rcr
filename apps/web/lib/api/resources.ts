@@ -234,58 +234,97 @@ export class ResourcesApi {
       }
     };
 
-    const contentType = getContentType(data.type, fileExt);
-
-    // Generate file path - use simple structure like avatars bucket
+    // Generate file path - use folder structure like avatars bucket
     const fileName = `${user.id}-${Date.now()}.${fileExt}`;
-    // Use simple path: just the filename (bucket handles organization)
-    const filePath = fileName;
+    // Use folder structure: resources/userId/filename to match RLS policies
+    // This ensures files are organized and policies can check ownership
+    const filePath = `${user.id}/${fileName}`;
 
     try {
       // Upload file to Supabase Storage
+      // Don't set contentType - let Supabase detect it from the file
+      // This avoids MIME type validation issues
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('resources')
         .upload(filePath, file, {
           cacheControl: '3600',
           upsert: false,
-          contentType: contentType,
+          // Don't set contentType - let browser/Supabase detect it automatically
         });
 
       if (uploadError) {
         const errorMessage = uploadError.message || 'Unknown error';
-        const errorString = String(uploadError);
+        const errorObj = uploadError as any;
         
-        console.error('Supabase storage upload error:', {
+        // Log detailed error information
+        const errorDetails = {
           message: errorMessage,
           error: uploadError,
-          errorString,
+          errorObj: errorObj,
+          statusCode: errorObj?.statusCode,
+          status: errorObj?.status,
+          statusText: errorObj?.statusText,
           filePath,
           fileSize: file.size,
-          contentType,
-          fileType: data.type,
+          fileType: file.type,
+          fileExtension: fileExt,
+          resourceType: data.type,
           bucket: 'resources',
-        });
+          userId: user.id,
+          fileName: file.name,
+        };
         
-        // Provide more helpful error messages based on error content
-        if (errorMessage.includes('400') || errorMessage.includes('Bad Request')) {
+        console.error('Supabase storage upload error:', errorDetails);
+        
+        // Parse error to get more details
+        let detailedError = errorMessage;
+        if (errorObj) {
+          try {
+            // Try to extract error details from the error object
+            if (errorObj.error) {
+              detailedError = typeof errorObj.error === 'string' ? errorObj.error : JSON.stringify(errorObj.error);
+            } else if (errorObj.message) {
+              detailedError = errorObj.message;
+            } else if (errorObj.statusText) {
+              detailedError = errorObj.statusText;
+            }
+          } catch (e) {
+            // Ignore parsing errors
+          }
+        }
+        
+        // Check if it's a 400 error with more specific details
+        const is400Error = errorMessage.includes('400') || 
+                          errorMessage.includes('Bad Request') || 
+                          errorObj?.statusCode === '400' || 
+                          errorObj?.status === 400 ||
+                          detailedError.includes('400');
+        
+        if (is400Error) {
           throw new Error(
-            `Invalid file upload request. Please check: (1) The file format is correct, (2) File size is under 500MB, (3) The resources storage bucket exists and is configured correctly. Original error: ${errorMessage}`
+            `Invalid file upload request (400). ` +
+            `File: ${file.name}, ` +
+            `Size: ${(file.size / 1024 / 1024).toFixed(2)}MB, ` +
+            `Type: ${file.type || 'unknown'}, ` +
+            `Extension: ${fileExt}. ` +
+            `Error: ${detailedError}. ` +
+            `Please check: (1) File format is supported, (2) File size is under 500MB, (3) The resources bucket is configured correctly.`
           );
-        } else if (errorMessage.includes('403') || errorMessage.includes('Forbidden') || errorMessage.includes('Permission denied')) {
+        } else if (errorMessage.includes('403') || errorMessage.includes('Forbidden') || errorMessage.includes('Permission denied') || errorObj?.statusCode === '403' || errorObj?.status === 403) {
           throw new Error(
-            `Permission denied. Please check if you have permission to upload files to the resources bucket. Original error: ${errorMessage}`
+            `Permission denied (403). Please check if you have permission to upload files to the resources bucket. Error: ${detailedError}`
           );
-        } else if (errorMessage.includes('413') || errorMessage.includes('Payload Too Large') || errorMessage.includes('file too large')) {
+        } else if (errorMessage.includes('413') || errorMessage.includes('Payload Too Large') || errorMessage.includes('file too large') || errorObj?.statusCode === '413' || errorObj?.status === 413) {
           throw new Error(
-            `File too large. Maximum file size is 500MB. Your file is ${(file.size / 1024 / 1024).toFixed(2)}MB.`
+            `File too large (413). Maximum file size is 500MB. Your file is ${(file.size / 1024 / 1024).toFixed(2)}MB.`
           );
-        } else if (errorMessage.includes('Bucket not found') || errorMessage.includes('bucket')) {
+        } else if (errorMessage.includes('Bucket not found') || errorMessage.includes('bucket') || errorMessage.includes('404') || errorObj?.status === 404) {
           throw new Error(
-            `Storage bucket 'resources' not found. Please create the resources bucket in Supabase Storage. Original error: ${errorMessage}`
+            `Storage bucket 'resources' not found (404). Please check if the bucket exists in Supabase Storage. Error: ${detailedError}`
           );
         } else {
           throw new Error(
-            `Failed to upload file: ${errorMessage}. Please check the browser console for more details.`
+            `Failed to upload file. Error: ${detailedError}. Status: ${errorObj?.statusCode || errorObj?.status || 'unknown'}. File: ${file.name}. Please check the browser console for more details.`
           );
         }
       }
