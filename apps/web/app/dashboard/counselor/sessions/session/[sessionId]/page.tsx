@@ -66,39 +66,123 @@ export default function SessionRoomPage() {
               console.log(`[SessionRoom] Admin API failed for ${participantId}, using direct profile query`);
               const supabase = createClient();
               if (supabase) {
-                // Query without role filter first - RLS will handle access control
-                let { data: profile, error: profileError } = await supabase
-                  .from('profiles')
-                  .select('*')
-                  .eq('id', participantId)
-                  .maybeSingle();
+                // Try querying through sessions table first (counselors can see patients they have sessions with)
+                // This leverages RLS policies that allow counselors to access patient profiles via sessions
+                let profile = null;
+                let profileError = null;
                 
-                // If no profile found, try with role filter for patient/counselor
-                if (!profile && !profileError) {
-                  console.log(`[SessionRoom] Profile not found without role filter, trying with role filter`);
-                  const expectedRole = user?.role === 'patient' ? 'counselor' : 'patient';
-                  const { data: profileWithRole, error: roleError } = await supabase
-                    .from('profiles')
-                    .select('*')
-                    .eq('id', participantId)
-                    .eq('role', expectedRole)
-                    .maybeSingle();
+                // First, try to query the profile through a session join if we're a counselor viewing a patient
+                if (user?.role === 'counselor' && sessionData?.patientId === participantId) {
+                  console.log(`[SessionRoom] Trying to fetch patient profile via session relationship`);
                   
-                  if (!roleError && profileWithRole) {
-                    profile = profileWithRole;
-                    console.log(`[SessionRoom] Found profile with role filter`);
+                  // Try different join syntaxes
+                  const joinQueries = [
+                    // Try with explicit foreign key name
+                    supabase
+                      .from('sessions')
+                      .select(`
+                        patient_id,
+                        patient:profiles!sessions_patient_id_fkey (
+                          id,
+                          full_name,
+                          email,
+                          role,
+                          avatar_url,
+                          metadata
+                        )
+                      `)
+                      .eq('id', sessionId)
+                      .single(),
+                    // Try with implicit join
+                    supabase
+                      .from('sessions')
+                      .select(`
+                        patient_id,
+                        profiles!inner (
+                          id,
+                          full_name,
+                          email,
+                          role,
+                          avatar_url,
+                          metadata
+                        )
+                      `)
+                      .eq('id', sessionId)
+                      .eq('profiles.id', participantId)
+                      .single(),
+                  ];
+                  
+                  for (let i = 0; i < joinQueries.length; i++) {
+                    try {
+                      const response = await joinQueries[i];
+                      const sessionProfile = (response as any)?.data;
+                      const sessionError = (response as any)?.error;
+                      
+                      if (!sessionError && sessionProfile) {
+                        // Try different ways to access the profile
+                        const foundProfile = 
+                          (sessionProfile as any).patient ||
+                          (sessionProfile as any).profiles ||
+                          (Array.isArray((sessionProfile as any).profiles) ? (sessionProfile as any).profiles[0] : undefined);
+                        
+                        if (foundProfile) {
+                          profile = foundProfile;
+                          console.log(`[SessionRoom] ✅ Found profile via session join (method ${i + 1}):`, profile);
+                          break;
+                        }
+                      } else {
+                        console.warn(`[SessionRoom] Join query ${i + 1} failed:`, sessionError);
+                      }
+                    } catch (err) {
+                      console.warn(`[SessionRoom] Join query ${i + 1} threw error:`, err);
+                    }
                   }
                 }
                 
-                if (profileError) {
-                  console.error('[SessionRoom] Error fetching profile:', profileError);
-                  console.error('[SessionRoom] Error details:', {
-                    message: profileError.message,
-                    code: profileError.code,
-                    details: profileError.details,
-                    hint: profileError.hint,
-                  });
-                } else if (profile) {
+                // If that didn't work, try direct profile query
+                // Use the exact same approach as sessions list page
+                if (!profile) {
+                  console.log(`[SessionRoom] Trying direct profile query for ${participantId} (same as sessions list page)`);
+                  
+                  // Use the exact same query pattern as the sessions list page primary fetch
+                  const { data: directProfile, error: directError } = await supabase
+                    .from('profiles')
+                    .select('*')
+                    .in('id', [participantId])  // Use .in() instead of .eq() like the sessions list page
+                    .eq('role', user?.role === 'patient' ? 'counselor' : 'patient');
+                  
+                  if (directError) {
+                    console.error('[SessionRoom] Direct query error:', directError);
+                    console.error('[SessionRoom] Error details:', {
+                      message: directError.message,
+                      code: directError.code,
+                      details: directError.details,
+                      hint: directError.hint,
+                    });
+                    profileError = directError;
+                  } else if (directProfile && directProfile.length > 0) {
+                    profile = directProfile[0];
+                    console.log(`[SessionRoom] ✅ Found profile via direct query with role filter`);
+                  } else {
+                    console.warn(`[SessionRoom] Direct query with role filter returned no results`);
+                    
+                    // Try without role filter as last resort
+                    console.log(`[SessionRoom] Trying query without role filter`);
+                    const { data: noRoleProfile, error: noRoleError } = await supabase
+                      .from('profiles')
+                      .select('*')
+                      .in('id', [participantId]);
+                    
+                    if (!noRoleError && noRoleProfile && noRoleProfile.length > 0) {
+                      profile = noRoleProfile[0];
+                      console.log(`[SessionRoom] ✅ Found profile via query without role filter`);
+                    } else {
+                      console.warn(`[SessionRoom] Query without role filter also returned no results:`, noRoleError);
+                    }
+                  }
+                }
+                
+                if (profile) {
                   console.log(`[SessionRoom] Profile found for ${participantId}:`, {
                     id: profile.id,
                     full_name: profile.full_name,

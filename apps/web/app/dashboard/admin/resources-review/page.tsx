@@ -55,7 +55,8 @@ import {
   Archive,
   Settings,
   AlertCircle,
-  Plus
+  Plus,
+  List
 } from 'lucide-react';
 import { Resource } from '@/lib/api/resources';
 import { useResources } from '../../../../hooks/useResources';
@@ -85,7 +86,7 @@ export default function AdminResourcesReviewPage() {
   
   // Modal states
   const [editingResource, setEditingResource] = useState<Resource | null>(null);
-  const [activeTab, setActiveTab] = useState<'review' | 'upload-audio' | 'upload-video' | 'upload-pdf'>('review');
+  const [activeTab, setActiveTab] = useState<'review' | 'upload-audio' | 'upload-video' | 'upload-pdf' | 'upload-article'>('review');
   
   // Use shared resource viewer hook for consistent behavior
   const {
@@ -266,9 +267,10 @@ export default function AdminResourcesReviewPage() {
   // Resource viewing is now handled by useResourceViewer hook
 
   const handleEditResource = (resource: Resource) => {
-    // For articles, open in edit mode (admin can edit articles directly)
+    // For articles, switch to article editor tab
     if (resource.type === 'article') {
-      setEditingDraftId(resource.id);
+      setEditingResource(resource);
+      // Load article data into form
       setArticleFormData({
         title: resource.title,
         excerpt: resource.description || '',
@@ -281,8 +283,8 @@ export default function AdminResourcesReviewPage() {
       if (resource.thumbnail) {
         setCoverImage({ file: null, preview: resource.thumbnail });
       }
-      // Note: Article editing UI removed - admin can only view resources
-      // If article editing is needed, it should be done through the counselor interface
+      setEditingDraftId(resource.id);
+      setActiveTab('upload-article');
     } else {
       // For other resource types, switch to appropriate tab and set editing resource
       setEditingResource(resource);
@@ -919,6 +921,111 @@ export default function AdminResourcesReviewPage() {
     } catch (error) {
       console.error('Error publishing article:', error);
       toast.error(error instanceof Error ? error.message : 'Failed to publish article');
+    }
+  };
+
+  const handleSaveArticle = async () => {
+    if (!articleFormData.title.trim()) {
+      toast.error('Please enter an article title');
+      return;
+    }
+
+    try {
+      // Get the latest content directly from the contentEditable div
+      const currentContent = articleContentRef.current?.innerHTML || articleFormData.content || '';
+      
+      // Ensure content is not just empty tags
+      const cleanedContent = currentContent.trim() === '<br>' || currentContent.trim() === '' ? '' : currentContent;
+      
+      const tags = articleFormData.tags
+        .split(',')
+        .map(tag => tag.trim())
+        .filter(tag => tag.length > 0);
+
+      // Upload cover image if a new file was selected
+      let thumbnailUrl: string | undefined = undefined;
+      if (coverImage.file) {
+        const { createClient } = await import('@/lib/supabase/client');
+        const supabase = createClient();
+        if (!supabase) {
+          throw new Error('Supabase is not configured');
+        }
+
+        const { data: { user: authUser } } = await supabase.auth.getUser();
+        if (!authUser) {
+          throw new Error('User not authenticated');
+        }
+
+        const fileExt = coverImage.file.name.split('.').pop()?.toLowerCase() || 'jpg';
+        const fileName = `${authUser.id}-cover-${Date.now()}.${fileExt}`;
+        const filePath = fileName;
+
+        const { error: uploadError } = await supabase.storage
+          .from('resources')
+          .upload(filePath, coverImage.file, {
+            cacheControl: '3600',
+            upsert: false,
+          });
+
+        if (uploadError) {
+          throw new Error(`Failed to upload cover image: ${uploadError.message}`);
+        }
+
+        const { data: { publicUrl } } = supabase.storage
+          .from('resources')
+          .getPublicUrl(filePath);
+        
+        thumbnailUrl = publicUrl;
+      } else if (coverImage.preview && coverImage.preview.startsWith('http')) {
+        // Use existing URL if it's already a URL (from loaded article)
+        thumbnailUrl = coverImage.preview;
+      }
+
+      const resourceData = {
+        title: articleFormData.title,
+        description: articleFormData.excerpt || articleFormData.title,
+        type: 'article' as const,
+        content: cleanedContent,
+        category: articleFormData.category || undefined,
+        tags,
+        thumbnail: thumbnailUrl,
+        readingTime: articleFormData.readingTime || undefined,
+        publisherName: articleFormData.author || user?.name || 'Unknown',
+        // Preserve the current status if editing an existing article
+        ...(editingResource && editingResource.status ? { status: editingResource.status } : {}),
+        ...(editingResource && editingResource.isPublic !== undefined ? { isPublic: editingResource.isPublic } : {}),
+      };
+
+      // Update existing article or create new one
+      if (editingDraftId && editingResource) {
+        await updateResource(editingDraftId, resourceData);
+        toast.success('Article updated successfully');
+      } else {
+        await createResource(resourceData);
+        toast.success('Article created successfully');
+      }
+      
+      // Reset form and switch back to review tab
+      setArticleFormData({
+        title: '',
+        excerpt: '',
+        content: '',
+        category: '',
+        readingTime: '',
+        author: '',
+        tags: '',
+      });
+      if (coverImage.preview && coverImage.preview.startsWith('blob:')) {
+        URL.revokeObjectURL(coverImage.preview);
+      }
+      setCoverImage({ file: null, preview: null });
+      setEditingDraftId(null);
+      setEditingResource(null);
+      setActiveTab('review');
+      await refreshResources();
+    } catch (error) {
+      console.error('Error saving article:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to save article');
     }
   };
 
@@ -3010,7 +3117,7 @@ export default function AdminResourcesReviewPage() {
       </Dialog>
 
       {/* Edit Resource Tabs - Identical to Counselor Experience */}
-      {(activeTab === 'upload-audio' || activeTab === 'upload-video' || activeTab === 'upload-pdf') && (
+      {(activeTab === 'upload-audio' || activeTab === 'upload-video' || activeTab === 'upload-pdf' || activeTab === 'upload-article') && (
         <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as typeof activeTab)} className="mt-6">
           <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="upload-audio">Audio</TabsTrigger>
@@ -3625,8 +3732,799 @@ export default function AdminResourcesReviewPage() {
               </AnimatedCard>
             </div>
           </TabsContent>
+
+          {/* Article Editor Tab */}
+          <TabsContent value="upload-article" className="mt-6">
+            <div className="space-y-6 max-w-4xl mx-auto">
+              {/* Header with Back Button */}
+              <div className="flex items-center justify-between">
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={() => {
+                    setEditingResource(null);
+                    setActiveTab('review');
+                  }}
+                  className="flex items-center gap-2"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                  Back to Review
+                </Button>
+                <div className="flex items-center gap-3">
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={handlePreviewArticle}
+                  >
+                    <Eye className="h-4 w-4 mr-2" />
+                    Preview
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={handleSaveArticle}
+                  >
+                    Save Article
+                  </Button>
+                </div>
+              </div>
+
+              {/* Article Editor - Copy from counselor page */}
+              <AnimatedCard className="overflow-hidden">
+                <div className="space-y-6">
+                  {/* Cover Image Section */}
+                  <div className="relative bg-muted/30 border-b">
+                    <input
+                      ref={coverImageInputRef}
+                      type="file"
+                      accept="image/*,.jpg,.jpeg,.png,.webp,.gif"
+                      onChange={handleCoverImageChange}
+                      className="hidden"
+                    />
+                    <div className="aspect-[21/9] flex items-center justify-center bg-gradient-to-br from-green-50 to-green-100 dark:from-green-950 dark:to-green-900 relative overflow-hidden">
+                      {coverImage.preview ? (
+                        <>
+                          <img
+                            src={coverImage.preview}
+                            alt="Cover preview"
+                            className="absolute inset-0 w-full h-full object-cover"
+                          />
+                          <div className="absolute inset-0 bg-black/40 flex items-center justify-center gap-3 opacity-0 hover:opacity-100 transition-opacity">
+                            <Button
+                              variant="outline"
+                              className="gap-2 bg-white/90 hover:bg-white"
+                              onClick={handleChooseCoverImage}
+                            >
+                              <Upload className="h-4 w-4" />
+                              Change Image
+                            </Button>
+                            <Button
+                              variant="outline"
+                              className="gap-2 bg-white/90 hover:bg-white"
+                              onClick={() => {
+                                if (coverImage.preview && coverImage.preview.startsWith('blob:')) {
+                                  URL.revokeObjectURL(coverImage.preview);
+                                }
+                                setCoverImage({ file: null, preview: null });
+                                toast.success('Cover image removed');
+                              }}
+                            >
+                              <X className="h-4 w-4" />
+                              Remove
+                            </Button>
+                          </div>
+                        </>
+                      ) : (
+                        <Button
+                          variant="outline"
+                          className="gap-2"
+                          onClick={handleChooseCoverImage}
+                        >
+                          <Upload className="h-4 w-4" />
+                          Add Cover Image
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Article Content */}
+                  <div className="px-8 py-6 space-y-8">
+                    {/* Title */}
+                    <div>
+                      <Input 
+                        placeholder="Article Title" 
+                        value={articleFormData.title}
+                        onChange={(e) => setArticleFormData(prev => ({ ...prev, title: e.target.value }))}
+                        className="text-4xl font-bold border-0 px-0 focus-visible:ring-0 placeholder:text-muted-foreground/60 text-foreground dark:text-foreground bg-transparent font-extrabold tracking-tight"
+                        style={{
+                          color: 'inherit',
+                          fontSize: '2.25rem',
+                          lineHeight: '2.5rem',
+                        }}
+                      />
+                    </div>
+
+                    {/* Metadata */}
+                    <div className="flex flex-wrap gap-4 pb-6 border-b">
+                      <div className="flex-1 min-w-[200px]">
+                        <label className="text-xs font-medium text-muted-foreground mb-2 block uppercase tracking-wide">Category</label>
+                        <Select value={articleFormData.category} onValueChange={(value) => setArticleFormData(prev => ({ ...prev, category: value }))}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select category" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="mental-health">Mental Health</SelectItem>
+                            <SelectItem value="wellness">Wellness</SelectItem>
+                            <SelectItem value="coping-strategies">Coping Strategies</SelectItem>
+                            <SelectItem value="self-care">Self-Care</SelectItem>
+                            <SelectItem value="education">Education</SelectItem>
+                            <SelectItem value="resources">Resources</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="flex-1 min-w-[200px]">
+                        <label className="text-xs font-medium text-muted-foreground mb-2 block uppercase tracking-wide">Reading Time</label>
+                        <Input 
+                          placeholder="e.g., 5 min read" 
+                          value={articleFormData.readingTime}
+                          onChange={(e) => setArticleFormData(prev => ({ ...prev, readingTime: e.target.value }))}
+                        />
+                      </div>
+                      <div className="flex-1 min-w-[200px]">
+                        <label className="text-xs font-medium text-muted-foreground mb-2 block uppercase tracking-wide">
+                          Author (Display Name)
+                        </label>
+                        <Input 
+                          placeholder={user?.name || "Author name"} 
+                          value={articleFormData.author || user?.name || ''}
+                          onChange={(e) => setArticleFormData(prev => ({ ...prev, author: e.target.value }))}
+                          title="Author name for display. Publisher is always the logged-in user."
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Display name only (publisher: {user?.name || 'You'})
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Excerpt */}
+                    <div>
+                      <label className="text-sm font-medium mb-2 block">Article Excerpt</label>
+                      <Textarea 
+                        placeholder="Write a compelling summary that will appear in previews and search results (150-200 characters recommended)..." 
+                        rows={3}
+                        value={articleFormData.excerpt}
+                        onChange={(e) => setArticleFormData(prev => ({ ...prev, excerpt: e.target.value }))}
+                        className="resize-none"
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">This will be displayed in article previews and search results</p>
+                    </div>
+
+                    {/* Rich Text Editor Area */}
+                    <div>
+                      <label className="text-sm font-medium mb-2 block">Article Content</label>
+                      
+                      <div className="border rounded-lg bg-background">
+                        {/* Formatting Toolbar */}
+                        <div className="border-b p-2 flex flex-wrap gap-1">
+                          {/* Text Formatting */}
+                          <div className="flex gap-1 pr-2 border-r">
+                            <Button 
+                              variant={activeFormatting.bold ? "secondary" : "ghost"}
+                              size="sm" 
+                              className={`h-8 w-8 p-0 ${activeFormatting.bold ? 'bg-muted' : ''}`}
+                              title="Bold"
+                              type="button"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleFormatCommand('bold');
+                                setTimeout(updateActiveFormatting, 100);
+                              }}
+                            >
+                              <span className="font-bold text-sm">B</span>
+                            </Button>
+                            <Button 
+                              variant={activeFormatting.italic ? "secondary" : "ghost"}
+                              size="sm" 
+                              className={`h-8 w-8 p-0 ${activeFormatting.italic ? 'bg-muted' : ''}`}
+                              title="Italic"
+                              type="button"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleFormatCommand('italic');
+                                setTimeout(updateActiveFormatting, 100);
+                              }}
+                            >
+                              <span className="italic text-sm">I</span>
+                            </Button>
+                            <Button 
+                              variant={activeFormatting.underline ? "secondary" : "ghost"}
+                              size="sm" 
+                              className={`h-8 w-8 p-0 ${activeFormatting.underline ? 'bg-muted' : ''}`}
+                              title="Underline"
+                              type="button"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleFormatCommand('underline');
+                                setTimeout(updateActiveFormatting, 100);
+                              }}
+                            >
+                              <span className="underline text-sm">U</span>
+                            </Button>
+                            <Button 
+                              variant={activeFormatting.strikethrough ? "secondary" : "ghost"}
+                              size="sm" 
+                              className={`h-8 w-8 p-0 ${activeFormatting.strikethrough ? 'bg-muted' : ''}`}
+                              title="Strikethrough"
+                              type="button"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleFormatCommand('strikeThrough');
+                                setTimeout(updateActiveFormatting, 100);
+                              }}
+                            >
+                              <span className="line-through text-sm">S</span>
+                            </Button>
+                          </div>
+
+                          {/* Headings */}
+                          <div className="flex gap-1 pr-2 border-r">
+                            <Button 
+                              variant={activeFormatting.heading === 'h1' ? "secondary" : "ghost"}
+                              size="sm" 
+                              className={`h-8 px-2 text-xs ${activeFormatting.heading === 'h1' ? 'bg-muted' : ''}`}
+                              title="Heading 1"
+                              type="button"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleFormatHeading(1);
+                                setTimeout(updateActiveFormatting, 100);
+                              }}
+                            >
+                              H1
+                            </Button>
+                            <Button 
+                              variant={activeFormatting.heading === 'h2' ? "secondary" : "ghost"}
+                              size="sm" 
+                              className={`h-8 px-2 text-xs ${activeFormatting.heading === 'h2' ? 'bg-muted' : ''}`}
+                              title="Heading 2"
+                              type="button"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleFormatHeading(2);
+                                setTimeout(updateActiveFormatting, 100);
+                              }}
+                            >
+                              H2
+                            </Button>
+                            <Button 
+                              variant={activeFormatting.heading === 'h3' ? "secondary" : "ghost"}
+                              size="sm" 
+                              className={`h-8 px-2 text-xs ${activeFormatting.heading === 'h3' ? 'bg-muted' : ''}`}
+                              title="Heading 3"
+                              type="button"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleFormatHeading(3);
+                                setTimeout(updateActiveFormatting, 100);
+                              }}
+                            >
+                              H3
+                            </Button>
+                          </div>
+
+                          {/* Lists */}
+                          <div className="flex gap-1 pr-2 border-r">
+                            <Button 
+                              variant={activeFormatting.list === 'unordered' ? "secondary" : "ghost"}
+                              size="sm" 
+                              className={`h-8 w-8 p-0 ${activeFormatting.list === 'unordered' ? 'bg-muted' : ''}`}
+                              title="Bullet List"
+                              type="button"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleInsertList(false);
+                                setTimeout(updateActiveFormatting, 100);
+                              }}
+                            >
+                              <List className="h-4 w-4" />
+                            </Button>
+                            <Button 
+                              variant={activeFormatting.list === 'ordered' ? "secondary" : "ghost"}
+                              size="sm" 
+                              className={`h-8 w-8 p-0 ${activeFormatting.list === 'ordered' ? 'bg-muted' : ''}`}
+                              title="Numbered List"
+                              type="button"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleInsertList(true);
+                                setTimeout(updateActiveFormatting, 100);
+                              }}
+                            >
+                              <span className="text-xs font-semibold">1.</span>
+                            </Button>
+                          </div>
+
+                          {/* Alignment */}
+                          <div className="flex gap-1 pr-2 border-r">
+                            <Button 
+                              variant={activeFormatting.align === 'left' ? "secondary" : "ghost"}
+                              size="sm" 
+                              className={`h-8 w-8 p-0 ${activeFormatting.align === 'left' ? 'bg-muted' : ''}`}
+                              title="Align Left"
+                              type="button"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleAlignText('left');
+                                setTimeout(updateActiveFormatting, 100);
+                              }}
+                            >
+                              <span className="text-xs">⊣</span>
+                            </Button>
+                            <Button 
+                              variant={activeFormatting.align === 'center' ? "secondary" : "ghost"}
+                              size="sm" 
+                              className={`h-8 w-8 p-0 ${activeFormatting.align === 'center' ? 'bg-muted' : ''}`}
+                              title="Align Center"
+                              type="button"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleAlignText('center');
+                                setTimeout(updateActiveFormatting, 100);
+                              }}
+                            >
+                              <span className="text-xs">≡</span>
+                            </Button>
+                            <Button 
+                              variant={activeFormatting.align === 'right' ? "secondary" : "ghost"}
+                              size="sm" 
+                              className={`h-8 w-8 p-0 ${activeFormatting.align === 'right' ? 'bg-muted' : ''}`}
+                              title="Align Right"
+                              type="button"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleAlignText('right');
+                                setTimeout(updateActiveFormatting, 100);
+                              }}
+                            >
+                              <span className="text-xs">⊢</span>
+                            </Button>
+                          </div>
+
+                          {/* Insert Elements */}
+                          <div className="flex gap-1 pr-2 border-r">
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              className="h-8 w-8 p-0" 
+                              title="Insert Link"
+                              type="button"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleInsertLink();
+                              }}
+                            >
+                              <ExternalLink className="h-4 w-4" />
+                            </Button>
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              className="h-8 w-8 p-0" 
+                              title="Insert Image"
+                              type="button"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleInsertImage();
+                              }}
+                              disabled={isUploading}
+                            >
+                              <Upload className="h-4 w-4" />
+                            </Button>
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              className="h-8 w-8 p-0" 
+                              title="Insert Embed (YouTube, Vimeo, SoundCloud, etc.)"
+                              type="button"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleInsertEmbed();
+                              }}
+                            >
+                              <Video className="h-4 w-4" />
+                            </Button>
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              className="h-8 w-8 p-0" 
+                              title="Insert Quote"
+                              type="button"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleInsertQuote();
+                              }}
+                            >
+                              <span className="text-sm">"</span>
+                            </Button>
+                          </div>
+
+                          {/* Additional Tools */}
+                          <div className="flex gap-1">
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              className="h-8 w-8 p-0" 
+                              title="Code Block"
+                              type="button"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleInsertCodeBlock();
+                              }}
+                            >
+                              <span className="text-xs font-mono">{'<>'}</span>
+                            </Button>
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              className="h-8 w-8 p-0" 
+                              title="Horizontal Rule"
+                              type="button"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleInsertHorizontalRule();
+                              }}
+                            >
+                              <span className="text-xs">—</span>
+                            </Button>
+                          </div>
+
+                          <div className="ml-auto flex gap-1">
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              className="h-8 px-2 text-xs" 
+                              title="Undo"
+                              type="button"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleUndo();
+                              }}
+                            >
+                              ↶
+                            </Button>
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              className="h-8 px-2 text-xs" 
+                              title="Redo"
+                              type="button"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleRedo();
+                              }}
+                            >
+                              ↷
+                            </Button>
+                          </div>
+                        </div>
+
+                        {/* Hidden file input for article images */}
+                        <input
+                          ref={articleImageInputRef}
+                          type="file"
+                          accept="image/*"
+                          onChange={handleArticleImageChange}
+                          className="hidden"
+                        />
+
+                        {/* Editor Content Area - This is a large section, I'll add the key parts */}
+                        <div className="min-h-[500px]">
+                          <div
+                            ref={articleContentRef}
+                            contentEditable
+                            suppressContentEditableWarning
+                            onFocus={() => {
+                              if (articleContentRef.current && !articleContentRef.current.innerHTML.trim()) {
+                                articleContentRef.current.innerHTML = '<br>';
+                              }
+                            }}
+                            onInput={(e) => {
+                              const content = e.currentTarget.innerHTML;
+                              setArticleFormData(prev => ({ ...prev, content }));
+                            }}
+                            onBlur={(e) => {
+                              const content = e.currentTarget.innerHTML;
+                              setArticleFormData(prev => ({ ...prev, content }));
+                            }}
+                            onKeyDown={(e) => {
+                              // Handle backspace/delete to remove images - same logic as counselor page
+                              if (e.key === 'Backspace' || e.key === 'Delete') {
+                                const selection = window.getSelection();
+                                if (!selection || selection.rangeCount === 0) return;
+                                
+                                const range = selection.getRangeAt(0);
+                                if (!range.collapsed) return;
+                                
+                                let nodeToCheck: Node | null = null;
+                                if (e.key === 'Backspace') {
+                                  nodeToCheck = range.startContainer;
+                                  if (nodeToCheck.nodeType === Node.TEXT_NODE) {
+                                    if (range.startOffset === 0) {
+                                      nodeToCheck = nodeToCheck.previousSibling;
+                                    }
+                                  } else {
+                                    nodeToCheck = nodeToCheck.previousSibling;
+                                  }
+                                } else {
+                                  nodeToCheck = range.startContainer;
+                                  if (nodeToCheck.nodeType === Node.TEXT_NODE) {
+                                    const textNode = nodeToCheck as Text;
+                                    if (range.startOffset === textNode.length) {
+                                      nodeToCheck = nodeToCheck.nextSibling;
+                                    }
+                                  } else {
+                                    nodeToCheck = (nodeToCheck as Element).firstChild || nodeToCheck.nextSibling;
+                                  }
+                                }
+                                
+                                let imageContainer: HTMLElement | null = null;
+                                if (nodeToCheck) {
+                                  if (nodeToCheck.nodeType === Node.ELEMENT_NODE) {
+                                    const element = nodeToCheck as HTMLElement;
+                                    if (element.classList?.contains('article-image-container')) {
+                                      imageContainer = element;
+                                    } else {
+                                      imageContainer = element.closest('.article-image-container');
+                                    }
+                                  } else {
+                                    imageContainer = nodeToCheck.parentElement?.closest('.article-image-container') || null;
+                                  }
+                                }
+                                
+                                if (!imageContainer) {
+                                  const commonAncestor = range.commonAncestorContainer;
+                                  if (commonAncestor.nodeType === Node.ELEMENT_NODE) {
+                                    imageContainer = (commonAncestor as HTMLElement).closest('.article-image-container');
+                                  } else {
+                                    imageContainer = commonAncestor.parentElement?.closest('.article-image-container') || null;
+                                  }
+                                }
+                                
+                                if (imageContainer && articleContentRef.current?.contains(imageContainer)) {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  
+                                  const newRange = document.createRange();
+                                  if (imageContainer.nextSibling) {
+                                    newRange.setStartBefore(imageContainer.nextSibling);
+                                  } else if (imageContainer.previousSibling) {
+                                    newRange.setStartAfter(imageContainer.previousSibling);
+                                  } else {
+                                    const parent = imageContainer.parentNode;
+                                    if (parent) {
+                                      newRange.selectNodeContents(parent);
+                                      newRange.collapse(false);
+                                    }
+                                  }
+                                  
+                                  imageContainer.remove();
+                                  
+                                  selection.removeAllRanges();
+                                  selection.addRange(newRange);
+                                  
+                                  const content = articleContentRef.current?.innerHTML || '';
+                                  setArticleFormData(prev => ({ ...prev, content }));
+                                }
+                              }
+                            }}
+                            onPaste={(e) => {
+                              requestAnimationFrame(() => {
+                                setTimeout(() => {
+                                  if (!articleContentRef.current) return;
+                                  
+                                  const allElements = articleContentRef.current.querySelectorAll('*');
+                                  allElements.forEach((el) => {
+                                    const element = el as HTMLElement;
+                                    
+                                    if (element.tagName === 'IFRAME' || 
+                                        (element.tagName === 'DIV' && element.style.position === 'relative' && element.querySelector('iframe'))) {
+                                      return;
+                                    }
+                                    
+                                    if (element.style.color) {
+                                      element.style.removeProperty('color');
+                                    }
+                                    if (element.style.backgroundColor) {
+                                      element.style.removeProperty('background-color');
+                                    }
+                                    
+                                    if (element.getAttribute('style')) {
+                                      const style = element.getAttribute('style') || '';
+                                      const cleanedStyle = style
+                                        .split(';')
+                                        .filter((prop) => {
+                                          const lowerProp = prop.toLowerCase().trim();
+                                          return !lowerProp.startsWith('color') && 
+                                                 !lowerProp.startsWith('background-color') &&
+                                                 prop.trim() !== '';
+                                        })
+                                        .join(';');
+                                      if (cleanedStyle.trim()) {
+                                        element.setAttribute('style', cleanedStyle);
+                                      } else {
+                                        element.removeAttribute('style');
+                                      }
+                                    }
+                                    
+                                    element.removeAttribute('color');
+                                  });
+                                  
+                                  const content = articleContentRef.current.innerHTML;
+                                  setArticleFormData(prev => {
+                                    return { ...prev, content };
+                                  });
+                                }, 10);
+                              });
+                            }}
+                            onDragOver={(e) => {
+                              if (draggedImageRef.current) {
+                                e.preventDefault();
+                                e.dataTransfer!.dropEffect = 'move';
+                              }
+                            }}
+                            onDrop={(e) => {
+                              if (!draggedImageRef.current || !articleContentRef.current) return;
+                              
+                              e.preventDefault();
+                              e.stopPropagation();
+                              
+                              const selection = window.getSelection();
+                              if (!selection) return;
+                              
+                              let range: Range | null = null;
+                              if (document.caretRangeFromPoint) {
+                                range = document.caretRangeFromPoint(e.clientX, e.clientY);
+                              } else if (selection.rangeCount > 0) {
+                                range = selection.getRangeAt(0);
+                              }
+                              
+                              if (range && articleContentRef.current.contains(range.commonAncestorContainer)) {
+                                let insertNode: Node | null = range.commonAncestorContainer;
+                                
+                                if (insertNode.nodeType === Node.TEXT_NODE) {
+                                  insertNode = insertNode.parentElement;
+                                }
+                                
+                                if (insertNode && insertNode !== draggedImageRef.current && 
+                                    !draggedImageRef.current.contains(insertNode)) {
+                                  const draggedElement = draggedImageRef.current;
+                                  draggedElement.remove();
+                                  
+                                  if (insertNode.parentNode) {
+                                    const rect = (insertNode as HTMLElement).getBoundingClientRect();
+                                    if (e.clientY < rect.top + rect.height / 2) {
+                                      insertNode.parentNode.insertBefore(draggedElement, insertNode);
+                                    } else {
+                                      insertNode.parentNode.insertBefore(draggedElement, insertNode.nextSibling);
+                                    }
+                                  }
+                                  
+                                  const content = articleContentRef.current.innerHTML;
+                                  setArticleFormData(prev => ({ ...prev, content }));
+                                  
+                                  draggedImageRef.current = null;
+                                }
+                              }
+                            }}
+                            className="border-0 resize-none focus:outline-none text-base leading-relaxed p-6 bg-transparent min-h-[500px] text-foreground dark:text-foreground"
+                            style={{ 
+                              whiteSpace: 'pre-wrap',
+                              wordWrap: 'break-word',
+                              color: 'inherit'
+                            }}
+                            data-placeholder="Start writing your article here..."
+                          />
+                        </div>
+                        <style jsx global>{`
+                          [contenteditable][data-placeholder]:empty:before {
+                            content: attr(data-placeholder);
+                            color: rgb(161 161 170);
+                            pointer-events: none;
+                          }
+                          [contenteditable] {
+                            color: inherit !important;
+                          }
+                          [contenteditable] * {
+                            color: inherit !important;
+                          }
+                          [contenteditable] img {
+                            max-width: 100%;
+                            height: auto;
+                            display: block;
+                            margin: 1rem auto;
+                            border-radius: 0.5rem;
+                          }
+                          [contenteditable] .article-image-container {
+                            position: relative;
+                            display: inline-block;
+                            width: 100%;
+                            max-width: 100%;
+                            margin: 1rem 0;
+                            cursor: move;
+                          }
+                          [contenteditable] .article-image-container:hover {
+                            outline: 2px dashed rgba(59, 130, 246, 0.5);
+                            outline-offset: 2px;
+                          }
+                          [contenteditable] .article-image-container img {
+                            margin: 0;
+                            width: 100%;
+                          }
+                          [contenteditable] .article-image-delete {
+                            position: absolute;
+                            top: 0.5rem;
+                            right: 0.5rem;
+                            width: 24px;
+                            height: 24px;
+                            border-radius: 50%;
+                            background: rgba(0, 0, 0, 0.7);
+                            color: white;
+                            border: none;
+                            cursor: pointer;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            font-size: 18px;
+                            line-height: 1;
+                            z-index: 10;
+                          }
+                          [contenteditable] .article-image-container:hover .article-image-delete {
+                            opacity: 1;
+                          }
+                          [contenteditable] .article-image-delete:hover {
+                            background: rgba(220, 38, 38, 0.9);
+                          }
+                        `}</style>
+                      </div>
+                    </div>
+
+                    {/* Tags */}
+                    <div>
+                      <label className="text-sm font-medium mb-2 block">Tags</label>
+                      <Input 
+                        placeholder="Enter tags separated by commas (e.g., mental-health, wellness, coping)" 
+                        value={articleFormData.tags}
+                        onChange={(e) => setArticleFormData(prev => ({ ...prev, tags: e.target.value }))}
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">Separate multiple tags with commas</p>
+                    </div>
+                  </div>
+                </div>
+              </AnimatedCard>
+            </div>
+          </TabsContent>
         </Tabs>
       )}
+
     </div>
   );
 }

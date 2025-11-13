@@ -746,9 +746,11 @@ export default function CounselorSessionsPage() {
                     session={session}
                     patientName={getPatientName(session.patientId)}
                     patientAvatar={getPatientAvatar(session.patientId)}
+                    patientId={session.patientId}
                     counselorName={user?.name || 'Counselor'}
                     counselorSpecialty={getCounselorSpecialty()}
                     counselorAvatar={getCounselorAvatar()}
+                    counselorId={session.counselorId}
                     onJoin={handleJoinSession}
                     onReschedule={handleRescheduleSession}
                     onCancel={handleCancelSession}
@@ -783,9 +785,11 @@ export default function CounselorSessionsPage() {
                     session={session}
                     patientName={getPatientName(session.patientId)}
                     patientAvatar={getPatientAvatar(session.patientId)}
+                    patientId={session.patientId}
                     counselorName={user?.name || 'Counselor'}
                     counselorSpecialty={getCounselorSpecialty()}
                     counselorAvatar={getCounselorAvatar()}
+                    counselorId={session.counselorId}
                   />
                 ))}
               </div>
@@ -820,9 +824,11 @@ export default function CounselorSessionsPage() {
                     session={session}
                     patientName={getPatientName(session.patientId)}
                     patientAvatar={getPatientAvatar(session.patientId)}
+                    patientId={session.patientId}
                     counselorName={user?.name || 'Counselor'}
                     counselorSpecialty={getCounselorSpecialty()}
                     counselorAvatar={getCounselorAvatar()}
+                    counselorId={session.counselorId}
                     onJoin={session.status === 'scheduled' ? handleJoinSession : undefined}
                     onReschedule={session.status === 'scheduled' ? handleRescheduleSession : undefined}
                     onCancel={session.status === 'scheduled' ? handleCancelSession : undefined}

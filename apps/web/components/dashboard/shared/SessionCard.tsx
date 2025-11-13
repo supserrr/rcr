@@ -25,6 +25,8 @@ interface SessionCardProps {
   counselorSpecialty?: string;
   patientAvatar?: string;
   counselorAvatar?: string;
+  patientId?: string; // Patient ID from session
+  counselorId?: string; // Counselor ID from session
   onJoin?: (session: Session) => void;
   onReschedule?: (session: Session) => void;
   onCancel?: (session: Session) => void;
@@ -38,11 +40,16 @@ export function SessionCard({
   counselorSpecialty,
   patientAvatar,
   counselorAvatar,
+  patientId,
+  counselorId,
   onJoin,
   onReschedule,
   onCancel,
   showActions = true
 }: SessionCardProps) {
+  // Use session IDs as fallback if not provided
+  const displayPatientId = patientId || session.patientId;
+  const displayCounselorId = counselorId || session.counselorId;
   const getStatusIcon = (status: Session['status']) => {
     switch (status) {
       case 'scheduled':
@@ -128,6 +135,11 @@ export function SessionCard({
               <p className="text-xs text-muted-foreground">
                 {patientName === 'Loading...' ? 'Loading...' : 'Patient'}
               </p>
+              {displayPatientId && (
+                <p className="text-xs text-muted-foreground font-mono mt-0.5">
+                  ID: {displayPatientId.slice(0, 8)}...
+                </p>
+              )}
             </div>
           </div>
 
@@ -141,6 +153,11 @@ export function SessionCard({
             <div className="flex-1">
               <p className="text-sm font-medium">{counselorName || 'Counselor'}</p>
               <p className="text-xs text-muted-foreground">{counselorSpecialty || 'Counselor'}</p>
+              {displayCounselorId && (
+                <p className="text-xs text-muted-foreground font-mono mt-0.5">
+                  ID: {displayCounselorId.slice(0, 8)}...
+                </p>
+              )}
             </div>
           </div>
         </div>
