@@ -11,7 +11,8 @@ interface ArticleLike {
   title: string;
   content?: string;
   description?: string;
-  publisher?: string;
+  publisher?: string; // UUID - not displayed
+  publisherName?: string; // Display name
   createdAt?: Date;
   thumbnail?: string;
   tags?: string[];
@@ -52,12 +53,12 @@ export function ArticleViewerV2({ article, isOpen, onClose, onShare, onBookmark,
               {article.title}
             </h1>
             <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted-foreground">
-              {article.publisher && (
+              {article.publisherName && (
                 <div className="inline-flex items-center gap-2">
                   <div className="h-6 w-6 rounded-full bg-primary/15 flex items-center justify-center text-[10px] font-semibold text-primary">
-                    {article.publisher.substring(0, 2).toUpperCase()}
+                    {article.publisherName.substring(0, 2).toUpperCase()}
                   </div>
-                  <span>{article.publisher}</span>
+                  <span>{article.publisherName}</span>
                 </div>
               )}
               {publishedAt && (

@@ -78,6 +78,7 @@ export interface CreateResourceInput {
   content?: string;
   category?: string;
   readingTime?: string;
+  publisherName?: string;
 }
 
 /**
@@ -95,6 +96,7 @@ export interface UpdateResourceInput {
   content?: string;
   category?: string;
   readingTime?: string;
+  publisherName?: string;
 }
 
 /**
@@ -161,6 +163,7 @@ export class ResourcesApi {
         tags: data.tags,
         is_public: data.isPublic ?? true,
         publisher: user.id,
+        publisher_name: data.publisherName || user.user_metadata?.name || user.email?.split('@')[0] || 'Unknown',
         youtube_url: data.youtubeUrl,
         content: data.content,
         category: data.category,
@@ -392,6 +395,7 @@ export class ResourcesApi {
           tags: data.tags,
           is_public: data.isPublic ?? true,
           publisher: user.id,
+          publisher_name: data.publisherName || user.user_metadata?.name || user.email?.split('@')[0] || 'Unknown',
           youtube_url: data.youtubeUrl,
           content: data.content,
           category: data.category,
@@ -637,6 +641,7 @@ export class ResourcesApi {
     if (data.content !== undefined) updateData.content = data.content;
     if (data.category !== undefined) updateData.category = data.category;
     if (data.readingTime !== undefined) updateData.reading_time = data.readingTime;
+    if (data.publisherName !== undefined) updateData.publisher_name = data.publisherName;
 
     const { data: resource, error } = await supabase
       .from('resources')

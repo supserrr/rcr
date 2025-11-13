@@ -5,7 +5,6 @@ import { AnimatedPageHeader } from '@workspace/ui/components/animated-page-heade
 import { AnimatedCard } from '@workspace/ui/components/animated-card';
 import { ResourceCard } from '../../../../components/dashboard/shared/ResourceCard';
 import { ResourceViewerModalV2 } from '../../../../components/viewers/resource-viewer-modal-v2';
-import { ResourceEditModal } from '@workspace/ui/components/resource-edit-modal';
 import { ArticleEditor } from '@workspace/ui/components/article-editor';
 import { ArticleViewerV2 } from '../../../../components/viewers/article-viewer-v2';
 import { Input } from '@workspace/ui/components/input';
@@ -71,7 +70,6 @@ export default function CounselorResourcesPage() {
   const [selectedType, setSelectedType] = useState('all');
   const [selectedResource, setSelectedResource] = useState<Resource | null>(null);
   const [isViewerOpen, setIsViewerOpen] = useState(false);
-  const [isEditOpen, setIsEditOpen] = useState(false);
   const [isArticleEditorOpen, setIsArticleEditorOpen] = useState(false);
   const [isArticleViewerOpen, setIsArticleViewerOpen] = useState(false);
   const [editingResource, setEditingResource] = useState<Resource | null>(null);
@@ -97,12 +95,12 @@ export default function CounselorResourcesPage() {
   // Upload form state
   const [uploadFormData, setUploadFormData] = useState<{
     audio: { file: File | null; title: string; description: string; tags: string; duration: string };
-    video: { file: File | null; title: string; description: string; tags: string; duration: string };
+    video: { file: File | null; title: string; description: string; tags: string; duration: string; isYouTube: boolean; youtubeUrl: string };
     pdf: { file: File | null; title: string; description: string; tags: string };
     bulk: { files: File[] };
   }>({
     audio: { file: null, title: '', description: '', tags: '', duration: '' },
-    video: { file: null, title: '', description: '', tags: '', duration: '' },
+    video: { file: null, title: '', description: '', tags: '', duration: '', isYouTube: false, youtubeUrl: '' },
     pdf: { file: null, title: '', description: '', tags: '' },
     bulk: { files: [] },
   });
@@ -239,28 +237,35 @@ export default function CounselorResourcesPage() {
 
   // Initialize and sync contentEditable with state
   useEffect(() => {
-    if (articleContentRef.current && activeTab === 'create-article') {
-      const currentContent = articleContentRef.current.innerHTML.trim();
-      const stateContent = articleFormData.content || '';
-      
-      // If we have state content and the editor is empty or just has <br>, load the state content
-      // This handles loading drafts
-      if (stateContent && (!currentContent || currentContent === '<br>' || currentContent === '')) {
-        articleContentRef.current.innerHTML = stateContent;
-      } else if (stateContent && currentContent !== stateContent) {
-        // Only update if the element doesn't have focus (user isn't typing)
-        // This prevents overwriting user input while they're typing
-        if (document.activeElement !== articleContentRef.current) {
-          articleContentRef.current.innerHTML = stateContent;
+    if (activeTab === 'create-article') {
+      // Use a small delay to ensure the DOM is ready after tab switch
+      const timeoutId = setTimeout(() => {
+        if (articleContentRef.current) {
+          const currentContent = articleContentRef.current.innerHTML.trim();
+          const stateContent = articleFormData.content || '';
+          
+          // If we have state content and the editor is empty or just has <br>, load the state content
+          // This handles loading drafts
+          if (stateContent && (!currentContent || currentContent === '<br>' || currentContent === '')) {
+            articleContentRef.current.innerHTML = stateContent;
+          } else if (stateContent && currentContent !== stateContent) {
+            // Only update if the element doesn't have focus (user isn't typing)
+            // This prevents overwriting user input while they're typing
+            if (document.activeElement !== articleContentRef.current) {
+              articleContentRef.current.innerHTML = stateContent;
+            }
+          } else if (!stateContent && (!currentContent || currentContent === '<br>')) {
+            // Initialize with <br> for placeholder to work and ensure it's editable
+            articleContentRef.current.innerHTML = '<br>';
+            // Ensure the element is properly set up as contentEditable
+            articleContentRef.current.setAttribute('contenteditable', 'true');
+          }
         }
-      } else if (!stateContent && (!currentContent || currentContent === '<br>')) {
-        // Initialize with <br> for placeholder to work and ensure it's editable
-        articleContentRef.current.innerHTML = '<br>';
-        // Ensure the element is properly set up as contentEditable
-        articleContentRef.current.setAttribute('contenteditable', 'true');
-      }
+      }, 100); // Small delay to ensure DOM is ready
+
+      return () => clearTimeout(timeoutId);
     }
-  }, [articleFormData.content, activeTab]);
+  }, [articleFormData.content, activeTab, editingDraftId]);
 
   // Update active formatting states based on cursor position
   const updateActiveFormatting = useCallback(() => {
@@ -434,6 +439,7 @@ export default function CounselorResourcesPage() {
         youtubeUrl: resource.youtubeUrl,
         content: resource.content,
         category: resource.category,
+        publisherName: resource.publisherName || user?.name || 'Unknown',
       });
       toast.success('Resource duplicated successfully');
     } catch (error) {
@@ -543,11 +549,72 @@ export default function CounselorResourcesPage() {
 
   const handleEditResource = (resource: Resource) => {
     if (resource.type === 'article') {
-      setEditingArticle(resource);
-      setIsArticleEditorOpen(true);
+      // For articles, load into the article editor
+      setEditingDraftId(resource.id);
+      setArticleFormData({
+        title: resource.title,
+        excerpt: resource.description || '',
+        content: resource.content || '',
+        category: resource.category || '',
+        readingTime: resource.readingTime || '',
+        author: resource.publisherName || user?.name || '',
+        tags: resource.tags.join(', '),
+      });
+      if (resource.thumbnail) {
+        setCoverImage({ file: null, preview: resource.thumbnail });
+      }
+      setActiveTab('create-article');
+      // Force content to load after a brief delay
+      setTimeout(() => {
+        if (articleContentRef.current && resource.content) {
+          const currentContent = articleContentRef.current.innerHTML.trim();
+          if (!currentContent || currentContent === '<br>' || currentContent === '') {
+            articleContentRef.current.innerHTML = resource.content;
+          }
+        }
+      }, 200);
     } else {
+      // For other resource types, load into upload tabs (which now support edit mode)
       setEditingResource(resource);
-      setIsEditOpen(true);
+      // Set the appropriate upload tab based on resource type (they work for both create and edit)
+      if (resource.type === 'audio') {
+        setUploadFormData(prev => ({
+          ...prev,
+          audio: {
+            file: null,
+            title: resource.title,
+            description: resource.description,
+            tags: resource.tags.join(', '),
+            duration: '',
+          },
+        }));
+        setActiveTab('upload-audio');
+      } else if (resource.type === 'video') {
+        setUploadFormData(prev => ({
+          ...prev,
+          video: {
+            file: null,
+            title: resource.title,
+            description: resource.description,
+            tags: resource.tags.join(', '),
+            duration: '',
+            isYouTube: !!resource.youtubeUrl,
+            youtubeUrl: resource.youtubeUrl || '',
+          },
+        }));
+        setActiveTab('upload-video');
+      } else if (resource.type === 'pdf') {
+        setUploadFormData(prev => ({
+          ...prev,
+          pdf: {
+            file: null,
+            title: resource.title,
+            description: resource.description,
+            tags: resource.tags.join(', '),
+          },
+        }));
+        setActiveTab('upload-pdf');
+      }
     }
   };
 
@@ -573,6 +640,7 @@ export default function CounselorResourcesPage() {
           tags: article.tags,
           isPublic: article.isPublic,
           category: article.category,
+          publisherName: article.publisherName || user?.name || 'Unknown',
         });
         toast.success('Article updated successfully');
       } else {
@@ -585,6 +653,7 @@ export default function CounselorResourcesPage() {
           tags: article.tags,
           isPublic: article.isPublic,
           category: article.category,
+          publisherName: article.publisherName || user?.name || 'Unknown',
         });
         toast.success('Article created successfully');
       }
@@ -621,10 +690,11 @@ export default function CounselorResourcesPage() {
         youtubeUrl: updatedResource.youtubeUrl,
         content: updatedResource.content,
         category: updatedResource.category,
+        publisherName: updatedResource.publisherName || user?.name || 'Unknown',
       });
       toast.success('Resource updated successfully');
-      setIsEditOpen(false);
       setEditingResource(null);
+      setActiveTab('view');
     } catch (error) {
       console.error('Error updating resource:', error);
       toast.error(error instanceof Error ? error.message : 'Failed to update resource');
@@ -665,10 +735,6 @@ export default function CounselorResourcesPage() {
     }
   };
 
-  const handleCloseEditModal = () => {
-    setIsEditOpen(false);
-    setEditingResource(null);
-  };
 
   const handleCloseArticleEditor = () => {
     // Clean up cover image preview URL to prevent memory leaks
@@ -995,6 +1061,7 @@ export default function CounselorResourcesPage() {
       tags: articleFormData.tags.split(',').map(t => t.trim()).filter(t => t),
       isPublic: true,
       publisher: user?.id || '',
+      // publisherName is not stored in database - use author field or current user's name for preview only
       publisherName: articleFormData.author || user?.name || 'Unknown',
       thumbnail: coverImage.preview || undefined,
       views: 0,
@@ -1074,6 +1141,7 @@ export default function CounselorResourcesPage() {
         isPublic: false, // Draft is not public
         thumbnail: thumbnailUrl,
         readingTime: articleFormData.readingTime || undefined,
+        publisherName: articleFormData.author || user?.name || 'Unknown',
       };
       
       console.log('Saving draft with content length:', cleanedContent.length);
@@ -1168,6 +1236,7 @@ export default function CounselorResourcesPage() {
         isPublic: true, // Published articles are public
         thumbnail: thumbnailUrl,
         readingTime: articleFormData.readingTime || undefined,
+        publisherName: articleFormData.author || user?.name || 'Unknown',
       };
       
       console.log('Publishing article with content length:', cleanedContent.length);
@@ -1359,7 +1428,9 @@ export default function CounselorResourcesPage() {
   // Upload handlers
   const handleUploadAudio = async () => {
     const { file, title, description, tags, duration } = uploadFormData.audio;
-    if (!file) {
+    const isEditMode = !!editingResource && editingResource.type === 'audio';
+    
+    if (!isEditMode && !file) {
       toast.error('Please select an audio file');
       return;
     }
@@ -1371,24 +1442,72 @@ export default function CounselorResourcesPage() {
     setIsUploading(true);
     try {
       const tagsArray = tags.split(',').map(t => t.trim()).filter(t => t);
+      
+      if (isEditMode && editingResource) {
+        // Update existing resource
+        const updateData: any = {
+          title: title.trim(),
+          description: description.trim(),
+          tags: tagsArray,
+          publisherName: editingResource.publisherName || user?.name || 'Unknown',
+        };
+        
+        // If a new file was selected, upload it first
+        if (file) {
+          const { createClient } = await import('@/lib/supabase/client');
+          const supabase = createClient();
+          if (!supabase) throw new Error('Supabase is not configured');
+          
+          const { data: { user: authUser } } = await supabase.auth.getUser();
+          if (!authUser) throw new Error('User not authenticated');
+          
+          const fileExt = file.name.split('.').pop()?.toLowerCase() || 'mp3';
+          const fileName = `${authUser.id}-audio-${Date.now()}.${fileExt}`;
+          const filePath = fileName;
+          
+          const { error: uploadError } = await supabase.storage
+            .from('resources')
+            .upload(filePath, file, { cacheControl: '3600', upsert: false });
+          
+          if (uploadError) throw new Error(`Failed to upload file: ${uploadError.message}`);
+          
+          const { data: { publicUrl } } = supabase.storage
+            .from('resources')
+            .getPublicUrl(filePath);
+          
+          updateData.url = publicUrl;
+        }
+        
+        await updateResource(editingResource.id, updateData);
+        toast.success('Audio resource updated successfully');
+        setEditingResource(null);
+        setActiveTab('view');
+      } else {
+        // Create new resource
+        if (!file) {
+          toast.error('Please select an audio file');
+          setIsUploading(false);
+          return;
+        }
+        
       await createResourceWithFile(file, {
         title: title.trim(),
         description: description.trim(),
         type: 'audio',
         tags: tagsArray,
         isPublic: true,
+          publisherName: user?.name || 'Unknown',
       });
 
       toast.success('Audio resource uploaded successfully');
+        setActiveTab('view');
+      }
       
       // Reset form
       setUploadFormData(prev => ({
         ...prev,
         audio: { file: null, title: '', description: '', tags: '', duration: '' },
       }));
-      
-      // Switch to view tab
-      setActiveTab('view');
     } catch (error) {
       console.error('Error uploading audio:', error);
       toast.error(error instanceof Error ? error.message : 'Failed to upload audio');
@@ -1398,37 +1517,105 @@ export default function CounselorResourcesPage() {
   };
 
   const handleUploadVideo = async () => {
-    const { file, title, description, tags, duration } = uploadFormData.video;
-    if (!file) {
-      toast.error('Please select a video file');
+    const { file, title, description, tags, duration, isYouTube, youtubeUrl } = uploadFormData.video;
+    const isEditMode = !!editingResource && editingResource.type === 'video';
+    
+    if (!isEditMode && !file && !isYouTube) {
+      toast.error('Please select a video file or enable YouTube');
       return;
     }
     if (!title.trim()) {
       toast.error('Please enter a title');
       return;
     }
+    if (isYouTube && !youtubeUrl?.trim()) {
+      toast.error('Please enter a YouTube URL');
+      return;
+    }
 
     setIsUploading(true);
     try {
       const tagsArray = tags.split(',').map(t => t.trim()).filter(t => t);
-      await createResourceWithFile(file, {
+      
+      if (isEditMode && editingResource) {
+        // Update existing resource
+        const updateData: any = {
+          title: title.trim(),
+          description: description.trim(),
+          tags: tagsArray,
+          publisherName: editingResource.publisherName || user?.name || 'Unknown',
+          youtubeUrl: isYouTube ? youtubeUrl?.trim() : undefined,
+        };
+        
+        // If a new file was selected (and not YouTube), upload it first
+        if (file && !isYouTube) {
+          const { createClient } = await import('@/lib/supabase/client');
+          const supabase = createClient();
+          if (!supabase) throw new Error('Supabase is not configured');
+          
+          const { data: { user: authUser } } = await supabase.auth.getUser();
+          if (!authUser) throw new Error('User not authenticated');
+          
+          const fileExt = file.name.split('.').pop()?.toLowerCase() || 'mp4';
+          const fileName = `${authUser.id}-video-${Date.now()}.${fileExt}`;
+          const filePath = fileName;
+          
+          const { error: uploadError } = await supabase.storage
+            .from('resources')
+            .upload(filePath, file, { cacheControl: '3600', upsert: false });
+          
+          if (uploadError) throw new Error(`Failed to upload file: ${uploadError.message}`);
+          
+          const { data: { publicUrl } } = supabase.storage
+            .from('resources')
+            .getPublicUrl(filePath);
+          
+          updateData.url = publicUrl;
+        }
+        
+        await updateResource(editingResource.id, updateData);
+        toast.success('Video resource updated successfully');
+        setEditingResource(null);
+        setActiveTab('view');
+      } else {
+        // Create new resource
+        if (isYouTube) {
+          // Create YouTube resource
+          await createResource({
         title: title.trim(),
         description: description.trim(),
         type: 'video',
         tags: tagsArray,
         isPublic: true,
-      });
-
+            youtubeUrl: youtubeUrl?.trim(),
+            publisherName: user?.name || 'Unknown',
+          });
+          toast.success('YouTube video resource created successfully');
+        } else {
+          if (!file) {
+            toast.error('Please select a video file');
+            setIsUploading(false);
+            return;
+          }
+          
+          await createResourceWithFile(file, {
+            title: title.trim(),
+            description: description.trim(),
+            type: 'video',
+            tags: tagsArray,
+            isPublic: true,
+            publisherName: user?.name || 'Unknown',
+          });
       toast.success('Video resource uploaded successfully');
+        }
+        setActiveTab('view');
+      }
       
       // Reset form
       setUploadFormData(prev => ({
         ...prev,
-        video: { file: null, title: '', description: '', tags: '', duration: '' },
+        video: { file: null, title: '', description: '', tags: '', duration: '', isYouTube: false, youtubeUrl: '' },
       }));
-      
-      // Switch to view tab
-      setActiveTab('view');
     } catch (error) {
       console.error('Error uploading video:', error);
       toast.error(error instanceof Error ? error.message : 'Failed to upload video');
@@ -1439,7 +1626,9 @@ export default function CounselorResourcesPage() {
 
   const handleUploadPdf = async () => {
     const { file, title, description, tags } = uploadFormData.pdf;
-    if (!file) {
+    const isEditMode = !!editingResource && editingResource.type === 'pdf';
+    
+    if (!isEditMode && !file) {
       toast.error('Please select a PDF file');
       return;
     }
@@ -1451,24 +1640,72 @@ export default function CounselorResourcesPage() {
     setIsUploading(true);
     try {
       const tagsArray = tags.split(',').map(t => t.trim()).filter(t => t);
+      
+      if (isEditMode && editingResource) {
+        // Update existing resource
+        const updateData: any = {
+          title: title.trim(),
+          description: description.trim(),
+          tags: tagsArray,
+          publisherName: editingResource.publisherName || user?.name || 'Unknown',
+        };
+        
+        // If a new file was selected, upload it first
+        if (file) {
+          const { createClient } = await import('@/lib/supabase/client');
+          const supabase = createClient();
+          if (!supabase) throw new Error('Supabase is not configured');
+          
+          const { data: { user: authUser } } = await supabase.auth.getUser();
+          if (!authUser) throw new Error('User not authenticated');
+          
+          const fileExt = file.name.split('.').pop()?.toLowerCase() || 'pdf';
+          const fileName = `${authUser.id}-pdf-${Date.now()}.${fileExt}`;
+          const filePath = fileName;
+          
+          const { error: uploadError } = await supabase.storage
+            .from('resources')
+            .upload(filePath, file, { cacheControl: '3600', upsert: false });
+          
+          if (uploadError) throw new Error(`Failed to upload file: ${uploadError.message}`);
+          
+          const { data: { publicUrl } } = supabase.storage
+            .from('resources')
+            .getPublicUrl(filePath);
+          
+          updateData.url = publicUrl;
+        }
+        
+        await updateResource(editingResource.id, updateData);
+        toast.success('PDF resource updated successfully');
+        setEditingResource(null);
+        setActiveTab('view');
+      } else {
+        // Create new resource
+        if (!file) {
+          toast.error('Please select a PDF file');
+          setIsUploading(false);
+          return;
+        }
+        
       await createResourceWithFile(file, {
         title: title.trim(),
         description: description.trim(),
         type: 'pdf',
         tags: tagsArray,
         isPublic: true,
+          publisherName: user?.name || 'Unknown',
       });
 
       toast.success('PDF resource uploaded successfully');
+        setActiveTab('view');
+      }
       
       // Reset form
       setUploadFormData(prev => ({
         ...prev,
         pdf: { file: null, title: '', description: '', tags: '' },
       }));
-      
-      // Switch to view tab
-      setActiveTab('view');
     } catch (error) {
       console.error('Error uploading PDF:', error);
       toast.error(error instanceof Error ? error.message : 'Failed to upload PDF');
@@ -1655,7 +1892,7 @@ export default function CounselorResourcesPage() {
                             {new Date(resource.createdAt).toLocaleDateString()}
                           </span>
                           <span className="text-xs text-muted-foreground">
-                            by {resource.publisher}
+                            {resource.publisherName ? `by ${resource.publisherName}` : resource.publisher === user?.id ? 'by You' : 'by Unknown'}
                           </span>
                         </div>
                       </div>
@@ -1840,7 +2077,7 @@ export default function CounselorResourcesPage() {
                             content: draft.content || '',
                             category: draft.category || '',
                             readingTime: draft.readingTime || '',
-                            author: user?.name || '',
+                            author: draft.publisherName || user?.name || '', // Load saved publisher name or fallback to current user
                             tags: draft.tags.join(', '),
                           });
                           // Load cover image if exists
@@ -1849,7 +2086,17 @@ export default function CounselorResourcesPage() {
                           } else {
                             setCoverImage({ file: null, preview: null });
                           }
+                          // Switch to article editor tab
                           setActiveTab('create-article');
+                          // Force content to load after a brief delay to ensure DOM is ready
+                          setTimeout(() => {
+                            if (articleContentRef.current && draft.content) {
+                              const currentContent = articleContentRef.current.innerHTML.trim();
+                              if (!currentContent || currentContent === '<br>' || currentContent === '') {
+                                articleContentRef.current.innerHTML = draft.content;
+                              }
+                            }
+                          }, 200);
                         }}
                       >
                         <div className="flex-1 min-w-0">
@@ -1867,14 +2114,16 @@ export default function CounselorResourcesPage() {
                             size="sm"
                             onClick={(e) => {
                               e.stopPropagation();
+                              // Set editing draft ID first
                               setEditingDraftId(draft.id);
+                              // Set form data with draft content
                               setArticleFormData({
                                 title: draft.title,
                                 excerpt: draft.description || '',
                                 content: draft.content || '',
                                 category: draft.category || '',
                                 readingTime: draft.readingTime || '',
-                                author: user?.name || '',
+                                author: draft.publisherName || user?.name || '', // Load saved publisher name or fallback to current user
                                 tags: draft.tags.join(', '),
                               });
                               // Load cover image if exists
@@ -1883,7 +2132,17 @@ export default function CounselorResourcesPage() {
                               } else {
                                 setCoverImage({ file: null, preview: null });
                               }
+                              // Switch to article editor tab
                               setActiveTab('create-article');
+                              // Force content to load after a brief delay to ensure DOM is ready
+                              setTimeout(() => {
+                                if (articleContentRef.current && draft.content) {
+                                  const currentContent = articleContentRef.current.innerHTML.trim();
+                                  if (!currentContent || currentContent === '<br>' || currentContent === '') {
+                                    articleContentRef.current.innerHTML = draft.content;
+                                  }
+                                }
+                              }, 200);
                             }}
                           >
                             <Edit className="h-4 w-4 mr-1" />
@@ -2172,15 +2431,22 @@ export default function CounselorResourcesPage() {
               <Button 
                 variant="outline" 
                 size="sm" 
-                onClick={() => setActiveTab('manage')}
+                onClick={() => {
+                  setEditingResource(null);
+                  setActiveTab('manage');
+                }}
                 className="flex items-center gap-2"
               >
                 <ArrowLeft className="h-4 w-4" />
                 Back
               </Button>
               <div>
-                <h3 className="text-xl font-semibold">Upload Audio File</h3>
-                <p className="text-sm text-muted-foreground">Add audio content for your patients</p>
+                <h3 className="text-xl font-semibold">
+                  {editingResource && editingResource.type === 'audio' ? 'Edit Audio Resource' : 'Upload Audio File'}
+                </h3>
+                <p className="text-sm text-muted-foreground">
+                  {editingResource && editingResource.type === 'audio' ? 'Update audio resource details' : 'Add audio content for your patients'}
+                </p>
               </div>
             </div>
 
@@ -2265,23 +2531,26 @@ export default function CounselorResourcesPage() {
                 </div>
               </div>
               <div className="flex justify-end space-x-3 mt-6">
-                <Button variant="outline" onClick={() => setActiveTab('manage')}>
+                <Button variant="outline" onClick={() => {
+                  setEditingResource(null);
+                  setActiveTab('manage');
+                }}>
                   Cancel
                 </Button>
                 <Button 
                   className="bg-purple-600 hover:bg-purple-700"
                   onClick={handleUploadAudio}
-                  disabled={isUploading || !uploadFormData.audio.file}
+                  disabled={isUploading || (!uploadFormData.audio.file && !(editingResource && editingResource.type === 'audio'))}
                 >
                   {isUploading ? (
                     <>
                       <Spinner variant="bars" size={16} className="mr-2" />
-                      Uploading...
+                      {editingResource && editingResource.type === 'audio' ? 'Updating...' : 'Uploading...'}
                     </>
                   ) : (
                     <>
                       <Upload className="h-4 w-4 mr-2" />
-                  Upload & Save
+                      {editingResource && editingResource.type === 'audio' ? 'Update & Save' : 'Upload & Save'}
                     </>
                   )}
                 </Button>
@@ -2306,15 +2575,22 @@ export default function CounselorResourcesPage() {
               <Button 
                 variant="outline" 
                 size="sm" 
-                onClick={() => setActiveTab('manage')}
+                onClick={() => {
+                  setEditingResource(null);
+                  setActiveTab('manage');
+                }}
                 className="flex items-center gap-2"
               >
                 <ArrowLeft className="h-4 w-4" />
                 Back
               </Button>
               <div>
-                <h3 className="text-xl font-semibold">Upload Video File</h3>
-                <p className="text-sm text-muted-foreground">Add video content for your patients</p>
+                <h3 className="text-xl font-semibold">
+                  {editingResource && editingResource.type === 'video' ? 'Edit Video Resource' : 'Upload Video File'}
+                </h3>
+                <p className="text-sm text-muted-foreground">
+                  {editingResource && editingResource.type === 'video' ? 'Update video resource details' : 'Add video content for your patients'}
+                </p>
               </div>
             </div>
 
@@ -2399,23 +2675,26 @@ export default function CounselorResourcesPage() {
                 </div>
               </div>
               <div className="flex justify-end space-x-3 mt-6">
-                <Button variant="outline" onClick={() => setActiveTab('manage')}>
+                <Button variant="outline" onClick={() => {
+                  setEditingResource(null);
+                  setActiveTab('manage');
+                }}>
                   Cancel
                 </Button>
                 <Button 
                   className="bg-blue-600 hover:bg-blue-700"
                   onClick={handleUploadVideo}
-                  disabled={isUploading || !uploadFormData.video.file}
+                  disabled={isUploading || (!uploadFormData.video.file && !uploadFormData.video.isYouTube && !(editingResource && editingResource.type === 'video'))}
                 >
                   {isUploading ? (
                     <>
                       <Spinner variant="bars" size={16} className="mr-2" />
-                      Uploading...
+                      {editingResource && editingResource.type === 'video' ? 'Updating...' : 'Uploading...'}
                     </>
                   ) : (
                     <>
                       <Upload className="h-4 w-4 mr-2" />
-                  Upload & Save
+                      {editingResource && editingResource.type === 'video' ? 'Update & Save' : 'Upload & Save'}
                     </>
                   )}
                 </Button>
@@ -2440,15 +2719,22 @@ export default function CounselorResourcesPage() {
               <Button 
                 variant="outline" 
                 size="sm" 
-                onClick={() => setActiveTab('manage')}
+                onClick={() => {
+                  setEditingResource(null);
+                  setActiveTab('manage');
+                }}
                 className="flex items-center gap-2"
               >
                 <ArrowLeft className="h-4 w-4" />
                 Back
               </Button>
               <div>
-                <h3 className="text-xl font-semibold">Upload PDF Document</h3>
-                <p className="text-sm text-muted-foreground">Add PDF content for your patients</p>
+                <h3 className="text-xl font-semibold">
+                  {editingResource && editingResource.type === 'pdf' ? 'Edit PDF Resource' : 'Upload PDF Document'}
+                </h3>
+                <p className="text-sm text-muted-foreground">
+                  {editingResource && editingResource.type === 'pdf' ? 'Update PDF resource details' : 'Add PDF content for your patients'}
+                </p>
               </div>
             </div>
 
@@ -2525,23 +2811,26 @@ export default function CounselorResourcesPage() {
                 </div>
               </div>
               <div className="flex justify-end space-x-3 mt-6">
-                <Button variant="outline" onClick={() => setActiveTab('manage')}>
+                <Button variant="outline" onClick={() => {
+                  setEditingResource(null);
+                  setActiveTab('manage');
+                }}>
                   Cancel
                 </Button>
                 <Button 
                   className="bg-red-600 hover:bg-red-700"
                   onClick={handleUploadPdf}
-                  disabled={isUploading || !uploadFormData.pdf.file}
+                  disabled={isUploading || (!uploadFormData.pdf.file && !(editingResource && editingResource.type === 'pdf'))}
                 >
                   {isUploading ? (
                     <>
                       <Spinner variant="bars" size={16} className="mr-2" />
-                      Uploading...
+                      {editingResource && editingResource.type === 'pdf' ? 'Updating...' : 'Uploading...'}
                     </>
                   ) : (
                     <>
                       <Upload className="h-4 w-4 mr-2" />
-                  Upload & Save
+                      {editingResource && editingResource.type === 'pdf' ? 'Update & Save' : 'Upload & Save'}
                     </>
                   )}
                 </Button>
@@ -2938,12 +3227,18 @@ export default function CounselorResourcesPage() {
                       />
                     </div>
                     <div className="flex-1 min-w-[200px]">
-                      <label className="text-xs font-medium text-muted-foreground mb-2 block uppercase tracking-wide">Author</label>
+                      <label className="text-xs font-medium text-muted-foreground mb-2 block uppercase tracking-wide">
+                        Author (Display Name)
+                      </label>
                       <Input 
                         placeholder={user?.name || "Author name"} 
                         value={articleFormData.author || user?.name || ''}
                         onChange={(e) => setArticleFormData(prev => ({ ...prev, author: e.target.value }))}
+                        title="Author name for display. Publisher is always the logged-in user."
                       />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Display name only (publisher: {user?.name || 'You'})
+                      </p>
                     </div>
                   </div>
 
@@ -3580,17 +3875,6 @@ export default function CounselorResourcesPage() {
         />
       )}
 
-      {/* Resource Edit Modal */}
-      {editingResource && (
-        <ResourceEditModal
-          resource={convertToUIResource(editingResource)}
-          isOpen={isEditOpen}
-          onClose={handleCloseEditModal}
-          onSave={handleSaveResource}
-          onDelete={(resourceId: string) => handleDeleteResource(resourceId)}
-          onCreateArticle={handleCreateArticle}
-        />
-      )}
 
       {/* Article Editor */}
       {editingArticle && (
@@ -3611,6 +3895,7 @@ export default function CounselorResourcesPage() {
             content: previewArticle.content || '',
             description: previewArticle.description,
             publisher: previewArticle.publisher,
+            publisherName: previewArticle.publisherName,
             createdAt: new Date(previewArticle.createdAt),
             thumbnail: previewArticle.thumbnail,
             tags: previewArticle.tags,
@@ -3632,6 +3917,7 @@ export default function CounselorResourcesPage() {
             content: viewingArticle.content,
             description: viewingArticle.description,
             publisher: viewingArticle.publisher,
+            publisherName: viewingArticle.publisherName,
             createdAt: new Date(viewingArticle.createdAt),
             thumbnail: viewingArticle.thumbnail,
             tags: viewingArticle.tags,

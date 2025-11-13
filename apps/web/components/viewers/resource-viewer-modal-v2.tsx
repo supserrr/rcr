@@ -6,7 +6,7 @@ import { Button } from '@workspace/ui/components/button';
 import { Badge } from '@workspace/ui/components/badge';
 import { Download, Share2, Bookmark, ExternalLink, Play } from 'lucide-react';
 import { VideoPlayer } from '../ui/video-player';
-import { Resource } from '../../lib/types';
+import { Resource } from '@/lib/api/resources';
 
 type ResourceLike = {
   id: string;
@@ -17,7 +17,8 @@ type ResourceLike = {
   thumbnail?: string;
   tags?: string[];
   createdAt?: Date;
-  publisher?: string;
+  publisher?: string; // UUID - not displayed
+  publisherName?: string; // Display name
   isYouTube?: boolean;
   youtubeUrl?: string;
   content?: string;
@@ -35,7 +36,7 @@ interface ResourceViewerModalV2Props {
 }
 
 export function ResourceViewerModalV2({ resource, isOpen, onClose, onDownload, onShare, onBookmark, onViewArticle }: ResourceViewerModalV2Props) {
-  const isYouTube = !!resource.isYouTube || (!!resource.youtubeUrl && resource.youtubeUrl!.length > 0);
+  const isYouTube = ('isYouTube' in resource && resource.isYouTube) || (!!resource.youtubeUrl && resource.youtubeUrl!.length > 0);
   const isVideo = resource.type === 'video' && (isYouTube || (!!resource.url && resource.url.toLowerCase().endsWith('.mp4')));
   const isPdf = resource.type === 'pdf' && !!resource.url;
   const isAudio = resource.type === 'audio' && !!resource.url;
@@ -51,8 +52,8 @@ export function ResourceViewerModalV2({ resource, isOpen, onClose, onDownload, o
               {resource.tags?.slice(0, 4).map((tag) => (
                 <Badge key={tag} variant="secondary" className="text-xs">{tag}</Badge>
               ))}
-              {resource.publisher && (
-                <span className="text-sm text-muted-foreground">• {resource.publisher}</span>
+              {resource.publisherName && (
+                <span className="text-sm text-muted-foreground">• {resource.publisherName}</span>
               )}
             </span>
           </DialogDescription>
