@@ -254,90 +254,51 @@ export class ResourcesApi {
         });
 
       if (uploadError) {
-        // Log the raw error object to see what Supabase is actually returning
-        console.error('Supabase storage upload error - RAW:', uploadError);
-        console.error('Upload error type:', typeof uploadError);
-        console.error('Upload error keys:', Object.keys(uploadError));
-        
-        const errorMessage = uploadError.message || 'Unknown error';
         const errorObj = uploadError as any;
         
-        // Try to extract error details from various possible formats
-        let statusCode: number | string | undefined;
-        let status: number | undefined;
-        let statusText: string | undefined;
-        let errorBody: any;
+        // Extract error details from Supabase Storage error
+        const statusCode = errorObj?.statusCode ?? errorObj?.status;
+        const errorName = errorObj?.name || '';
         
-        // Check various error object structures
-        if (errorObj?.statusCode) {
-          statusCode = errorObj.statusCode;
-        } else if (errorObj?.status) {
-          status = errorObj.status;
-          statusCode = status;
-        } else if (errorObj?.response?.status) {
-          status = errorObj.response.status;
-          statusCode = status;
-          statusText = errorObj.response.statusText;
-          errorBody = errorObj.response.data || errorObj.response.body;
-        }
-        
-        // Log detailed error information
-        const errorDetails = {
-          message: errorMessage,
-          error: uploadError,
-          errorObj: errorObj,
-          statusCode,
-          status,
-          statusText,
-          errorBody,
-          filePath,
-          fileSize: file.size,
-          fileType: file.type,
-          fileExtension: fileExt,
-          resourceType: data.type,
-          bucket: 'resources',
-          userId: user.id,
-          fileName: file.name,
-          uploadData: uploadData, // Log upload data if it exists
-        };
-        
-        console.error('Supabase storage upload error - DETAILED:', errorDetails);
-        
-        // Try to get more detailed error message
-        let detailedError = errorMessage;
-        if (errorBody) {
-          if (typeof errorBody === 'string') {
-            detailedError = errorBody;
-          } else if (errorBody.message) {
-            detailedError = errorBody.message;
-          } else if (errorBody.error) {
-            detailedError = errorBody.error;
-          } else {
-            detailedError = JSON.stringify(errorBody);
-          }
+        // Try to extract error message from various possible locations
+        let errorMessage = 'Unknown error';
+        if (errorObj?.message) {
+          errorMessage = errorObj.message;
+        } else if (errorObj?.error?.message) {
+          errorMessage = errorObj.error.message;
         } else if (errorObj?.error) {
-          detailedError = typeof errorObj.error === 'string' ? errorObj.error : JSON.stringify(errorObj.error);
-        } else if (errorObj?.message) {
-          detailedError = errorObj.message;
-        } else if (statusText) {
-          detailedError = statusText;
+          errorMessage = typeof errorObj.error === 'string' ? errorObj.error : JSON.stringify(errorObj.error);
+        } else if (errorName) {
+          errorMessage = errorName;
         }
         
-        // Check for file size errors first (most common issue)
-        const isFileSizeError = errorMessage.includes('exceeded the maximum allowed size') ||
-                               errorMessage.includes('file too large') ||
-                               errorMessage.includes('size limit') ||
-                               errorMessage.includes('too big') ||
-                               errorMessage.includes('413') ||
-                               statusCode === '413' ||
-                               statusCode === 413 ||
-                               status === 413;
+        // Check for file size errors (413 status code or size-related error messages)
+        const isFileSizeError = 
+          statusCode === 413 ||
+          statusCode === '413' ||
+          errorMessage.toLowerCase().includes('exceeded the maximum allowed size') ||
+          errorMessage.toLowerCase().includes('file too large') ||
+          errorMessage.toLowerCase().includes('size limit') ||
+          errorMessage.toLowerCase().includes('too big') ||
+          errorMessage.toLowerCase().includes('payload too large');
         
         if (isFileSizeError) {
           const fileSizeMB = (file.size / 1024 / 1024).toFixed(2);
+          // Supabase Storage limits:
+          // - Free Plan: 50MB maximum
+          // - Pro Plan: Up to 500GB (configurable)
+          // Status code 413 indicates Payload Too Large
+          const maxSizeMB = 50; // Default free tier limit
           throw new Error(
-            `File too large. Your file is ${fileSizeMB}MB. The maximum allowed size is 500MB. ` +
-            `Please compress your file or choose a smaller file.`
+            `File too large. Your file is ${fileSizeMB}MB, which exceeds the Supabase Storage limit. ` +
+            `\n\nSupabase Storage limits:\n` +
+            `• Free Plan: Maximum 50MB per file\n` +
+            `• Pro Plan: Up to 500GB per file (configurable)\n\n` +
+            `To upload larger files:\n` +
+            `1. Upgrade to Pro plan in Supabase Dashboard → Settings → Billing\n` +
+            `2. Or compress your file to under 50MB\n` +
+            `3. Or split large videos into smaller segments\n\n` +
+            `See docs/deployment/SUPABASE_STORAGE_LIMITS.md for more details.`
           );
         }
         
@@ -345,9 +306,7 @@ export class ResourcesApi {
         const is400Error = errorMessage.includes('400') || 
                           errorMessage.includes('Bad Request') || 
                           statusCode === '400' || 
-                          statusCode === 400 ||
-                          status === 400 ||
-                          detailedError.includes('400');
+                          statusCode === 400;
         
         if (is400Error) {
           throw new Error(
@@ -356,20 +315,20 @@ export class ResourcesApi {
             `Size: ${(file.size / 1024 / 1024).toFixed(2)}MB, ` +
             `Type: ${file.type || 'unknown'}, ` +
             `Extension: ${fileExt}. ` +
-            `Error: ${detailedError}. ` +
+            `Error: ${errorMessage}. ` +
             `Please check the browser console for full error details.`
           );
-        } else if (errorMessage.includes('403') || errorMessage.includes('Forbidden') || errorMessage.includes('Permission denied') || statusCode === '403' || statusCode === 403 || status === 403) {
+        } else if (errorMessage.includes('403') || errorMessage.includes('Forbidden') || errorMessage.includes('Permission denied') || statusCode === '403' || statusCode === 403) {
           throw new Error(
-            `Permission denied (403). Please check if you have permission to upload files to the resources bucket. Error: ${detailedError}`
+            `Permission denied (403). Please check if you have permission to upload files to the resources bucket. Error: ${errorMessage}`
           );
-        } else if (errorMessage.includes('Bucket not found') || errorMessage.includes('bucket') || errorMessage.includes('404') || status === 404 || statusCode === 404) {
+        } else if (errorMessage.includes('Bucket not found') || errorMessage.includes('bucket') || errorMessage.includes('404') || statusCode === 404) {
           throw new Error(
-            `Storage bucket 'resources' not found (404). Please check if the bucket exists in Supabase Storage. Error: ${detailedError}`
+            `Storage bucket 'resources' not found (404). Please check if the bucket exists in Supabase Storage. Error: ${errorMessage}`
           );
         } else {
           throw new Error(
-            `Failed to upload file. Error: ${detailedError}. Status: ${statusCode || status || 'unknown'}. File: ${file.name}. Path: ${filePath}. Please check the browser console for more details.`
+            `Failed to upload file. Error: ${errorMessage}. Status: ${statusCode || 'unknown'}. File: ${file.name}. Path: ${filePath}. Please check the browser console for more details.`
           );
         }
       }

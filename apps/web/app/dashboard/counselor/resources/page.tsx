@@ -1420,7 +1420,7 @@ export default function CounselorResourcesPage() {
                   ) : (
                     <>
                       <Upload className="h-4 w-4 mr-2" />
-                      Upload & Save
+                  Upload & Save
                     </>
                   )}
                 </Button>
@@ -1554,7 +1554,7 @@ export default function CounselorResourcesPage() {
                   ) : (
                     <>
                       <Upload className="h-4 w-4 mr-2" />
-                      Upload & Save
+                  Upload & Save
                     </>
                   )}
                 </Button>
@@ -1680,7 +1680,7 @@ export default function CounselorResourcesPage() {
                   ) : (
                     <>
                       <Upload className="h-4 w-4 mr-2" />
-                      Upload & Save
+                  Upload & Save
                     </>
                   )}
                 </Button>
