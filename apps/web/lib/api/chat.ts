@@ -455,17 +455,28 @@ export class ChatApi {
       })
       .eq('id', data.chatId);
 
-    void fetch('/api/notifications/events/message', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ messageId: message.id }),
-    }).catch((notificationError) => {
+    // Send notification asynchronously (don't block on this)
+    // This is fire-and-forget - if it fails, it won't affect message sending
+    try {
+      fetch('/api/notifications/events/message', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ messageId: message.id }),
+      }).catch((notificationError) => {
+        // Silently fail - notification is not critical for message sending
+        // Only log in development to avoid console noise
+        if (process.env.NODE_ENV === 'development') {
+          console.warn('[ChatApi.sendMessage] Failed to enqueue notification (non-critical, message was sent successfully):', notificationError);
+        }
+      });
+    } catch (notificationError) {
+      // Ignore notification errors completely - they don't affect message sending
       if (process.env.NODE_ENV === 'development') {
-        console.warn('[ChatApi.sendMessage] Failed to enqueue notification:', notificationError);
+        console.warn('[ChatApi.sendMessage] Notification endpoint error (ignored):', notificationError);
       }
-    });
+    }
 
     return this.mapMessageFromDb(message);
   }
