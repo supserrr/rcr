@@ -441,8 +441,8 @@ export class ChatApi {
       sender_id: messageData.sender_id,
       receiver_id: messageData.receiver_id,
       receiver_id_type: typeof messageData.receiver_id,
-      receiver_id_length: messageData.receiver_id?.length,
-      content_length: messageData.content?.length,
+      receiver_id_length: typeof messageData.receiver_id === 'string' ? messageData.receiver_id.length : undefined,
+      content_length: typeof messageData.content === 'string' ? messageData.content.length : undefined,
       type: messageData.type,
     });
 

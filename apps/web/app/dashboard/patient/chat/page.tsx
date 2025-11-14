@@ -269,7 +269,10 @@ export default function PatientChatPage() {
         groups.push({ date: dateLabel, messages: [] });
       }
       
-      groups[groups.length - 1].messages.push(message);
+      const lastGroup = groups[groups.length - 1];
+      if (lastGroup) {
+        lastGroup.messages.push(message);
+      }
     });
     
     return groups;
@@ -626,7 +629,7 @@ export default function PatientChatPage() {
                                       name: getCounselorInfo(message.senderId)?.fullName || 
                                             getCounselorInfo(message.senderId)?.email || 
                                             'Counselor',
-                                      avatar: getCounselorInfo(message.senderId)?.avatar_url,
+                                      avatar: getCounselorInfo(message.senderId)?.avatarUrl,
                                     };
                                 
                                 // Find replyTo message if replyToId exists

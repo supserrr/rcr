@@ -268,7 +268,10 @@ export default function CounselorChatPage() {
         groups.push({ date: dateLabel, messages: [] });
       }
       
-      groups[groups.length - 1].messages.push(message);
+      const lastGroup = groups[groups.length - 1];
+      if (lastGroup) {
+        lastGroup.messages.push(message);
+      }
     });
     
     return groups;
@@ -648,7 +651,7 @@ export default function CounselorChatPage() {
                                       name: getPatientInfo(message.senderId)?.fullName || 
                                             getPatientInfo(message.senderId)?.email || 
                                             'Patient',
-                                      avatar: getPatientInfo(message.senderId)?.avatar_url,
+                                      avatar: getPatientInfo(message.senderId)?.avatarUrl,
                                     };
                                 
                                 const replyToMessage = message.replyToId
