@@ -1910,6 +1910,31 @@ export class AuthApi {
       throw new Error(authError?.message || 'Failed to determine authenticated user.');
     }
 
+    // Ensure counselor_profiles record exists before uploading documents
+    // The counselor_documents table has a foreign key to counselor_profiles.profile_id
+    const { data: existingCounselorProfile, error: profileCheckError } = await supabase
+      .from('counselor_profiles')
+      .select('profile_id')
+      .eq('profile_id', user.id)
+      .maybeSingle();
+
+    if (profileCheckError) {
+      throw new Error(profileCheckError.message || 'Failed to check counselor profile.');
+    }
+
+    if (!existingCounselorProfile) {
+      // Create a minimal counselor_profiles record if it doesn't exist
+      const { error: createError } = await supabase
+        .from('counselor_profiles')
+        .insert({
+          profile_id: user.id,
+        });
+
+      if (createError) {
+        throw new Error(createError.message || 'Failed to create counselor profile. Please complete your profile setup first.');
+      }
+    }
+
     const uploadedDocuments: CounselorDocument[] = [];
 
     for (const { file, type } of filesToUpload) {
