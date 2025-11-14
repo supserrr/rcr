@@ -39,6 +39,21 @@ export function useChat(
   const [total, setTotal] = useState(0);
   const [realtimeConnected, setRealtimeConnected] = useState(false);
 
+  // Helper function to deduplicate and sort messages by createdAt (ascending - oldest first)
+  const deduplicateAndSortMessages = useCallback((msgs: Message[]): Message[] => {
+    // Use Map to deduplicate by ID (keeps last occurrence, but we'll sort anyway)
+    const messageMap = new Map<string, Message>();
+    for (const msg of msgs) {
+      messageMap.set(msg.id, msg);
+    }
+    // Convert back to array and sort
+    return Array.from(messageMap.values()).sort((a, b) => {
+      const dateA = new Date(a.createdAt).getTime();
+      const dateB = new Date(b.createdAt).getTime();
+      return dateA - dateB; // Ascending order (oldest first)
+    });
+  }, []);
+
   // Supabase Realtime integration for messages
   useChatMessages(
     isEnabled ? currentChat?.id || null : null,
@@ -46,7 +61,7 @@ export function useChat(
         // Add new message if it's for the current chat
       if (currentChat && message.chat_id === currentChat.id) {
           setMessages((prev) => {
-            // Check if message already exists
+            // Check if message already exists to avoid duplicates
           if (prev.some((m) => m.id === message.id)) {
               return prev;
             }
@@ -62,7 +77,8 @@ export function useChat(
             createdAt: message.created_at,
             updatedAt: message.created_at,
           };
-          return [...prev, transformedMessage];
+          // Add message, deduplicate, and sort to maintain chronological order
+          return deduplicateAndSortMessages([...prev, transformedMessage]);
         });
         // Refresh chats to update last message
         if (isEnabled) {
@@ -132,10 +148,9 @@ export function useChat(
     try {
       const message = await ChatApi.sendMessage(data);
       
-      // Add message to local state immediately for instant feedback
-      if (currentChat && data.chatId === currentChat.id) {
-        setMessages((prev) => [...prev, message]);
-      }
+      // Don't add message here - let realtime subscription handle it
+      // This prevents duplicates from race conditions between sendMessage and realtime
+      // Realtime will add it almost instantly anyway
       
       // Refresh chats to update last message
       await fetchChats();
@@ -151,14 +166,21 @@ export function useChat(
       const errorMessage = err instanceof Error ? err.message : err instanceof ApiError ? err.message : 'Failed to send message';
       throw new Error(errorMessage);
     }
-  }, [currentChat, fetchChats]);
+  }, [fetchChats]);
 
   const loadMessages = useCallback(async (chatId: string, messageParams?: MessagesQueryParams) => {
     setLoading(true);
     setError(null);
     try {
       const response = await ChatApi.getMessages(chatId, messageParams);
-      setMessages(response.messages);
+      // Merge with existing messages and deduplicate
+      // This ensures we don't lose messages that came via realtime
+      setMessages((prev) => {
+        // Combine existing messages with newly loaded ones
+        const allMessages = [...prev, ...response.messages];
+        // Deduplicate and sort
+        return deduplicateAndSortMessages(allMessages);
+      });
     } catch (err) {
       const errorMessage = err instanceof ApiError ? err.message : 'Failed to load messages';
       setError(errorMessage);
@@ -166,7 +188,7 @@ export function useChat(
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [deduplicateAndSortMessages]);
 
   const selectChat = useCallback((chatId: string) => {
     const chat = chats.find((c) => c.id === chatId);

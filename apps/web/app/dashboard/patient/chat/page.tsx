@@ -146,7 +146,13 @@ export default function PatientChatPage() {
   const currentCounselorId = currentChat ? getCounselorId(currentChat) : null;
   const currentCounselorInfo = currentCounselorId ? getCounselorInfo(currentCounselorId) : null;
 
-  const handleSendMessage = async () => {
+  const handleSendMessage = async (e?: React.MouseEvent | React.FormEvent) => {
+    // Prevent form submission and page reload
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    
     if (!newMessage.trim() || !currentChat || !user) return;
     
     try {
@@ -484,7 +490,18 @@ export default function PatientChatPage() {
                     <div className="space-y-4">
                       {messages.length > 0 ? (
                         <>
-                          {messages.map((message) => {
+                          {messages
+                            .filter((message, index, self) => 
+                              // Deduplicate messages by ID - keep first occurrence
+                              index === self.findIndex((m) => m.id === message.id)
+                            )
+                            .sort((a, b) => {
+                              // Ensure messages are sorted by createdAt (ascending - oldest first)
+                              const dateA = new Date(a.createdAt).getTime();
+                              const dateB = new Date(b.createdAt).getTime();
+                              return dateA - dateB;
+                            })
+                            .map((message) => {
                             const isOwnMessage = message.senderId === user?.id;
                             const senderName = isOwnMessage ? 'You' : 
                               getCounselorInfo(message.senderId)?.fullName || 
@@ -530,8 +547,20 @@ export default function PatientChatPage() {
 
                 {/* Message Input */}
                 <div className="p-2 md:p-4 border-t">
-                  <div className="flex items-center gap-2">
-                    <Button size="sm" variant="ghost" title="Attach file" className="h-10 w-10 p-0">
+                  <form 
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      handleSendMessage(e);
+                    }}
+                    className="flex items-center gap-2"
+                  >
+                    <Button 
+                      type="button"
+                      size="sm" 
+                      variant="ghost" 
+                      title="Attach file" 
+                      className="h-10 w-10 p-0"
+                    >
                       <Paperclip className="h-5 w-5" />
                     </Button>
                     <div className="flex-1 relative">
@@ -543,6 +572,7 @@ export default function PatientChatPage() {
                         className="pr-10 h-10"
                       />
                       <Button
+                        type="button"
                         size="sm"
                         variant="ghost"
                         className="absolute right-1 top-1/2 transform -translate-y-1/2 h-8 w-8 p-0"
@@ -550,10 +580,14 @@ export default function PatientChatPage() {
                         <Smile className="h-4 w-4" />
                       </Button>
                     </div>
-                    <Button onClick={handleSendMessage} disabled={!newMessage.trim()} className="h-10 w-10 p-0">
+                    <Button 
+                      type="submit"
+                      disabled={!newMessage.trim()} 
+                      className="h-10 w-10 p-0"
+                    >
                       <Send className="h-5 w-5" />
                     </Button>
-                  </div>
+                  </form>
                 </div>
               </>
             ) : (

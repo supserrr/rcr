@@ -510,7 +510,18 @@ export default function CounselorChatPage() {
                     <div className="space-y-4">
                       {messages.length > 0 ? (
                         <>
-                          {messages.map((message) => {
+                          {messages
+                            .filter((message, index, self) => 
+                              // Deduplicate messages by ID - keep first occurrence
+                              index === self.findIndex((m) => m.id === message.id)
+                            )
+                            .sort((a, b) => {
+                              // Ensure messages are sorted by createdAt (ascending - oldest first)
+                              const dateA = new Date(a.createdAt).getTime();
+                              const dateB = new Date(b.createdAt).getTime();
+                              return dateA - dateB;
+                            })
+                            .map((message) => {
                             const isFromCounselor = message.senderId === user?.id;
                             const senderName = isFromCounselor ? user?.name || 'You' : 
                               getPatientInfo(message.senderId)?.fullName || 
