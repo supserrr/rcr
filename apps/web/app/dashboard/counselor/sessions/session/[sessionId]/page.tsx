@@ -154,10 +154,12 @@ export default function SessionRoomPage() {
                   if (directError) {
                     console.error('[SessionRoom] Direct query error:', directError);
                     console.error('[SessionRoom] Error details:', {
-                      message: directError.message,
-                      code: directError.code,
-                      details: directError.details,
-                      hint: directError.hint,
+                      message: directError?.message || 'No message',
+                      code: directError?.code || 'No code',
+                      details: directError?.details || 'No details',
+                      hint: directError?.hint || 'No hint',
+                      status: directError?.status || 'No status',
+                      fullError: JSON.stringify(directError),
                     });
                     profileError = directError;
                   } else if (directProfile && directProfile.length > 0) {
@@ -177,7 +179,14 @@ export default function SessionRoomPage() {
                       profile = noRoleProfile[0];
                       console.log(`[SessionRoom] ✅ Found profile via query without role filter`);
                     } else {
-                      console.warn(`[SessionRoom] Query without role filter also returned no results:`, noRoleError);
+                      console.warn(`[SessionRoom] Query without role filter also returned no results`);
+                      if (noRoleError) {
+                        console.warn('[SessionRoom] No-role query error details:', {
+                          message: noRoleError?.message || 'No message',
+                          code: noRoleError?.code || 'No code',
+                          status: noRoleError?.status || 'No status',
+                        });
+                      }
                     }
                   }
                 }
