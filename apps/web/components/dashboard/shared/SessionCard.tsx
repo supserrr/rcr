@@ -216,34 +216,35 @@ export function SessionCard({
         )}
 
         {showActions && (
-          <div className="flex space-x-2 pt-2">
+          <div className="flex flex-col sm:flex-row gap-2 pt-2">
             {session.status === 'scheduled' && onJoin && (
               <Button 
                 size="sm" 
-                className="flex-1"
+                className="flex-1 w-full sm:w-auto min-w-0"
                 onClick={() => onJoin(session)}
               >
-                <Video className="h-4 w-4 mr-2" />
-                Join Session
+                <Video className="h-4 w-4 mr-2 flex-shrink-0" />
+                <span className="truncate">Join Session</span>
               </Button>
             )}
             {session.status === 'scheduled' && onReschedule && (
               <Button 
                 size="sm" 
                 variant="outline"
-                className="bg-primary/5 dark:bg-primary/10 border-primary/20 dark:border-primary/30 hover:bg-primary hover:text-primary-foreground hover:border-primary dark:hover:bg-primary dark:hover:text-primary-foreground dark:hover:border-primary"
+                className="flex-1 sm:flex-initial bg-primary/5 dark:bg-primary/10 border-primary/20 dark:border-primary/30 hover:bg-primary hover:text-primary-foreground hover:border-primary dark:hover:bg-primary dark:hover:text-primary-foreground dark:hover:border-primary min-w-0"
                 onClick={() => onReschedule(session)}
               >
-                Reschedule
+                <span className="truncate">Reschedule</span>
               </Button>
             )}
             {session.status === 'scheduled' && onCancel && (
               <Button 
                 size="sm" 
                 variant="destructive"
+                className="flex-1 sm:flex-initial min-w-0"
                 onClick={() => onCancel(session)}
               >
-                Cancel
+                <span className="truncate">Cancel</span>
               </Button>
             )}
           </div>

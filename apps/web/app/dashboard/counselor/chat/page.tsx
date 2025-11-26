@@ -44,7 +44,8 @@ import {
   Flag,
   ArrowLeft,
   Wifi,
-  WifiOff
+  WifiOff,
+  UserPlus
 } from 'lucide-react';
 import { useAuth } from '../../../../components/auth/AuthProvider';
 import { useChat } from '../../../../hooks/useChat';
@@ -58,6 +59,7 @@ import { MessageBubble, type Message as MessageBubbleMessage } from '@workspace/
 import { MessageInput } from '@workspace/ui/components/message-input';
 import { TypingIndicator } from '@workspace/ui/components/typing-indicator';
 import type { Message } from '@/lib/api/chat';
+import type { Patient } from '@/lib/types';
 
 export default function CounselorChatPage() {
   const router = useRouter();
@@ -78,6 +80,10 @@ export default function CounselorChatPage() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [chatToDelete, setChatToDelete] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isNewChatDialogOpen, setIsNewChatDialogOpen] = useState(false);
+  const [counselors, setCounselors] = useState<AdminUser[]>([]);
+  const [counselorsLoading, setCounselorsLoading] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Load chats using the hook
   const chatParams = useMemo(
@@ -99,59 +105,66 @@ export default function CounselorChatPage() {
     deleteMessage,
     refreshChats,
     realtimeConnected,
+    createChat,
   } = useChat(chatParams);
   
   const [replyTo, setReplyTo] = useState<Message | null>(null);
   const [editingMessage, setEditingMessage] = useState<Message | null>(null);
   const [isTyping, setIsTyping] = useState(false);
 
-  // Load patients for profile view and booking
+  // Load participants (patients and counselors) for profile view and booking
   useEffect(() => {
-    const fetchPatients = async () => {
+    const fetchParticipants = async () => {
       try {
         setPatientsLoading(true);
         
-        // Get patient IDs from chats
-        const patientIds = Array.from(new Set(
+        // Get all participant IDs from chats (excluding current user)
+        const participantIds = Array.from(new Set(
           chats
             .flatMap(chat => chat.participants)
             .filter(id => id !== user?.id)
         ));
 
-        let patientsList: AdminUser[] = [];
+        let participantsList: AdminUser[] = [];
         
-        // Try AdminApi first
+        // Fetch both patients and counselors
         try {
-          const response = await AdminApi.listUsers({ role: 'patient' });
-          if (patientIds.length > 0) {
-            patientsList = response.users.filter(p => patientIds.includes(p.id));
+          const [patientsResponse, counselorsResponse] = await Promise.all([
+            AdminApi.listUsers({ role: 'patient' }).catch(() => ({ users: [] })),
+            AdminApi.listUsers({ role: 'counselor' }).catch(() => ({ users: [] }))
+          ]);
+          
+          const allUsers = [...patientsResponse.users, ...counselorsResponse.users];
+          
+          if (participantIds.length > 0) {
+            participantsList = allUsers.filter(u => participantIds.includes(u.id));
           } else {
-            patientsList = response.users;
+            participantsList = allUsers;
           }
         } catch (adminError) {
           console.warn('[CounselorChat] AdminApi failed, using fallback:', adminError);
         }
 
         // Fallback: Fetch directly from profiles table (respects RLS for sessions/chats)
-        if (patientIds.length > 0 && patientsList.length < patientIds.length) {
-          const missingPatientIds = patientIds.filter(id => !patientsList.some(p => p.id === id));
-          if (missingPatientIds.length > 0) {
-            const fallbackPatients = await fetchPatientProfilesFromSessions(missingPatientIds);
-            patientsList = [...patientsList, ...fallbackPatients];
+        if (participantIds.length > 0 && participantsList.length < participantIds.length) {
+          const missingIds = participantIds.filter(id => !participantsList.some(p => p.id === id));
+          if (missingIds.length > 0) {
+            const fallbackParticipants = await fetchPatientProfilesFromSessions(missingIds);
+            participantsList = [...participantsList, ...fallbackParticipants];
           }
         }
 
-        setPatients(patientsList);
+        setPatients(participantsList);
       } catch (error) {
-        console.error('Error fetching patients:', error);
-        toast.error('Failed to load patients');
+        console.error('Error fetching participants:', error);
+        toast.error('Failed to load participants');
       } finally {
         setPatientsLoading(false);
       }
     };
 
     if (user?.id) {
-      fetchPatients();
+      fetchParticipants();
     }
   }, [user?.id, chats]);
 
@@ -190,19 +203,27 @@ export default function CounselorChatPage() {
     return () => window.removeEventListener('resize', updatePreviewLength);
   }, []);
 
-  // Get the other participant (patient) from the current chat
-  const getPatientId = (chat: typeof currentChat) => {
+  // Get the other participant (patient or counselor) from the current chat
+  const getParticipantId = (chat: typeof currentChat) => {
     if (!chat || !user) return null;
     return chat.participants.find(id => id !== user.id);
   };
 
-  const getPatientInfo = (patientId: string | null | undefined) => {
-    if (!patientId) return null;
-    return patients.find(p => p.id === patientId);
+  const getParticipantInfo = (participantId: string | null | undefined) => {
+    if (!participantId) return null;
+    return patients.find(p => p.id === participantId);
   };
 
-  const currentPatientId = currentChat ? getPatientId(currentChat) : null;
-  const currentPatientInfo = currentPatientId ? getPatientInfo(currentPatientId) : null;
+  // Keep old function names for backward compatibility
+  const getPatientId = getParticipantId;
+  const getPatientInfo = getParticipantInfo;
+
+  const currentParticipantId = currentChat ? getParticipantId(currentChat) : null;
+  const currentParticipantInfo = currentParticipantId ? getParticipantInfo(currentParticipantId) : null;
+  
+  // For backward compatibility
+  const currentPatientId = currentParticipantId;
+  const currentPatientInfo = currentParticipantInfo;
 
   const handleSendMessage = async (content: string) => {
     if (!content.trim() || !currentChat || !user) return;
@@ -310,51 +331,54 @@ export default function CounselorChatPage() {
   }, [messages]);
 
   const handleViewPatientProfile = async () => {
-    if (!currentPatientId) return;
+    if (!currentParticipantId) return;
     
-    // First check if patient is already loaded
-    let patient = currentPatientInfo;
+    // First check if participant is already loaded
+    let participant = currentParticipantInfo;
     
-    if (!patient) {
-      // Patient not found, try to fetch it
+    if (!participant) {
+      // Participant not found, try to fetch it
       try {
-        toast.loading('Loading patient information...', { id: 'loading-patient' });
+        const isCounselor = currentParticipantInfo?.role === 'counselor';
+        toast.loading(`Loading ${isCounselor ? 'counselor' : 'patient'} information...`, { id: 'loading-participant' });
         
-        // Use the shared utility function to fetch patient profile
-        const fetchedPatients = await fetchPatientProfilesFromSessions([currentPatientId]);
-        
-        if (fetchedPatients.length === 0) {
-          // If still no profile, try AdminApi as a fallback
-          try {
-            patient = await AdminApi.getUser(currentPatientId);
-          } catch (adminError) {
-            console.warn('[CounselorChat] AdminApi also failed:', adminError);
-            toast.error('Failed to load patient information.');
-            toast.dismiss('loading-patient');
+        // Try AdminApi first (works for both patients and counselors)
+        try {
+          participant = await AdminApi.getUser(currentParticipantId);
+        } catch (adminError) {
+          console.warn('[CounselorChat] AdminApi failed, trying fallback:', adminError);
+          
+          // Fallback: Use the shared utility function to fetch profile
+          const fetchedProfiles = await fetchPatientProfilesFromSessions([currentParticipantId]);
+          
+          if (fetchedProfiles.length > 0) {
+            participant = fetchedProfiles[0];
+          } else {
+            toast.error(`Failed to load ${isCounselor ? 'counselor' : 'patient'} information.`);
+            toast.dismiss('loading-participant');
             return;
           }
-        } else {
-          patient = fetchedPatients[0];
-          // Update patients list
-          setPatients(prev => {
-            if (!prev.find(p => p.id === currentPatientId)) {
-              return [...prev, patient!];
-            }
-            return prev;
-          });
         }
         
-        toast.dismiss('loading-patient');
+        // Update participants list
+        setPatients(prev => {
+          if (!prev.find(p => p.id === currentParticipantId)) {
+            return [...prev, participant!];
+          }
+          return prev;
+        });
+        
+        toast.dismiss('loading-participant');
       } catch (error) {
-        console.error('[CounselorChat] Error loading patient:', error);
-        toast.dismiss('loading-patient');
-        toast.error('Failed to load patient information.');
+        console.error('[CounselorChat] Error loading participant:', error);
+        toast.dismiss('loading-participant');
+        toast.error('Failed to load participant information.');
         return;
       }
     }
     
-    if (patient) {
-      setViewingPatient(patient);
+    if (participant) {
+      setViewingPatient(participant);
       setIsProfileOpen(true);
     }
   };
@@ -439,6 +463,58 @@ export default function CounselorChatPage() {
     }
   };
 
+  const handleNewChat = () => {
+    setIsNewChatDialogOpen(true);
+    loadCounselors();
+  };
+
+  const loadCounselors = async () => {
+    if (!user?.id) return;
+    
+    setCounselorsLoading(true);
+    try {
+      const response = await AdminApi.listUsers({ role: 'counselor' });
+      // Filter out the current user
+      const otherCounselors = response.users.filter(c => c.id !== user.id);
+      setCounselors(otherCounselors);
+    } catch (error) {
+      console.error('Error loading counselors:', error);
+      toast.error('Failed to load counselors');
+    } finally {
+      setCounselorsLoading(false);
+    }
+  };
+
+  const handleSelectCounselor = async (counselorId: string) => {
+    if (!user?.id) return;
+    
+    try {
+      toast.loading('Creating chat...', { id: 'creating-chat' });
+      const newChat = await createChat({ participantId: counselorId });
+      toast.dismiss('creating-chat');
+      toast.success('Chat created successfully');
+      setIsNewChatDialogOpen(false);
+      setSearchQuery('');
+      // Select the newly created chat
+      selectChat(newChat.id);
+      setShowConversations(false);
+    } catch (error) {
+      toast.dismiss('creating-chat');
+      console.error('Error creating chat:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to create chat');
+    }
+  };
+
+  const filteredCounselors = useMemo(() => {
+    if (!searchQuery.trim()) return counselors;
+    const query = searchQuery.toLowerCase();
+    return counselors.filter(counselor => 
+      counselor.fullName?.toLowerCase().includes(query) ||
+      counselor.email?.toLowerCase().includes(query) ||
+      counselor.specialty?.toLowerCase().includes(query)
+    );
+  }, [counselors, searchQuery]);
+
   const handleConfirmSchedule = async (sessionData: {
     patientId: string;
     date: Date;
@@ -473,8 +549,8 @@ export default function CounselorChatPage() {
   return (
     <div className="space-y-4 md:space-y-6">
       <AnimatedPageHeader
-        title="Patient Messages"
-        description="Communicate with your patients and provide ongoing support"
+        title="Messages"
+        description="Communicate with your patients and fellow counselors"
       />
 
       <div className="grid gap-4 md:gap-6 lg:grid-cols-4 h-[calc(100vh-280px)] md:h-[600px]">
@@ -484,7 +560,7 @@ export default function CounselorChatPage() {
             <CardHeader className="p-3 md:p-6 pb-2 md:pb-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <h3 className="text-sm md:text-base font-semibold">Patient Conversations</h3>
+                  <h3 className="text-sm md:text-base font-semibold">Conversations</h3>
                   <div className="flex items-center gap-1" title={realtimeConnected ? 'Realtime Connected' : 'Realtime Disconnected'}>
                     {realtimeConnected ? (
                       <Wifi className="h-4 w-4 text-green-500" />
@@ -500,6 +576,14 @@ export default function CounselorChatPage() {
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-56 bg-background border-border shadow-lg z-[100]">
+                    <DropdownMenuItem 
+                      onClick={handleNewChat}
+                      className="hover:bg-primary/10 focus:bg-primary/10 cursor-pointer"
+                    >
+                      <UserPlus className="mr-2 h-4 w-4 text-primary" />
+                      <span className="text-foreground">New Chat</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
                     <DropdownMenuItem 
                       onClick={handleMarkAllAsRead}
                       className="hover:bg-primary/10 focus:bg-primary/10 cursor-pointer"
@@ -538,8 +622,9 @@ export default function CounselorChatPage() {
                 <div className="space-y-1">
                   {chats.length > 0 ? (
                     chats.map((chat) => {
-                      const patientId = getPatientId(chat);
-                      const patient = getPatientInfo(patientId);
+                      const participantId = getParticipantId(chat);
+                      const participant = getParticipantInfo(participantId);
+                      const isCounselor = participant?.role === 'counselor';
                       
                       return (
                         <div
@@ -555,20 +640,27 @@ export default function CounselorChatPage() {
                         <div className="flex items-center space-x-2 md:space-x-3">
                           <div className="relative">
                             <Avatar className="h-8 w-8 md:h-10 md:w-10">
-                              <AvatarImage src={undefined} alt={patient?.fullName || patient?.email} />
+                              <AvatarImage src={participant?.avatarUrl} alt={participant?.fullName || participant?.email} />
                               <AvatarFallback>
-                                {(patient?.fullName || patient?.email || 'P').split(' ').map((n: string) => n[0]).join('').slice(0, 2)}
+                                {(participant?.fullName || participant?.email || 'U').split(' ').map((n: string) => n[0]).join('').slice(0, 2)}
                               </AvatarFallback>
                             </Avatar>
                             <div className="absolute -bottom-1 -right-1 w-2.5 h-2.5 md:w-3 md:h-3 bg-green-500 rounded-full border-2 border-white" />
                           </div>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center justify-between">
-                              <p className="text-sm font-medium truncate">
-                                {patient?.fullName || patient?.email || 'Patient'}
-                              </p>
+                              <div className="flex items-center gap-2 flex-1 min-w-0">
+                                <p className="text-sm font-medium truncate">
+                                  {participant?.fullName || participant?.email || 'User'}
+                                </p>
+                                {isCounselor && (
+                                  <Badge variant="outline" className="text-xs px-1.5 py-0 h-4 flex-shrink-0">
+                                    Counselor
+                                  </Badge>
+                                )}
+                              </div>
                                {chat.unreadCount > 0 && (
-                                 <Badge variant="destructive" className="h-5 w-5 rounded-full p-0 text-xs">
+                                 <Badge variant="destructive" className="h-5 w-5 rounded-full p-0 text-xs flex-shrink-0">
                                    {chat.unreadCount}
                                  </Badge>
                                )}
@@ -594,7 +686,7 @@ export default function CounselorChatPage() {
                   ) : (
                     <div className="text-center py-8 text-muted-foreground">
                       <p className="text-sm">No conversations yet</p>
-                      <p className="text-xs mt-1">Start a conversation with your patient</p>
+                      <p className="text-xs mt-1">Start a conversation with a patient or counselor</p>
                     </div>
                   )}
                 </div>
@@ -622,20 +714,32 @@ export default function CounselorChatPage() {
                         <ArrowLeft className="h-5 w-5" />
                       </Button>
                       <Avatar className="h-10 w-10">
-                        <AvatarImage src={undefined} />
+                        <AvatarImage src={currentParticipantInfo?.avatarUrl} />
                         <AvatarFallback>
-                          {currentPatientInfo?.fullName?.split(' ').map(n => n[0]).join('') || 
-                           currentPatientInfo?.email?.charAt(0).toUpperCase() || 'P'}
+                          {currentParticipantInfo?.fullName?.split(' ').map(n => n[0]).join('') || 
+                           currentParticipantInfo?.email?.charAt(0).toUpperCase() || 'U'}
                         </AvatarFallback>
                       </Avatar>
                       <div>
-                        <h3 className="font-semibold">
-                          {currentPatientInfo?.fullName || currentPatientInfo?.email || 'Patient'}
-                        </h3>
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-semibold">
+                            {currentParticipantInfo?.fullName || currentParticipantInfo?.email || 'User'}
+                          </h3>
+                          {currentParticipantInfo?.role === 'counselor' && (
+                            <Badge variant="outline" className="text-xs">
+                              Counselor
+                            </Badge>
+                          )}
+                        </div>
                         <div className="flex items-center gap-2">
                           <p className="text-sm text-muted-foreground">
                             {realtimeConnected ? 'Online' : 'Offline'}
                           </p>
+                          {currentParticipantInfo?.specialty && (
+                            <p className="text-xs text-muted-foreground">
+                              • {currentParticipantInfo.specialty}
+                            </p>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -652,15 +756,19 @@ export default function CounselorChatPage() {
                             className="hover:bg-primary/10 focus:bg-primary/10 cursor-pointer"
                           >
                             <User className="mr-2 h-4 w-4 text-primary" />
-                            <span className="text-foreground">View Patient Profile</span>
+                            <span className="text-foreground">
+                              {currentParticipantInfo?.role === 'counselor' ? 'View Counselor Profile' : 'View Patient Profile'}
+                            </span>
                           </DropdownMenuItem>
-                          <DropdownMenuItem 
-                            onClick={handleScheduleSession}
-                            className="hover:bg-primary/10 focus:bg-primary/10 cursor-pointer"
-                          >
-                            <Calendar className="mr-2 h-4 w-4 text-primary" />
-                            <span className="text-foreground">Schedule Session</span>
-                          </DropdownMenuItem>
+                          {currentParticipantInfo?.role === 'patient' && (
+                            <DropdownMenuItem 
+                              onClick={handleScheduleSession}
+                              className="hover:bg-primary/10 focus:bg-primary/10 cursor-pointer"
+                            >
+                              <Calendar className="mr-2 h-4 w-4 text-primary" />
+                              <span className="text-foreground">Schedule Session</span>
+                            </DropdownMenuItem>
+                          )}
                           <DropdownMenuItem 
                             onClick={handleFlagPatient}
                             className="hover:bg-primary/10 focus:bg-primary/10 cursor-pointer"
@@ -723,13 +831,14 @@ export default function CounselorChatPage() {
                               )}
                               {group.messages.map((message, msgIndex) => {
                                 const isOwnMessage = message.senderId === user?.id;
+                                const senderParticipant = getParticipantInfo(message.senderId);
                                 const senderInfo = isOwnMessage
                                   ? { name: user?.name || 'You', avatar: undefined }
                                   : {
-                                      name: getPatientInfo(message.senderId)?.fullName || 
-                                            getPatientInfo(message.senderId)?.email || 
-                                            'Patient',
-                                      avatar: getPatientInfo(message.senderId)?.avatarUrl,
+                                      name: senderParticipant?.fullName || 
+                                            senderParticipant?.email || 
+                                            (senderParticipant?.role === 'counselor' ? 'Counselor' : 'Patient'),
+                                      avatar: senderParticipant?.avatarUrl,
                                     };
                                 
                                 const replyToMessage = message.replyToId
@@ -792,7 +901,7 @@ export default function CounselorChatPage() {
                       setEditingMessage(null);
                       setNewMessage('');
                     }}
-                    placeholder={editingMessage ? 'Edit your message...' : 'Type your message to the patient...'}
+                    placeholder={editingMessage ? 'Edit your message...' : 'Type your message...'}
                   />
                 </div>
               </>
@@ -804,7 +913,7 @@ export default function CounselorChatPage() {
                   </div>
                   <h3 className="text-lg font-semibold mb-2">Select a conversation</h3>
                   <p className="text-muted-foreground">
-                    Choose a patient conversation from the list to start messaging
+                    Choose a conversation from the list to start messaging
                   </p>
                 </div>
               </div>
@@ -814,27 +923,27 @@ export default function CounselorChatPage() {
       </div>
 
       {/* Profile View Modal */}
-      {isProfileOpen && (viewingPatient || currentPatientInfo) && (
+      {isProfileOpen && (viewingPatient || currentParticipantInfo) && (
         <ProfileViewModal
           isOpen={isProfileOpen}
           onClose={() => {
             setIsProfileOpen(false);
             setViewingPatient(null);
           }}
-          user={viewingPatient || currentPatientInfo ? {
-            id: (viewingPatient || currentPatientInfo)!.id,
-            name: (viewingPatient || currentPatientInfo)!.fullName || (viewingPatient || currentPatientInfo)!.email || 'Patient',
-            email: (viewingPatient || currentPatientInfo)!.email,
-            role: 'patient' as const,
-            avatar: (viewingPatient || currentPatientInfo)!.avatarUrl,
-            createdAt: new Date((viewingPatient || currentPatientInfo)!.createdAt),
-            metadata: (viewingPatient || currentPatientInfo)!.metadata || {},
-            diagnosis: (viewingPatient || currentPatientInfo)!.cancerType || ((viewingPatient || currentPatientInfo)!.metadata?.diagnosis as string) || ((viewingPatient || currentPatientInfo)!.metadata?.cancer_type as string),
-            treatmentStage: (viewingPatient || currentPatientInfo)!.treatmentStage || ((viewingPatient || currentPatientInfo)!.metadata?.treatment_stage as string),
-            assignedCounselor: ((viewingPatient || currentPatientInfo)!.metadata?.assigned_counselor_id as string) || undefined,
-            moduleProgress: ((viewingPatient || currentPatientInfo)!.metadata?.module_progress as Record<string, number>) || undefined,
-          } : undefined}
-          userType="patient"
+          user={viewingPatient || currentParticipantInfo ? {
+            id: (viewingPatient || currentParticipantInfo)!.id,
+            name: (viewingPatient || currentParticipantInfo)!.fullName || (viewingPatient || currentParticipantInfo)!.email || 'User',
+            email: (viewingPatient || currentParticipantInfo)!.email,
+            role: ((viewingPatient || currentParticipantInfo)!.role === 'counselor' ? 'counselor' : 'patient') as 'patient' | 'counselor',
+            avatar: (viewingPatient || currentParticipantInfo)!.avatarUrl,
+            createdAt: new Date((viewingPatient || currentParticipantInfo)!.createdAt),
+            metadata: (viewingPatient || currentParticipantInfo)!.metadata || {},
+            diagnosis: (viewingPatient || currentParticipantInfo)!.cancerType || ((viewingPatient || currentParticipantInfo)!.metadata?.diagnosis as string) || ((viewingPatient || currentParticipantInfo)!.metadata?.cancer_type as string),
+            treatmentStage: (viewingPatient || currentParticipantInfo)!.treatmentStage || ((viewingPatient || currentParticipantInfo)!.metadata?.treatment_stage as string),
+            assignedCounselor: ((viewingPatient || currentParticipantInfo)!.metadata?.assigned_counselor_id as string) || undefined,
+            moduleProgress: ((viewingPatient || currentParticipantInfo)!.metadata?.module_progress as Record<string, number>) || undefined,
+          } as Patient : null}
+          userType={(viewingPatient || currentParticipantInfo)?.role === 'counselor' ? 'counselor' : 'patient'}
           currentUserRole="counselor"
         />
       )}
@@ -885,6 +994,110 @@ export default function CounselorChatPage() {
               disabled={isDeleting}
             >
               {isDeleting ? 'Deleting...' : 'Delete'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* New Chat Dialog */}
+      <Dialog open={isNewChatDialogOpen} onOpenChange={setIsNewChatDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Start New Chat with Counselor</DialogTitle>
+            <DialogDescription>
+              Select a counselor to start a new conversation
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+              <Input
+                placeholder="Search counselors..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            <ScrollArea className="h-[300px]">
+              {counselorsLoading ? (
+                <div className="flex justify-center items-center py-8">
+                  <Spinner variant="bars" size={24} className="text-primary" />
+                </div>
+              ) : filteredCounselors.length > 0 ? (
+                <div className="space-y-2">
+                  {filteredCounselors.map((counselor) => {
+                    // Check if chat already exists with this counselor
+                    const existingChat = chats.find(chat => 
+                      chat.participants.includes(counselor.id) && 
+                      chat.participants.includes(user?.id || '')
+                    );
+                    
+                    return (
+                      <div
+                        key={counselor.id}
+                        className={`flex items-center space-x-3 p-3 rounded-lg border cursor-pointer transition-all hover:bg-primary/5 hover:border-primary/20 ${
+                          existingChat ? 'opacity-60' : ''
+                        }`}
+                        onClick={() => {
+                          if (existingChat) {
+                            selectChat(existingChat.id);
+                            setIsNewChatDialogOpen(false);
+                            setSearchQuery('');
+                            setShowConversations(false);
+                          } else {
+                            handleSelectCounselor(counselor.id);
+                          }
+                        }}
+                      >
+                        <Avatar className="h-10 w-10">
+                          <AvatarImage src={counselor.avatarUrl} alt={counselor.fullName} />
+                          <AvatarFallback>
+                            {counselor.fullName?.split(' ').map(n => n[0]).join('') || 
+                             counselor.email?.charAt(0).toUpperCase() || 'C'}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium truncate">
+                            {counselor.fullName || counselor.email}
+                          </p>
+                          {counselor.specialty && (
+                            <p className="text-sm text-muted-foreground truncate">
+                              {counselor.specialty}
+                            </p>
+                          )}
+                          {existingChat && (
+                            <p className="text-xs text-muted-foreground mt-1">
+                              Chat already exists
+                            </p>
+                          )}
+                        </div>
+                        {existingChat ? (
+                          <MessageCircle className="h-4 w-4 text-muted-foreground" />
+                        ) : (
+                          <UserPlus className="h-4 w-4 text-primary" />
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  <p className="text-sm">
+                    {searchQuery ? 'No counselors found' : 'No other counselors available'}
+                  </p>
+                </div>
+              )}
+            </ScrollArea>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsNewChatDialogOpen(false);
+                setSearchQuery('');
+              }}
+            >
+              Cancel
             </Button>
           </DialogFooter>
         </DialogContent>

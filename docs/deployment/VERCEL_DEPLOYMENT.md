@@ -71,9 +71,23 @@ PERPLEXITY_API_KEY=your_perplexity_key_here
 # Alternative AI provider
 OPENAI_API_KEY=your_openai_key_here
 
-# Custom Jitsi instance (currently using free 8x8.vc)
-NEXT_PUBLIC_JITSI_DOMAIN=your-jitsi-domain.com
+# Jitsi JaaS Configuration
+NEXT_PUBLIC_JITSI_DOMAIN=8x8.vc
 NEXT_PUBLIC_JITSI_APP_ID=your-app-id
+
+# Jitsi Private Key (SERVER-SIDE ONLY - Never use NEXT_PUBLIC_ prefix)
+JITSI_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----
+(paste your full private key here)
+-----END PRIVATE KEY-----"
+```
+
+**⚠️ Important**: The `JITSI_PRIVATE_KEY` must be:
+- Added as a **server-side** environment variable (no `NEXT_PUBLIC_` prefix)
+- Stored with the entire key including BEGIN/END markers
+- Only accessible in API routes and server components
+- Never exposed to the client
+
+See [JITSI_PRODUCTION_SETUP.md](../../apps/web/docs/JITSI_PRODUCTION_SETUP.md) for detailed instructions.
 ```
 
 **Environment Selection:**

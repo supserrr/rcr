@@ -10,6 +10,7 @@ import "@workspace/ui/globals.css"
 import { Providers } from "@/components/providers"
 import { ThemeColorMeta } from "@/components/ThemeColorMeta"
 import { Spinner } from "@workspace/ui/components/ui/shadcn-io/spinner"
+import { ConsoleFilter } from "@/components/ConsoleFilter"
 
 const fontSans = Ubuntu({
   subsets: ["latin"],
@@ -48,6 +49,7 @@ export default async function RootLayout({
         className={`${fontSans.variable} font-sans antialiased overflow-x-hidden`}
         style={{ fontFamily: 'Ubuntu, ui-sans-serif, system-ui, sans-serif' }}
       >
+        <ConsoleFilter />
         <ThemeColorMeta />
         <Suspense fallback={<ProvidersLoading />}>
           <Providers>{children}</Providers>

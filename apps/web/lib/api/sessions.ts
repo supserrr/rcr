@@ -5,6 +5,7 @@
  */
 
 import { createClient } from '@/lib/supabase/client';
+import { getJitsiConfig, formatRoomName } from '../jitsi/config';
 
 /**
  * Session type
@@ -588,7 +589,9 @@ export class SessionsApi {
 
   /**
    * Get Jitsi room configuration for a session
-   * Note: This generates a simple Jitsi room URL. For production, you may want to use Jitsi Meet API.
+   * 
+   * Generates Jitsi room configuration based on environment settings.
+   * Supports free Jitsi (meet.jit.si), JaaS (8x8.vc), and self-hosted instances.
    */
   static async getJitsiRoom(
     sessionId: string,
@@ -605,14 +608,16 @@ export class SessionsApi {
       .eq('id', sessionId)
       .single();
 
-    const roomName = session?.jitsi_room_name || `session-${sessionId}`;
-    const roomUrl = `https://meet.jit.si/${roomName}`;
+    const baseRoomName = session?.jitsi_room_name || `session-${sessionId}`;
+    const jitsiConfig = getJitsiConfig();
+    const formattedRoomName = formatRoomName(baseRoomName);
+    const roomUrl = `https://${jitsiConfig.domain}/${formattedRoomName}`;
 
     return {
       roomUrl,
-      roomName,
+      roomName: formattedRoomName,
       config: {},
-      isJaaS: false,
+      isJaaS: jitsiConfig.isJaaS,
       apiType,
     };
   }

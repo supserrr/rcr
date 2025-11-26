@@ -56,26 +56,29 @@ export default function SessionRoomPage() {
         
         if (participantId) {
           try {
-            // Try admin API first, fallback to profile query if not admin
-            let participant;
-            try {
-              participant = await AdminApi.getUser(participantId);
-            } catch (adminError) {
-              // If admin access fails, use the non-admin method
-              const profile = await AdminApi.getUserProfile(participantId);
-              participant = {
-                id: profile.id || participantId,
-                email: profile.email || '',
-                fullName: profile.fullName,
-                role: profile.role || 'patient',
-                isVerified: false,
-                createdAt: '',
-                avatarUrl: profile.avatarUrl,
-              } as AdminUser;
-            }
+            // Use getUserProfile directly - it works with RLS and doesn't require admin permissions
+            const profile = await AdminApi.getUserProfile(participantId);
+            const participant: AdminUser = {
+              id: profile.id || participantId,
+              email: profile.email || '',
+              fullName: profile.fullName,
+              role: profile.role || 'patient',
+              isVerified: false,
+              createdAt: '',
+              avatarUrl: profile.avatarUrl,
+            };
             setOtherParticipant(participant);
           } catch (error) {
             console.error('Error loading participant:', error);
+            // Set a fallback participant so the UI doesn't break
+            setOtherParticipant({
+              id: participantId,
+              email: '',
+              fullName: user?.role === 'patient' ? 'Counselor' : 'Patient',
+              role: (user?.role === 'patient' ? 'counselor' : 'patient') as 'counselor' | 'patient',
+              isVerified: false,
+              createdAt: '',
+            } as AdminUser);
           }
         }
       } catch (error) {
@@ -120,9 +123,26 @@ export default function SessionRoomPage() {
     setIsInMeeting(true);
   };
 
-  const handleMeetingEnd = () => {
+  const handleMeetingEnd = async () => {
     setIsInMeeting(false);
     setSessionEnded(true);
+    
+    // Update session status to completed in the database
+    // Only update if session is not already completed (prevents duplicate calls)
+    if (session && session.status !== 'completed') {
+      try {
+        const updatedSession = await SessionsApi.completeSession(sessionId);
+        setSession(updatedSession);
+        toast.success('Session marked as completed');
+      } catch (error) {
+        console.error('Error completing session:', error);
+        // Don't show error toast if session is already completed (race condition)
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        if (!errorMessage.includes('already completed') && !errorMessage.includes('not found')) {
+          toast.error('Failed to update session status');
+        }
+      }
+    }
   };
 
   const handleCompleteFeedback = () => {
@@ -138,6 +158,9 @@ export default function SessionRoomPage() {
           roomName={`session-${session.id}`}
           displayName={user?.name || 'Participant'}
           email={user?.email}
+          userId={user?.id}
+          isModerator={false}
+          userAvatar={user?.avatar}
           sessionType={(session.type === 'chat' || session.type === 'in-person' ? 'video' : (session.type === 'audio' ? 'audio' : 'video')) as 'audio' | 'video' | undefined}
           onMeetingEnd={handleMeetingEnd}
         />

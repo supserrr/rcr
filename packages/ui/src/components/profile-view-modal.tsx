@@ -548,7 +548,7 @@ export function ProfileViewModal({
                   <Avatar className="h-20 w-20 ring-4 ring-background shadow-lg">
                     <AvatarImage src={avatarUrl} alt={extractedName} />
                     <AvatarFallback className="text-xl font-semibold bg-primary/10 text-primary">
-                      {extractedName.split(' ').map(n => n[0]).join('') || 'P'}
+                      {extractedName.split(' ').map((n: string) => n[0]).join('') || 'P'}
                     </AvatarFallback>
                   </Avatar>
                   <div className={`absolute -bottom-1 -right-1 w-6 h-6 ${availabilityIndicatorClass} rounded-full border-2 border-background flex items-center justify-center`}>

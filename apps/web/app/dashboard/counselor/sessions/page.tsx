@@ -108,6 +108,7 @@ export default function CounselorSessionsPage() {
             email: email,
             fullName: profile.full_name || (metadata.fullName as string) || (metadata.full_name as string),
             role: 'counselor' as const,
+            isVerified: typeof metadata.isVerified === 'boolean' ? metadata.isVerified : (profile as any).email_confirmed_at !== null || false,
             avatarUrl: profile.avatar_url,
             metadata: metadata,
             specialty: metadata.specialty as string || (metadata.specialties as string[])?.[0],
@@ -376,6 +377,7 @@ export default function CounselorSessionsPage() {
                 fullName: fullName,
                 avatarUrl: avatarUrl,
                 role: 'patient' as const,
+                isVerified: typeof metadata.isVerified === 'boolean' ? metadata.isVerified : (profile as any).email_confirmed_at !== null || false,
                 metadata: enrichedMetadata,
                 // Include direct fields for easier access
                 phoneNumber: profile.phone_number || (metadata.phone_number as string),
@@ -1100,7 +1102,7 @@ export default function CounselorSessionsPage() {
             currentTreatment: (viewingPatient.metadata?.current_treatment as string) || (viewingPatient.metadata?.currentTreatment as string),
             diagnosisDate: (viewingPatient.metadata?.diagnosis_date as string) || (viewingPatient.metadata?.diagnosisDate as string),
             // Personal info - check direct fields first, then metadata
-            age: (typeof viewingPatient.age === 'string' ? viewingPatient.age : typeof viewingPatient.age === 'number' ? String(viewingPatient.age) : undefined) || (viewingPatient.metadata?.age as string) || ((viewingPatient.metadata?.age as number) ? String(viewingPatient.metadata.age) : undefined),
+            age: (typeof viewingPatient.age === 'string' ? viewingPatient.age : typeof viewingPatient.age === 'number' ? String(viewingPatient.age) : undefined) || (viewingPatient.metadata?.age as string) || ((viewingPatient.metadata?.age as number) ? String(viewingPatient.metadata?.age) : undefined),
             gender: viewingPatient.gender as string || (viewingPatient.metadata?.gender as string),
             location: viewingPatient.location as string || (viewingPatient.metadata?.location as string) || (viewingPatient.metadata?.address as string),
             phoneNumber: viewingPatient.contactPhone || viewingPatient.phoneNumber || (viewingPatient.metadata?.contactPhone as string) || (viewingPatient.metadata?.contact_phone as string) || (viewingPatient.metadata?.phone as string) || (viewingPatient.metadata?.phoneNumber as string),

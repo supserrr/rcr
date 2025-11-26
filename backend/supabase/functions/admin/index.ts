@@ -648,14 +648,28 @@ const handleAssignPatientToCounselor = async (
     );
   }
 
+  // If the user's role is not "patient", automatically update it to "patient"
+  // This handles cases where users have "guest" or other roles but need to be assigned as patients
   if (patientProfile.role !== 'patient') {
-    return new Response(
-      JSON.stringify({ 
-        success: false, 
-        error: `User is not a patient. Current role: ${patientProfile.role}` 
-      }),
-      { status: 400, headers: corsHeaders },
-    );
+    console.log(`[handleAssignPatientToCounselor] Updating user role from "${patientProfile.role}" to "patient" before assignment`);
+    const { error: roleUpdateError } = await serviceClient
+      .from('profiles')
+      .update({ role: 'patient' })
+      .eq('id', payload.patientId);
+
+    if (roleUpdateError) {
+      console.error('[handleAssignPatientToCounselor] Failed to update user role:', roleUpdateError);
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: `Failed to update user role to patient: ${roleUpdateError.message || 'Unknown error'}` 
+        }),
+        { status: 500, headers: corsHeaders },
+      );
+    }
+
+    // Update the local patientProfile object to reflect the new role
+    patientProfile.role = 'patient';
   }
 
   // If assigning to a counselor, verify the counselor exists

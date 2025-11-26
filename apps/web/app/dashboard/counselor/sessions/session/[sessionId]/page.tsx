@@ -57,101 +57,77 @@ export default function SessionRoomPage() {
         
         if (participantId) {
           try {
-            // Try admin API first, fallback to direct profile query if not admin
-            let participant: AdminUser | null = null;
-            try {
-              participant = await AdminApi.getUser(participantId);
-            } catch (adminError) {
-              // If admin access fails, query profiles table directly
-              // RLS policy now allows counselors to access patient profiles when they have sessions with them
-              console.log(`[SessionRoom] Admin API failed for ${participantId}, using direct profile query`);
-              const supabase = createClient();
-              if (supabase) {
-                const expectedRole = user?.role === 'patient' ? 'counselor' : 'patient';
+            // Use direct profile query - RLS policy allows access for counselors with sessions
+            // This avoids the 403 error from trying to use admin functions
+            const supabase = createClient();
+            if (supabase) {
+              const expectedRole = user?.role === 'patient' ? 'counselor' : 'patient';
+              
+              // Direct profile query - RLS policy allows access for counselors with sessions
+              // Include all onboarding fields that counselors need
+              // Note: expectedRole could be 'patient' or 'guest', so we check for both
+              const { data: profile, error: profileError } = await supabase
+                .from('profiles')
+                .select('id,full_name,role,avatar_url,metadata,created_at,updated_at,phone_number,preferred_language,treatment_stage,contact_phone,emergency_contact_name,emergency_contact_phone,assigned_counselor_id,diagnosis,date_of_birth')
+                .eq('id', participantId)
+                .in('role', expectedRole === 'patient' ? ['patient', 'guest'] : ['counselor'])
+                .maybeSingle();
+              
+              if (profileError) {
+                console.error('[SessionRoom] Error fetching profile:', profileError);
+                throw profileError;
+              } else if (profile) {
+                const metadata = (profile.metadata || {}) as Record<string, unknown>;
+                const fullName = 
+                  (profile.full_name && typeof profile.full_name === 'string' ? profile.full_name.trim() : undefined) ||
+                  ((profile as any).fullName && typeof (profile as any).fullName === 'string' ? (profile as any).fullName.trim() : undefined) ||
+                  ((profile as any).name && typeof (profile as any).name === 'string' ? (profile as any).name.trim() : undefined) ||
+                  (typeof metadata.name === 'string' ? metadata.name.trim() : undefined) ||
+                  (typeof metadata.full_name === 'string' ? metadata.full_name.trim() : undefined) ||
+                  (typeof metadata.fullName === 'string' ? metadata.fullName.trim() : undefined) ||
+                  (typeof metadata.email === 'string' ? (metadata.email.split('@')[0] || metadata.email).trim() : undefined) ||
+                  'Participant';
                 
-                // Direct profile query - RLS policy allows access for counselors with sessions
-                // Include all onboarding fields that counselors need
-                // Note: expectedRole could be 'patient' or 'guest', so we check for both
-                const { data: profile, error: profileError } = await supabase
-                  .from('profiles')
-                  .select('id,full_name,role,avatar_url,metadata,created_at,updated_at,phone_number,preferred_language,treatment_stage,contact_phone,emergency_contact_name,emergency_contact_phone,assigned_counselor_id,diagnosis,date_of_birth')
-                  .eq('id', participantId)
-                  .in('role', expectedRole === 'patient' ? ['patient', 'guest'] : ['counselor'])
-                  .maybeSingle();
+                // Include all onboarding data in metadata for complete patient information
+                const enrichedMetadata = {
+                  ...metadata,
+                  // Include direct profile fields in metadata for easier access
+                  phone_number: profile.phone_number || metadata.phone_number,
+                  preferred_language: profile.preferred_language || metadata.preferred_language,
+                  treatment_stage: profile.treatment_stage || metadata.treatment_stage,
+                  contact_phone: profile.contact_phone || metadata.contact_phone,
+                  emergency_contact_name: profile.emergency_contact_name || metadata.emergency_contact_name,
+                  emergency_contact_phone: profile.emergency_contact_phone || metadata.emergency_contact_phone,
+                  assigned_counselor_id: profile.assigned_counselor_id || metadata.assigned_counselor_id,
+                  diagnosis: (profile as any).diagnosis || metadata.diagnosis || metadata.cancer_type || metadata.cancerType,
+                  date_of_birth: (profile as any).date_of_birth || metadata.date_of_birth || metadata.dateOfBirth,
+                };
                 
-                if (profileError) {
-                  console.error('[SessionRoom] Error fetching profile:', profileError);
-                } else if (profile) {
-                  const metadata = (profile.metadata || {}) as Record<string, unknown>;
-                  const fullName = 
-                    (profile.full_name && typeof profile.full_name === 'string' ? profile.full_name.trim() : undefined) ||
-                    (profile.fullName && typeof profile.fullName === 'string' ? profile.fullName.trim() : undefined) ||
-                    (profile.name && typeof profile.name === 'string' ? profile.name.trim() : undefined) ||
-                    (typeof metadata.name === 'string' ? metadata.name.trim() : undefined) ||
-                    (typeof metadata.full_name === 'string' ? metadata.full_name.trim() : undefined) ||
-                    (typeof metadata.fullName === 'string' ? metadata.fullName.trim() : undefined) ||
-                    (typeof metadata.email === 'string' ? metadata.email.split('@')[0].trim() : undefined) ||
-                    'Participant';
-                  
-                  // Include all onboarding data in metadata for complete patient information
-                  const enrichedMetadata = {
-                    ...metadata,
-                    // Include direct profile fields in metadata for easier access
-                    phone_number: profile.phone_number || metadata.phone_number,
-                    preferred_language: profile.preferred_language || metadata.preferred_language,
-                    treatment_stage: profile.treatment_stage || metadata.treatment_stage,
-                    contact_phone: profile.contact_phone || metadata.contact_phone,
-                    emergency_contact_name: profile.emergency_contact_name || metadata.emergency_contact_name,
-                    emergency_contact_phone: profile.emergency_contact_phone || metadata.emergency_contact_phone,
-                    assigned_counselor_id: profile.assigned_counselor_id || metadata.assigned_counselor_id,
-                    diagnosis: (profile as any).diagnosis || metadata.diagnosis || metadata.cancer_type || metadata.cancerType,
-                    date_of_birth: (profile as any).date_of_birth || metadata.date_of_birth || metadata.dateOfBirth,
-                  };
-                  
-                  participant = {
-                    id: profile.id,
-                    email: (typeof metadata.email === 'string' ? metadata.email : ''),
-                    fullName: fullName,
-                    role: (profile.role === 'counselor' || profile.role === 'patient' ? profile.role : 'patient') as 'counselor' | 'patient',
-                    isVerified: false,
-                    createdAt: profile.created_at || '',
-                    avatarUrl: profile.avatar_url || (typeof metadata.avatar_url === 'string' ? metadata.avatar_url : undefined),
-                    metadata: enrichedMetadata,
-                    // Include direct fields for easier access
-                    phoneNumber: profile.phone_number || (metadata.phone_number as string),
-                    preferredLanguage: profile.preferred_language || (metadata.preferred_language as string),
-                    treatmentStage: profile.treatment_stage || (metadata.treatment_stage as string),
-                    contactPhone: profile.contact_phone || (metadata.contact_phone as string),
-                    emergencyContactName: profile.emergency_contact_name || (metadata.emergency_contact_name as string),
-                    emergencyContactPhone: profile.emergency_contact_phone || (metadata.emergency_contact_phone as string),
-                  } as AdminUser;
-                  
-                  console.log(`[SessionRoom] ✅ Loaded participant profile:`, {
-                    id: participant.id,
-                    fullName: participant.fullName,
-                    email: participant.email,
-                  });
-                } else {
-                  console.warn(`[SessionRoom] Profile not found for ${participantId}`);
-                }
+                const participant: AdminUser = {
+                  id: profile.id,
+                  email: (typeof metadata.email === 'string' ? metadata.email : ''),
+                  fullName: fullName,
+                  role: (profile.role === 'counselor' || profile.role === 'patient' ? profile.role : 'patient') as 'counselor' | 'patient',
+                  isVerified: false,
+                  createdAt: profile.created_at || '',
+                  avatarUrl: profile.avatar_url || (typeof metadata.avatar_url === 'string' ? metadata.avatar_url : undefined),
+                  metadata: enrichedMetadata,
+                  // Include direct fields for easier access
+                  phoneNumber: profile.phone_number || (metadata.phone_number as string),
+                  preferredLanguage: profile.preferred_language || (metadata.preferred_language as string),
+                  treatmentStage: profile.treatment_stage || (metadata.treatment_stage as string),
+                  contactPhone: profile.contact_phone || (metadata.contact_phone as string),
+                  emergencyContactName: profile.emergency_contact_name || (metadata.emergency_contact_name as string),
+                  emergencyContactPhone: profile.emergency_contact_phone || (metadata.emergency_contact_phone as string),
+                } as AdminUser;
+                
+                setOtherParticipant(participant);
               } else {
-                console.error('[SessionRoom] Supabase client not available');
+                console.warn(`[SessionRoom] Profile not found for ${participantId}`);
+                throw new Error('Profile not found');
               }
-            }
-            
-            if (participant) {
-              setOtherParticipant(participant);
             } else {
-              console.warn(`[SessionRoom] Could not load participant ${participantId}, using fallback`);
-              // Set a minimal participant object so the UI doesn't break
-              setOtherParticipant({
-                id: participantId,
-                email: '',
-                fullName: user?.role === 'patient' ? 'Counselor' : 'Patient',
-                role: (user?.role === 'patient' ? 'counselor' : 'patient') as 'counselor' | 'patient',
-                isVerified: false,
-                createdAt: '',
-              } as AdminUser);
+              throw new Error('Supabase client not available');
             }
           } catch (error) {
             console.error('[SessionRoom] Error loading participant:', error);
@@ -208,9 +184,26 @@ export default function SessionRoomPage() {
     setIsInMeeting(true);
   };
 
-  const handleMeetingEnd = () => {
+  const handleMeetingEnd = async () => {
     setIsInMeeting(false);
     setSessionEnded(true);
+    
+    // Update session status to completed in the database
+    // Only update if session is not already completed (prevents duplicate calls)
+    if (session && session.status !== 'completed') {
+      try {
+        const updatedSession = await SessionsApi.completeSession(sessionId);
+        setSession(updatedSession);
+        toast.success('Session marked as completed');
+      } catch (error) {
+        console.error('Error completing session:', error);
+        // Don't show error toast if session is already completed (race condition)
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        if (!errorMessage.includes('already completed') && !errorMessage.includes('not found')) {
+          toast.error('Failed to update session status');
+        }
+      }
+    }
   };
 
   const handleCompleteFeedback = () => {
@@ -226,6 +219,9 @@ export default function SessionRoomPage() {
           roomName={`session-${session.id}`}
           displayName={user?.name || 'Participant'}
           email={user?.email}
+          userId={user?.id}
+          isModerator={true}
+          userAvatar={user?.avatar}
           sessionType={(session.type === 'chat' || session.type === 'in-person' ? 'video' : (session.type === 'audio' ? 'audio' : 'video')) as 'audio' | 'video' | undefined}
           onMeetingEnd={handleMeetingEnd}
         />

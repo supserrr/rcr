@@ -2400,6 +2400,7 @@ export class AdminApi {
     }
 
     // Use admin Edge Function for admin access (bypasses RLS)
+    // Note: The edge function will automatically update the user's role to "patient" if needed
     // TODO: Replace with proper RLS policies later
     let updatedUser: any;
     try {
@@ -2422,6 +2423,14 @@ export class AdminApi {
       }
       if (errorMessage.includes('Counselor not found') || errorMessage.includes('Counselor not found or invalid')) {
         throw new Error(`Counselor not found. Please ensure the counselor ID is correct.`);
+      }
+      if (errorMessage.includes('User is not a patient')) {
+        // The edge function should automatically update the role, but if this error occurs,
+        // it means the role update failed or there was an issue
+        throw new Error(
+          `Cannot assign user: the user's role must be "patient" but it is currently "${errorMessage.match(/Current role: (\w+)/)?.[1] || 'unknown'}". ` +
+          `The system attempted to update the role automatically, but it failed. Please try again or contact support.`
+        );
       }
       if (errorMessage.includes('permission') || errorMessage.includes('403') || errorMessage.includes('Forbidden')) {
         const roleInfo = userRole ? ` (Your role: ${userRole})` : '';

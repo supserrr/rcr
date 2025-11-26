@@ -53,6 +53,7 @@
     "flatpickr": "^4.6.13",
     "framer-motion": "^12.23.24",
     "jiti": "^2.6.1",
+    "jsonwebtoken": "^9.0.2",
     "lucide-react": "^0.475.0",
     "motion": "^12.23.24",
     "nanoid": "^5.1.6",
@@ -81,6 +82,7 @@
     "zod": "^3.25.76"
   },
   "devDependencies": {
+    "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^20.19.9",
     "@types/react": "19.2.2",
     "@types/react-dom": "19.2.2",

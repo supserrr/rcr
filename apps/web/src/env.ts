@@ -31,6 +31,10 @@ export const env = createEnv({
    */
   server: {
     NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
+    /** Jitsi JaaS private key for JWT signing (server-side only) */
+    JITSI_PRIVATE_KEY: z.string().min(1).optional(),
+    /** Jitsi JaaS API key ID (kid) - optional, defaults to App ID if not set */
+    JITSI_KEY_ID: z.string().min(1).optional(),
   },
   
   /**
@@ -51,6 +55,8 @@ export const env = createEnv({
     NEXT_PUBLIC_API_URL: z.string().url().optional(),
     NEXT_PUBLIC_SOCKET_URL: z.string().url().optional(),
     NEXT_PUBLIC_GOOGLE_CLIENT_ID: z.string().min(1).optional(),
+    NEXT_PUBLIC_JITSI_DOMAIN: z.string().min(1).optional(),
+    NEXT_PUBLIC_JITSI_APP_ID: z.string().min(1).optional(),
   },
   
   /**
@@ -64,6 +70,8 @@ export const env = createEnv({
    */
   runtimeEnv: {
     NODE_ENV: process.env.NODE_ENV,
+    JITSI_PRIVATE_KEY: process.env.JITSI_PRIVATE_KEY,
+    JITSI_KEY_ID: process.env.JITSI_KEY_ID,
     NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
     NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
     NEXT_PUBLIC_SUPABASE_DEV_URL: process.env.NEXT_PUBLIC_SUPABASE_DEV_URL,
@@ -71,6 +79,8 @@ export const env = createEnv({
     NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
     NEXT_PUBLIC_SOCKET_URL: process.env.NEXT_PUBLIC_SOCKET_URL,
     NEXT_PUBLIC_GOOGLE_CLIENT_ID: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID,
+    NEXT_PUBLIC_JITSI_DOMAIN: process.env.NEXT_PUBLIC_JITSI_DOMAIN,
+    NEXT_PUBLIC_JITSI_APP_ID: process.env.NEXT_PUBLIC_JITSI_APP_ID,
   },
   
   /**

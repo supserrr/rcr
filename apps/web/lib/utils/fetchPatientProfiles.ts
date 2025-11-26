@@ -135,6 +135,7 @@ export async function fetchPatientProfilesFromSessions(
         fullName: fullName,
         avatarUrl: avatarUrl,
         role: (profile.role === 'guest' ? 'patient' : profile.role) as 'patient' | 'counselor' | 'admin',
+        isVerified: typeof metadata.isVerified === 'boolean' ? metadata.isVerified : (profile as any).email_confirmed_at !== null || false,
         metadata: enrichedMetadata,
         // Include direct fields for easier access
         phoneNumber: profile.phone_number || (metadata.phone_number as string),
