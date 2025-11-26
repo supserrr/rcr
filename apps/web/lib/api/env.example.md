@@ -20,9 +20,6 @@ NEXT_PUBLIC_SOCKET_URL=http://localhost:10000
 NEXT_PUBLIC_JITSI_DOMAIN=8x8.vc
 NEXT_PUBLIC_JITSI_APP_ID=your_jitsi_app_id
 
-# Assistant UI Cloud API Configuration
-NEXT_PUBLIC_ASSISTANT_API_URL=https://proj-0698j5uztrp3.assistant-api.com
-ASSISTANT_API_KEY=your_assistant_api_key_here
 ```
 
 ## Required Variables
@@ -37,6 +34,4 @@ ASSISTANT_API_KEY=your_assistant_api_key_here
 - `NEXT_PUBLIC_SOCKET_URL`: Socket.IO server URL (defaults to API_URL, default: `http://localhost:10000`)
 - `NEXT_PUBLIC_JITSI_DOMAIN`: Jitsi domain (default: `8x8.vc`)
 - `NEXT_PUBLIC_JITSI_APP_ID`: Jitsi app ID (if using JaaS)
-- `NEXT_PUBLIC_ASSISTANT_API_URL`: Assistant UI Cloud API URL (for AI chat functionality)
-- `ASSISTANT_API_KEY`: Assistant UI Cloud API key (for authentication - keep this secret, do not commit to git)
 

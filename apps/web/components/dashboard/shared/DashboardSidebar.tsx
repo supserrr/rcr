@@ -9,7 +9,6 @@ import {
   BookOpen,
   Calendar,
   MessageCircle,
-  Bot,
   Settings,
   UserCheck,
   UserPlus,
@@ -70,13 +69,6 @@ const navigationItems: NavigationItem[] = [
     badge: 2
   },
   {
-    id: 'ai-chat',
-    label: 'AI Chat',
-    icon: 'Bot',
-    path: '/dashboard/patient/ai-chat',
-    roles: ['patient']
-  },
-  {
     id: 'settings',
     label: 'Settings',
     icon: 'Settings',
@@ -127,13 +119,6 @@ const navigationItems: NavigationItem[] = [
     path: '/dashboard/counselor/chat',
     roles: ['counselor'],
     badge: 1
-  },
-  {
-    id: 'counselor-ai-chat',
-    label: 'AI Chat',
-    icon: 'Bot',
-    path: '/dashboard/counselor/ai-chat',
-    roles: ['counselor']
   },
   {
     id: 'counselor-settings',
@@ -196,7 +181,6 @@ const iconMap = {
   BookOpen,
   Calendar,
   MessageCircle,
-  Bot,
   Settings,
   UserCheck,
   UserPlus,
