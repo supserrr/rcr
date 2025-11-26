@@ -27,6 +27,7 @@ import {
   Filter
 } from 'lucide-react';
 import { AdminApi, type AdminUser } from '../../../../lib/api/admin';
+import { fetchPatientProfilesFromSessions } from '../../../../lib/utils/fetchPatientProfiles';
 import { useRouter } from 'next/navigation';
 import { ProfileViewModal } from '@workspace/ui/components/profile-view-modal';
 import { Patient } from '../../../../lib/types';
@@ -68,13 +69,35 @@ export default function CounselorPatientsPage() {
       try {
         setLoading(true);
         // Get unique patient IDs from sessions
-        const patientIds = new Set(
-          sessions.map(session => session.patientId)
-        );
+        const patientIds = Array.from(new Set(
+          sessions.map(session => session.patientId).filter(Boolean)
+        ));
+
+        if (patientIds.length === 0) {
+          setPatients([]);
+          setLoading(false);
+          return;
+        }
         
-        // Fetch all patients
-        const response = await AdminApi.listUsers({ role: 'patient' });
-        const assignedPatientsList = response.users.filter(p => patientIds.has(p.id));
+        let assignedPatientsList: AdminUser[] = [];
+        
+        // Try AdminApi first
+        try {
+          const response = await AdminApi.listUsers({ role: 'patient' });
+          assignedPatientsList = response.users.filter(p => patientIds.includes(p.id));
+        } catch (adminError) {
+          console.warn('[CounselorPatients] AdminApi failed, using fallback:', adminError);
+        }
+
+        // Fallback: Fetch directly from profiles table (respects RLS for sessions)
+        if (assignedPatientsList.length < patientIds.length) {
+          const missingPatientIds = patientIds.filter(id => !assignedPatientsList.some(p => p.id === id));
+          if (missingPatientIds.length > 0) {
+            const fallbackPatients = await fetchPatientProfilesFromSessions(missingPatientIds);
+            assignedPatientsList = [...assignedPatientsList, ...fallbackPatients];
+          }
+        }
+
         setPatients(assignedPatientsList);
       } catch (error) {
         console.error('Error loading patients:', error);
@@ -87,6 +110,7 @@ export default function CounselorPatientsPage() {
     if (user?.id && sessions.length > 0) {
       loadPatients();
     } else if (user?.id) {
+      setPatients([]);
       setLoading(false);
     }
   }, [user?.id, sessions]);
@@ -105,17 +129,57 @@ export default function CounselorPatientsPage() {
   });
 
   const handleViewPatient = async (patientId: string) => {
-    const patient = patients.find(p => p.id === patientId);
-    if (!patient) return;
+    // First check if patient is already loaded
+    let patient = patients.find(p => p.id === patientId);
     
-    // Fetch full patient data with all metadata
-    try {
-      const fullPatient = await AdminApi.getUser(patientId);
-      setViewingPatient(fullPatient);
-      setIsProfileOpen(true);
-    } catch (error) {
-      console.error('Error fetching patient details:', error);
-      // Fallback to cached patient data
+    if (!patient) {
+      // Patient not found, try to fetch it using the shared utility
+      try {
+        toast.loading('Loading patient information...', { id: 'loading-patient' });
+        
+        // Use the shared utility function to fetch patient profile
+        const fetchedPatients = await fetchPatientProfilesFromSessions([patientId]);
+        
+        if (fetchedPatients.length === 0) {
+          // If still no profile, try AdminApi as a fallback
+          try {
+            patient = await AdminApi.getUser(patientId);
+          } catch (adminError) {
+            console.warn('[CounselorPatients] AdminApi also failed:', adminError);
+            toast.error('Failed to load patient information.');
+            toast.dismiss('loading-patient');
+            return;
+          }
+        } else {
+          patient = fetchedPatients[0];
+          // Update patients list
+          setPatients(prev => {
+            if (!prev.find(p => p.id === patientId)) {
+              return [...prev, patient!];
+            }
+            return prev;
+          });
+        }
+        
+        toast.dismiss('loading-patient');
+      } catch (error) {
+        console.error('[CounselorPatients] Error loading patient:', error);
+        toast.dismiss('loading-patient');
+        toast.error('Failed to load patient information.');
+        return;
+      }
+    } else {
+      // Patient found, but try to fetch full data with all metadata
+      try {
+        const fullPatient = await AdminApi.getUser(patientId);
+        patient = fullPatient;
+      } catch (error) {
+        console.warn('[CounselorPatients] AdminApi failed, using cached data:', error);
+        // Use cached patient data
+      }
+    }
+    
+    if (patient) {
       setViewingPatient(patient);
       setIsProfileOpen(true);
     }

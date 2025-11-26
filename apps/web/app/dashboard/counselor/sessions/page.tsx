@@ -35,6 +35,7 @@ import { createClient } from '@/lib/supabase/client';
 import { normalizeAvatarUrl } from '@workspace/ui/lib/avatar';
 import { ProfileViewModal } from '@workspace/ui/components/profile-view-modal';
 import { Patient } from '../../../../lib/types';
+import { fetchPatientProfilesFromSessions } from '../../../../lib/utils/fetchPatientProfiles';
 
 export default function CounselorSessionsPage() {
   const router = useRouter();
@@ -719,11 +720,6 @@ export default function CounselorSessionsPage() {
       try {
         toast.loading('Loading patient information...', { id: 'loading-patient' });
         
-        const supabase = createClient();
-        if (!supabase) {
-          throw new Error('Database connection not available');
-        }
-        
         // Find a session with this patient to establish the relationship
         const patientSession = sessions.find(s => s.patientId === patientId && s.counselorId === user?.id);
         
@@ -731,160 +727,38 @@ export default function CounselorSessionsPage() {
           throw new Error('You can only view profiles of patients you have sessions with.');
         }
         
-        // Query patient profile - RLS should allow access since we have a session with this patient
-        console.log('[handleViewPatientProfile] Querying patient profile...');
-        const { data: profiles, error: profileError } = await supabase
-          .from('profiles')
-          .select('id,full_name,role,avatar_url,metadata,created_at,updated_at,phone_number,preferred_language,treatment_stage,contact_phone,emergency_contact_name,emergency_contact_phone,assigned_counselor_id,diagnosis,date_of_birth')
-          .eq('id', patientId)
-          .in('role', ['patient', 'guest'])
-          .maybeSingle();
+        // Use the shared utility function to fetch patient profile
+        // This respects RLS and handles both patient and guest roles
+        console.log('[handleViewPatientProfile] Fetching patient profile...');
+        const fetchedPatients = await fetchPatientProfilesFromSessions([patientId]);
         
-        let profile = profiles;
-        if (profileError) {
-          console.error('[handleViewPatientProfile] Error querying profile:', profileError);
-          profile = null;
-        } else if (profile) {
-          console.log('[handleViewPatientProfile] ✅ Query succeeded');
+        if (fetchedPatients.length === 0) {
+          // If still no profile, try AdminApi as a fallback
+          try {
+            patient = await AdminApi.getUser(patientId);
+          } catch (adminError) {
+            console.warn('[handleViewPatientProfile] AdminApi also failed:', adminError);
+            throw new Error('Patient not found. You may only view profiles of patients you have sessions with.');
+          }
         } else {
-          console.warn('[handleViewPatientProfile] Query succeeded but no profile found');
-          profile = null;
+          patient = fetchedPatients[0];
         }
         
-        // If still no profile, create minimal patient object from session data
-        if (!profile) {
-          console.warn('[handleViewPatientProfile] RLS blocking profile access, creating minimal patient object from session data');
+        // Add to cache for future use
+        if (patient) {
+          patientCache.set(patientId, patient);
+          // Update patients list if needed
+          if (!patients.find(p => p.id === patientId)) {
+            setPatients(prev => [...prev, patient!]);
+          }
           
-          // Show a warning toast that profile data is limited
-          toast.warning('Profile access is limited due to security policies. Some information may not be available.', {
-            duration: 5000,
-          });
-          
-          // Create a minimal patient object from what we know from the session
-          profile = {
-            id: patientId,
-            full_name: 'Patient',
-            role: 'patient' as const,
-            avatar_url: undefined,
-            metadata: {
-              // Try to extract any patient info from session notes if available
-              ...(patientSession.notes ? { session_notes: patientSession.notes } : {}),
-            } as Record<string, unknown>,
-            created_at: patientSession.createdAt || new Date().toISOString(),
-            updated_at: patientSession.updatedAt || new Date().toISOString(),
-            assigned_counselor_id: null,
-          };
-          
-          console.log('[handleViewPatientProfile] Created minimal patient object from session data');
-        }
-        
-        if (!profile) {
+          setViewingPatient(patient);
+          setIsProfileOpen(true);
+          console.log('[handleViewPatientProfile] ✅ Patient profile loaded successfully');
+        } else {
           throw new Error('Patient not found. You may only view profiles of patients you have sessions with.');
         }
         
-        // Map profile to AdminUser format with all onboarding data
-        const metadata = (profile.metadata || {}) as Record<string, unknown>;
-        const email = 
-          (typeof metadata.email === 'string' ? metadata.email : '') ||
-          (typeof (profile as any).email === 'string' ? (profile as any).email : '') ||
-          '';
-        
-        // Extract full name from multiple possible sources - be very thorough
-        let fullName: string | undefined = undefined;
-        
-        // Try profile.full_name (most reliable)
-        if (profile.full_name && typeof profile.full_name === 'string') {
-          const trimmed = profile.full_name.trim();
-          if (trimmed.length > 0) {
-            fullName = trimmed;
-          }
-        }
-        
-        // Try metadata fields
-        if (!fullName) {
-          const nameCandidates = [
-            metadata.name,
-            metadata.full_name,
-            metadata.fullName,
-            metadata.displayName,
-            metadata.display_name,
-            metadata.userName,
-            metadata.user_name,
-          ];
-          
-          for (const candidate of nameCandidates) {
-            if (typeof candidate === 'string') {
-              const trimmed = candidate.trim();
-              if (trimmed.length > 0) {
-                fullName = trimmed;
-                break;
-              }
-            }
-          }
-        }
-        
-        // Fallback to email username if we have email
-        if (!fullName && email) {
-          const emailUsername = email.split('@')[0]?.trim();
-          if (emailUsername && emailUsername.length > 0) {
-            // Capitalize first letter
-            fullName = emailUsername.charAt(0).toUpperCase() + emailUsername.slice(1);
-          }
-        }
-        
-        // Final fallback
-        if (!fullName) {
-          fullName = 'Patient';
-        }
-        
-        const avatarUrl = profile.avatar_url || 
-                         (typeof metadata.avatar_url === 'string' ? metadata.avatar_url : undefined) ||
-                         (typeof metadata.avatarUrl === 'string' ? metadata.avatarUrl : undefined) ||
-                         (typeof metadata.avatar === 'string' ? metadata.avatar : undefined) ||
-                         undefined;
-        
-        // Include all profile fields in metadata for complete patient information
-        const enrichedMetadata = {
-          ...metadata,
-          // Include direct profile fields in metadata for easier access
-          phone_number: (profile as any).phone_number || metadata.phone_number,
-          preferred_language: (profile as any).preferred_language || metadata.preferred_language,
-          treatment_stage: (profile as any).treatment_stage || metadata.treatment_stage,
-          contact_phone: (profile as any).contact_phone || metadata.contact_phone,
-          emergency_contact_name: (profile as any).emergency_contact_name || metadata.emergency_contact_name,
-          emergency_contact_phone: (profile as any).emergency_contact_phone || metadata.emergency_contact_phone,
-          assigned_counselor_id: (profile as any).assigned_counselor_id || metadata.assigned_counselor_id,
-          diagnosis: (profile as any).diagnosis || metadata.diagnosis || metadata.cancer_type || metadata.cancerType,
-          date_of_birth: (profile as any).date_of_birth || metadata.date_of_birth || metadata.dateOfBirth,
-        };
-        
-        patient = {
-          id: profile.id,
-          email: email,
-          fullName: fullName,
-          avatarUrl: avatarUrl,
-          role: 'patient' as const,
-          metadata: enrichedMetadata,
-          // Include direct fields for easier access
-          phoneNumber: (profile as any).phone_number || (metadata.phone_number as string),
-          preferredLanguage: (profile as any).preferred_language || (metadata.preferred_language as string),
-          treatmentStage: (profile as any).treatment_stage || (metadata.treatment_stage as string),
-          contactPhone: (profile as any).contact_phone || (metadata.contact_phone as string),
-          emergencyContactName: (profile as any).emergency_contact_name || (metadata.emergency_contact_name as string),
-          emergencyContactPhone: (profile as any).emergency_contact_phone || (metadata.emergency_contact_phone as string),
-          createdAt: profile.created_at || new Date().toISOString(),
-          updatedAt: profile.updated_at || new Date().toISOString(),
-        } as AdminUser;
-        
-        // Add to cache for future use
-        patientCache.set(patientId, patient);
-        // Update patients list if needed
-        if (!patients.find(p => p.id === patientId)) {
-          setPatients(prev => [...prev, patient!]);
-        }
-        
-        setViewingPatient(patient);
-        setIsProfileOpen(true);
         toast.dismiss('loading-patient');
       } catch (error) {
         console.error('[handleViewPatientProfile] Error loading patient:', error);

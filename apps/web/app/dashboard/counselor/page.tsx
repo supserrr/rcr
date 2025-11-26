@@ -35,6 +35,9 @@ import { AuthApi } from '../../../lib/api/auth';
 import { ProgressApi } from '../../../lib/api/progress';
 import { toast } from 'sonner';
 import { Spinner } from '@workspace/ui/components/ui/shadcn-io/spinner';
+import { fetchPatientProfilesFromSessions } from '../../../lib/utils/fetchPatientProfiles';
+import { normalizeAvatarUrl } from '@workspace/ui/lib/avatar';
+import { createClient } from '@/lib/supabase/client';
 
 const sanitizeAvailability = (
   value?: string | null,
@@ -52,6 +55,7 @@ export default function CounselorDashboard() {
   const [availabilityUpdating, setAvailabilityUpdating] = useState(false);
   const [patients, setPatients] = useState<AdminUser[]>([]);
   const [patientsLoading, setPatientsLoading] = useState(true);
+  const [sessionPatientsCache, setSessionPatientsCache] = useState<Map<string, AdminUser>>(new Map());
   const [patientProgressMap, setPatientProgressMap] = useState<Record<
     string,
     { average: number; completed: number; total: number }
@@ -103,18 +107,51 @@ export default function CounselorDashboard() {
     enabled: Boolean(user?.id),
   });
 
-  // Load assigned patients
+  // Load assigned patients - only those explicitly assigned to this counselor
   useEffect(() => {
     const fetchPatients = async () => {
       try {
         setPatientsLoading(true);
-        // Get all patients who have sessions with this counselor
-        const response = await AdminApi.listUsers({ role: 'patient' });
-        // Filter to get unique patients from sessions
-        const patientIds = new Set(
-          sessions.map(session => session.patientId)
-        );
-        const assignedPatientsList = response.users.filter(p => patientIds.has(p.id));
+        
+        if (!user?.id) {
+          setPatients([]);
+          setPatientsLoading(false);
+          return;
+        }
+
+        // Try AdminApi first - this should return patients assigned to this counselor
+        let assignedPatientsList: AdminUser[] = [];
+        try {
+          const response = await AdminApi.listUsers({ role: 'patient' });
+          // Filter to only patients assigned to this counselor
+          assignedPatientsList = response.users.filter(p => {
+            const assignedCounselorId = 
+              p.metadata?.assigned_counselor_id as string ||
+              (p as any).assigned_counselor_id as string;
+            return assignedCounselorId === user.id;
+          });
+        } catch (adminError) {
+          console.warn('[CounselorDashboard] AdminApi failed, using fallback:', adminError);
+        }
+
+        // Fallback: Query profiles directly for patients assigned to this counselor
+        // This respects RLS and only returns patients where assigned_counselor_id matches
+        if (assignedPatientsList.length === 0) {
+          const supabase = createClient();
+          if (supabase) {
+            const { data: profiles, error } = await supabase
+              .from('profiles')
+              .select('id,full_name,role,avatar_url,metadata,created_at,updated_at,phone_number,preferred_language,treatment_stage,contact_phone,emergency_contact_name,emergency_contact_phone,assigned_counselor_id,diagnosis,date_of_birth')
+              .eq('role', 'patient')
+              .eq('assigned_counselor_id', user.id);
+            
+            if (!error && profiles && profiles.length > 0) {
+              const fallbackPatients = await fetchPatientProfilesFromSessions(profiles.map(p => p.id));
+              assignedPatientsList = fallbackPatients;
+            }
+          }
+        }
+
         setPatients(assignedPatientsList);
       } catch (error) {
         console.error('Error fetching patients:', error);
@@ -130,13 +167,9 @@ export default function CounselorDashboard() {
       return;
     }
 
-    if (sessions.length > 0) {
-      fetchPatients();
-    } else {
-      setPatients([]);
-      setPatientsLoading(false);
-    }
-  }, [user?.id, sessions]);
+    // Always fetch assigned patients, not just when there are sessions
+    fetchPatients();
+  }, [user?.id]);
 
   // Filter upcoming sessions
   const upcomingSessions = useMemo(() => {
@@ -170,11 +203,19 @@ export default function CounselorDashboard() {
     return allMessages;
   }, [chats, messages]);
 
-  // Get unique assigned patients from sessions
+  // Get unique assigned patients - only those explicitly assigned to this counselor
   const assignedPatients = useMemo(() => {
-    const patientIds = new Set(sessions.map((session) => session.patientId));
-    return patients.filter((p) => patientIds.has(p.id));
-  }, [sessions, patients]);
+    if (!user?.id) return [];
+    
+    return patients.filter((p) => {
+      // Check if patient is assigned to this counselor
+      const assignedCounselorId = 
+        p.metadata?.assigned_counselor_id as string ||
+        (p as any).assigned_counselor_id as string;
+      
+      return assignedCounselorId === user.id;
+    });
+  }, [patients, user?.id]);
 
   useEffect(() => {
     const loadPatientProgress = async () => {
@@ -289,14 +330,91 @@ export default function CounselorDashboard() {
     return Math.round(total / entries.length);
   }, [patientProgressMap]);
 
+  // Load patients from sessions for upcoming sessions card
+  useEffect(() => {
+    const loadSessionPatients = async () => {
+      if (!user?.id || sessions.length === 0) {
+        return;
+      }
+
+      // Get unique patient IDs from sessions
+      const patientIds = Array.from(new Set(
+        sessions.map(session => session.patientId).filter(Boolean)
+      ));
+
+      // Find missing patients (not in assigned patients and not in cache)
+      const missingPatientIds = patientIds.filter(id => {
+        const inAssigned = patients.some(p => p.id === id);
+        const inCache = sessionPatientsCache.has(id);
+        return !inAssigned && !inCache;
+      });
+
+      if (missingPatientIds.length === 0) {
+        return;
+      }
+
+      try {
+        // Fetch patient profiles from sessions (respects RLS)
+        const sessionPatients = await fetchPatientProfilesFromSessions(missingPatientIds);
+        
+        // Update cache
+        setSessionPatientsCache(prev => {
+          const newCache = new Map(prev);
+          sessionPatients.forEach(patient => {
+            newCache.set(patient.id, patient);
+          });
+          return newCache;
+        });
+      } catch (error) {
+        console.error('[CounselorDashboard] Error loading session patients:', error);
+      }
+    };
+
+    loadSessionPatients();
+  }, [sessions, patients, user?.id, sessionPatientsCache]);
+
   const getPatientName = (patientId: string) => {
-    const patient = patients.find(p => p.id === patientId);
+    // First check assigned patients
+    let patient = patients.find(p => p.id === patientId);
+    
+    // Then check session patients cache
+    if (!patient) {
+      patient = sessionPatientsCache.get(patientId);
+    }
+    
     return patient?.fullName || patient?.email || 'Unknown Patient';
   };
 
   const getPatientAvatar = (patientId: string) => {
-    const patient = patients.find(p => p.id === patientId);
-    // AdminUser doesn't have avatar, return undefined
+    // First check assigned patients
+    let patient = patients.find(p => p.id === patientId);
+    
+    // Then check session patients cache
+    if (!patient) {
+      patient = sessionPatientsCache.get(patientId);
+    }
+    
+    if (!patient) return undefined;
+    
+    // Check avatarUrl field (from our shared utility function)
+    let avatarUrl: string | undefined = undefined;
+    
+    if (patient.avatarUrl) {
+      avatarUrl = patient.avatarUrl;
+    } else if (patient.metadata) {
+      // Check metadata for avatar
+      const metadata = patient.metadata as Record<string, unknown>;
+      avatarUrl = 
+        (typeof metadata.avatar_url === 'string' ? metadata.avatar_url : undefined) ||
+        (typeof metadata.avatarUrl === 'string' ? metadata.avatarUrl : undefined) ||
+        (typeof metadata.avatar === 'string' ? metadata.avatar : undefined);
+    }
+    
+    // Normalize the avatar URL if we have one
+    if (avatarUrl) {
+      return normalizeAvatarUrl(avatarUrl);
+    }
+    
     return undefined;
   };
 
@@ -650,7 +768,7 @@ export default function CounselorDashboard() {
                       <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-2">
                           <Avatar className="h-8 w-8">
-                            <AvatarImage src={undefined} alt={patient.fullName || patient.email} />
+                            <AvatarImage src={getPatientAvatar(patient.id)} alt={patient.fullName || patient.email} />
                             <AvatarFallback>
                               {(patient.fullName || patient.email || 'P')
                                 .split(' ')

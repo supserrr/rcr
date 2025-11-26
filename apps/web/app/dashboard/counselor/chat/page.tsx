@@ -50,6 +50,7 @@ import { useAuth } from '../../../../components/auth/AuthProvider';
 import { useChat } from '../../../../hooks/useChat';
 import { AdminApi, type AdminUser } from '../../../../lib/api/admin';
 import { ProfileViewModal } from '@workspace/ui/components/profile-view-modal';
+import { fetchPatientProfilesFromSessions } from '../../../../lib/utils/fetchPatientProfiles';
 import { ScheduleSessionModal } from '../../../../components/session/ScheduleSessionModal';
 import { toast } from 'sonner';
 import { Spinner } from '@workspace/ui/components/ui/shadcn-io/spinner';
@@ -68,6 +69,7 @@ export default function CounselorChatPage() {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isScheduleOpen, setIsScheduleOpen] = useState(false);
   const [selectedPatient, setSelectedPatient] = useState<AdminUser | null>(null);
+  const [viewingPatient, setViewingPatient] = useState<AdminUser | null>(null);
   const [showConversations, setShowConversations] = useState(true);
   const [previewLength, setPreviewLength] = useState(30);
   const [patients, setPatients] = useState<AdminUser[]>([]);
@@ -108,8 +110,38 @@ export default function CounselorChatPage() {
     const fetchPatients = async () => {
       try {
         setPatientsLoading(true);
-        const response = await AdminApi.listUsers({ role: 'patient' });
-        setPatients(response.users);
+        
+        // Get patient IDs from chats
+        const patientIds = Array.from(new Set(
+          chats
+            .flatMap(chat => chat.participants)
+            .filter(id => id !== user?.id)
+        ));
+
+        let patientsList: AdminUser[] = [];
+        
+        // Try AdminApi first
+        try {
+          const response = await AdminApi.listUsers({ role: 'patient' });
+          if (patientIds.length > 0) {
+            patientsList = response.users.filter(p => patientIds.includes(p.id));
+          } else {
+            patientsList = response.users;
+          }
+        } catch (adminError) {
+          console.warn('[CounselorChat] AdminApi failed, using fallback:', adminError);
+        }
+
+        // Fallback: Fetch directly from profiles table (respects RLS for sessions/chats)
+        if (patientIds.length > 0 && patientsList.length < patientIds.length) {
+          const missingPatientIds = patientIds.filter(id => !patientsList.some(p => p.id === id));
+          if (missingPatientIds.length > 0) {
+            const fallbackPatients = await fetchPatientProfilesFromSessions(missingPatientIds);
+            patientsList = [...patientsList, ...fallbackPatients];
+          }
+        }
+
+        setPatients(patientsList);
       } catch (error) {
         console.error('Error fetching patients:', error);
         toast.error('Failed to load patients');
@@ -121,7 +153,7 @@ export default function CounselorChatPage() {
     if (user?.id) {
       fetchPatients();
     }
-  }, [user?.id]);
+  }, [user?.id, chats]);
 
   // Check for chatId in URL query params on mount
   useEffect(() => {
@@ -277,8 +309,54 @@ export default function CounselorChatPage() {
     return groups;
   }, [messages]);
 
-  const handleViewPatientProfile = () => {
-    setIsProfileOpen(true);
+  const handleViewPatientProfile = async () => {
+    if (!currentPatientId) return;
+    
+    // First check if patient is already loaded
+    let patient = currentPatientInfo;
+    
+    if (!patient) {
+      // Patient not found, try to fetch it
+      try {
+        toast.loading('Loading patient information...', { id: 'loading-patient' });
+        
+        // Use the shared utility function to fetch patient profile
+        const fetchedPatients = await fetchPatientProfilesFromSessions([currentPatientId]);
+        
+        if (fetchedPatients.length === 0) {
+          // If still no profile, try AdminApi as a fallback
+          try {
+            patient = await AdminApi.getUser(currentPatientId);
+          } catch (adminError) {
+            console.warn('[CounselorChat] AdminApi also failed:', adminError);
+            toast.error('Failed to load patient information.');
+            toast.dismiss('loading-patient');
+            return;
+          }
+        } else {
+          patient = fetchedPatients[0];
+          // Update patients list
+          setPatients(prev => {
+            if (!prev.find(p => p.id === currentPatientId)) {
+              return [...prev, patient!];
+            }
+            return prev;
+          });
+        }
+        
+        toast.dismiss('loading-patient');
+      } catch (error) {
+        console.error('[CounselorChat] Error loading patient:', error);
+        toast.dismiss('loading-patient');
+        toast.error('Failed to load patient information.');
+        return;
+      }
+    }
+    
+    if (patient) {
+      setViewingPatient(patient);
+      setIsProfileOpen(true);
+    }
   };
 
   const handleScheduleSession = () => {
@@ -736,22 +814,26 @@ export default function CounselorChatPage() {
       </div>
 
       {/* Profile View Modal */}
-      {currentChat && currentPatientInfo && (
+      {isProfileOpen && (viewingPatient || currentPatientInfo) && (
         <ProfileViewModal
           isOpen={isProfileOpen}
-          onClose={() => setIsProfileOpen(false)}
-          user={{
-            id: currentPatientInfo.id,
-            name: currentPatientInfo.fullName || currentPatientInfo.email || 'Patient',
-            email: currentPatientInfo.email,
-            role: 'patient' as const,
-            avatar: undefined,
-            createdAt: new Date(currentPatientInfo.createdAt),
-            diagnosis: undefined,
-            treatmentStage: undefined,
-            assignedCounselor: undefined,
-            moduleProgress: undefined,
+          onClose={() => {
+            setIsProfileOpen(false);
+            setViewingPatient(null);
           }}
+          user={viewingPatient || currentPatientInfo ? {
+            id: (viewingPatient || currentPatientInfo)!.id,
+            name: (viewingPatient || currentPatientInfo)!.fullName || (viewingPatient || currentPatientInfo)!.email || 'Patient',
+            email: (viewingPatient || currentPatientInfo)!.email,
+            role: 'patient' as const,
+            avatar: (viewingPatient || currentPatientInfo)!.avatarUrl,
+            createdAt: new Date((viewingPatient || currentPatientInfo)!.createdAt),
+            metadata: (viewingPatient || currentPatientInfo)!.metadata || {},
+            diagnosis: (viewingPatient || currentPatientInfo)!.cancerType || ((viewingPatient || currentPatientInfo)!.metadata?.diagnosis as string) || ((viewingPatient || currentPatientInfo)!.metadata?.cancer_type as string),
+            treatmentStage: (viewingPatient || currentPatientInfo)!.treatmentStage || ((viewingPatient || currentPatientInfo)!.metadata?.treatment_stage as string),
+            assignedCounselor: ((viewingPatient || currentPatientInfo)!.metadata?.assigned_counselor_id as string) || undefined,
+            moduleProgress: ((viewingPatient || currentPatientInfo)!.metadata?.module_progress as Record<string, number>) || undefined,
+          } : undefined}
           userType="patient"
           currentUserRole="counselor"
         />
