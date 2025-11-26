@@ -143,8 +143,11 @@ export default function PatientSessionsPage() {
                 undefined;
               
               const baseName = adminUser.fullName || 'Counselor';
+              // Only add professional title if the name doesn't already start with it
               const displayName = professionalTitle 
-                ? `${professionalTitle} ${baseName}`.trim()
+                ? (baseName.trim().toLowerCase().startsWith(professionalTitle.trim().toLowerCase())
+                    ? baseName
+                    : `${professionalTitle} ${baseName}`.trim())
                 : baseName;
 
               return {
