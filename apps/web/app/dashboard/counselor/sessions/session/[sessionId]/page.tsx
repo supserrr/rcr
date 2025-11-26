@@ -63,142 +63,25 @@ export default function SessionRoomPage() {
               participant = await AdminApi.getUser(participantId);
             } catch (adminError) {
               // If admin access fails, query profiles table directly
+              // RLS policy now allows counselors to access patient profiles when they have sessions with them
               console.log(`[SessionRoom] Admin API failed for ${participantId}, using direct profile query`);
               const supabase = createClient();
               if (supabase) {
-                // Try querying through sessions table first (counselors can see patients they have sessions with)
-                // This leverages RLS policies that allow counselors to access patient profiles via sessions
-                let profile = null;
-                let profileError = null;
+                const expectedRole = user?.role === 'patient' ? 'counselor' : 'patient';
                 
-                // First, try to query the profile through a session join if we're a counselor viewing a patient
-                if (user?.role === 'counselor' && sessionData?.patientId === participantId) {
-                  console.log(`[SessionRoom] Trying to fetch patient profile via session relationship`);
-                  
-                  // Try different join syntaxes
-                  const joinQueries = [
-                    // Try with explicit foreign key name
-                    supabase
-                      .from('sessions')
-                      .select(`
-                        patient_id,
-                        patient:profiles!sessions_patient_id_fkey (
-                          id,
-                          full_name,
-                          email,
-                          role,
-                          avatar_url,
-                          metadata
-                        )
-                      `)
-                      .eq('id', sessionId)
-                      .single(),
-                    // Try with implicit join
-                    supabase
-                      .from('sessions')
-                      .select(`
-                        patient_id,
-                        profiles!inner (
-                          id,
-                          full_name,
-                          email,
-                          role,
-                          avatar_url,
-                          metadata
-                        )
-                      `)
-                      .eq('id', sessionId)
-                      .eq('profiles.id', participantId)
-                      .single(),
-                  ];
-                  
-                  for (let i = 0; i < joinQueries.length; i++) {
-                    try {
-                      const response = await joinQueries[i];
-                      const sessionProfile = (response as any)?.data;
-                      const sessionError = (response as any)?.error;
-                      
-                      if (!sessionError && sessionProfile) {
-                        // Try different ways to access the profile
-                        const foundProfile = 
-                          (sessionProfile as any).patient ||
-                          (sessionProfile as any).profiles ||
-                          (Array.isArray((sessionProfile as any).profiles) ? (sessionProfile as any).profiles[0] : undefined);
-                        
-                        if (foundProfile) {
-                          profile = foundProfile;
-                          console.log(`[SessionRoom] ✅ Found profile via session join (method ${i + 1}):`, profile);
-                          break;
-                        }
-                      } else {
-                        console.warn(`[SessionRoom] Join query ${i + 1} failed:`, sessionError);
-                      }
-                    } catch (err) {
-                      console.warn(`[SessionRoom] Join query ${i + 1} threw error:`, err);
-                    }
-                  }
-                }
+                // Direct profile query - RLS policy allows access for counselors with sessions
+                // Include all onboarding fields that counselors need
+                // Note: expectedRole could be 'patient' or 'guest', so we check for both
+                const { data: profile, error: profileError } = await supabase
+                  .from('profiles')
+                  .select('id,full_name,role,avatar_url,metadata,created_at,updated_at,phone_number,preferred_language,treatment_stage,contact_phone,emergency_contact_name,emergency_contact_phone,assigned_counselor_id,diagnosis,date_of_birth')
+                  .eq('id', participantId)
+                  .in('role', expectedRole === 'patient' ? ['patient', 'guest'] : ['counselor'])
+                  .maybeSingle();
                 
-                // If that didn't work, try direct profile query
-                // Use the exact same approach as sessions list page
-                if (!profile) {
-                  console.log(`[SessionRoom] Trying direct profile query for ${participantId} (same as sessions list page)`);
-                  
-                  // Use the exact same query pattern as the sessions list page primary fetch
-                  const { data: directProfile, error: directError } = await supabase
-                    .from('profiles')
-                    .select('id,full_name,email,role,avatar_url,metadata,created_at,updated_at')
-                    .in('id', [participantId])  // Use .in() instead of .eq() like the sessions list page
-                    .eq('role', user?.role === 'patient' ? 'counselor' : 'patient');
-                  
-                  if (directError) {
-                    console.error('[SessionRoom] Direct query error:', directError);
-                    console.error('[SessionRoom] Error details:', {
-                      message: directError?.message || 'No message',
-                      code: directError?.code || 'No code',
-                      details: directError?.details || 'No details',
-                      hint: directError?.hint || 'No hint',
-                      fullError: JSON.stringify(directError),
-                    });
-                    profileError = directError;
-                  } else if (directProfile && directProfile.length > 0) {
-                    profile = directProfile[0];
-                    console.log(`[SessionRoom] ✅ Found profile via direct query with role filter`);
-                  } else {
-                    console.warn(`[SessionRoom] Direct query with role filter returned no results`);
-                    
-                    // Try without role filter as last resort
-                    console.log(`[SessionRoom] Trying query without role filter`);
-                    const { data: noRoleProfile, error: noRoleError } = await supabase
-                      .from('profiles')
-                      .select('id,full_name,email,role,avatar_url,metadata,created_at,updated_at')
-                      .in('id', [participantId]);
-                    
-                    if (!noRoleError && noRoleProfile && noRoleProfile.length > 0) {
-                      profile = noRoleProfile[0];
-                      console.log(`[SessionRoom] ✅ Found profile via query without role filter`);
-                    } else {
-                      console.warn(`[SessionRoom] Query without role filter also returned no results`);
-                      if (noRoleError) {
-                        console.warn('[SessionRoom] No-role query error details:', {
-                          message: noRoleError?.message || 'No message',
-                          code: noRoleError?.code || 'No code',
-                        });
-                      }
-                    }
-                  }
-                }
-                
-                if (profile) {
-                  console.log(`[SessionRoom] Profile found for ${participantId}:`, {
-                    id: profile.id,
-                    full_name: profile.full_name,
-                    email: profile.email,
-                    role: profile.role,
-                    hasMetadata: !!profile.metadata,
-                    metadata: profile.metadata,
-                  });
-                  
+                if (profileError) {
+                  console.error('[SessionRoom] Error fetching profile:', profileError);
+                } else if (profile) {
                   const metadata = (profile.metadata || {}) as Record<string, unknown>;
                   const fullName = 
                     (profile.full_name && typeof profile.full_name === 'string' ? profile.full_name.trim() : undefined) ||
@@ -207,29 +90,49 @@ export default function SessionRoomPage() {
                     (typeof metadata.name === 'string' ? metadata.name.trim() : undefined) ||
                     (typeof metadata.full_name === 'string' ? metadata.full_name.trim() : undefined) ||
                     (typeof metadata.fullName === 'string' ? metadata.fullName.trim() : undefined) ||
-                    (profile.email && typeof profile.email === 'string' ? profile.email.split('@')[0].trim() : undefined) ||
+                    (typeof metadata.email === 'string' ? metadata.email.split('@')[0].trim() : undefined) ||
                     'Participant';
                   
-                  console.log(`[SessionRoom] Extracted name: "${fullName}"`);
+                  // Include all onboarding data in metadata for complete patient information
+                  const enrichedMetadata = {
+                    ...metadata,
+                    // Include direct profile fields in metadata for easier access
+                    phone_number: profile.phone_number || metadata.phone_number,
+                    preferred_language: profile.preferred_language || metadata.preferred_language,
+                    treatment_stage: profile.treatment_stage || metadata.treatment_stage,
+                    contact_phone: profile.contact_phone || metadata.contact_phone,
+                    emergency_contact_name: profile.emergency_contact_name || metadata.emergency_contact_name,
+                    emergency_contact_phone: profile.emergency_contact_phone || metadata.emergency_contact_phone,
+                    assigned_counselor_id: profile.assigned_counselor_id || metadata.assigned_counselor_id,
+                    diagnosis: (profile as any).diagnosis || metadata.diagnosis || metadata.cancer_type || metadata.cancerType,
+                    date_of_birth: (profile as any).date_of_birth || metadata.date_of_birth || metadata.dateOfBirth,
+                  };
                   
                   participant = {
                     id: profile.id,
-                    email: profile.email || (typeof metadata.email === 'string' ? metadata.email : ''),
+                    email: (typeof metadata.email === 'string' ? metadata.email : ''),
                     fullName: fullName,
                     role: (profile.role === 'counselor' || profile.role === 'patient' ? profile.role : 'patient') as 'counselor' | 'patient',
                     isVerified: false,
                     createdAt: profile.created_at || '',
                     avatarUrl: profile.avatar_url || (typeof metadata.avatar_url === 'string' ? metadata.avatar_url : undefined),
+                    metadata: enrichedMetadata,
+                    // Include direct fields for easier access
+                    phoneNumber: profile.phone_number || (metadata.phone_number as string),
+                    preferredLanguage: profile.preferred_language || (metadata.preferred_language as string),
+                    treatmentStage: profile.treatment_stage || (metadata.treatment_stage as string),
+                    contactPhone: profile.contact_phone || (metadata.contact_phone as string),
+                    emergencyContactName: profile.emergency_contact_name || (metadata.emergency_contact_name as string),
+                    emergencyContactPhone: profile.emergency_contact_phone || (metadata.emergency_contact_phone as string),
                   } as AdminUser;
                   
-                  console.log(`[SessionRoom] Created participant object:`, {
+                  console.log(`[SessionRoom] ✅ Loaded participant profile:`, {
                     id: participant.id,
                     fullName: participant.fullName,
                     email: participant.email,
-                    role: participant.role,
                   });
                 } else {
-                  console.warn(`[SessionRoom] Profile not found for ${participantId} (query returned null/undefined)`);
+                  console.warn(`[SessionRoom] Profile not found for ${participantId}`);
                 }
               } else {
                 console.error('[SessionRoom] Supabase client not available');
@@ -237,27 +140,18 @@ export default function SessionRoomPage() {
             }
             
             if (participant) {
-              console.log(`[SessionRoom] ✅ Setting participant state:`, {
-                id: participant.id,
-                fullName: participant.fullName,
-                email: participant.email,
-                role: participant.role,
-              });
               setOtherParticipant(participant);
-              console.log(`[SessionRoom] ✅ Participant state set successfully`);
             } else {
-              console.warn(`[SessionRoom] ❌ Could not load participant ${participantId}, using fallback`);
+              console.warn(`[SessionRoom] Could not load participant ${participantId}, using fallback`);
               // Set a minimal participant object so the UI doesn't break
-              const fallbackParticipant = {
+              setOtherParticipant({
                 id: participantId,
                 email: '',
                 fullName: user?.role === 'patient' ? 'Counselor' : 'Patient',
                 role: (user?.role === 'patient' ? 'counselor' : 'patient') as 'counselor' | 'patient',
                 isVerified: false,
                 createdAt: '',
-              } as AdminUser;
-              console.log(`[SessionRoom] ⚠️ Setting fallback participant:`, fallbackParticipant);
-              setOtherParticipant(fallbackParticipant);
+              } as AdminUser);
             }
           } catch (error) {
             console.error('[SessionRoom] Error loading participant:', error);

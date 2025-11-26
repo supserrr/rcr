@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useMemo, useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@workspace/ui/components/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@workspace/ui/components/dialog';
 import { Button } from '@workspace/ui/components/button';
 import { Badge } from '@workspace/ui/components/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@workspace/ui/components/avatar';
@@ -67,12 +67,33 @@ export function ProfileViewModal({
   const patient = !isCounselor ? user as Patient : null;
 
   const userMetadata = (user as any).metadata ?? {};
+  
+  // Extract name with comprehensive fallback
+  const extractedName = 
+    user.name || 
+    (user as any).fullName || 
+    userMetadata.name || 
+    userMetadata.full_name || 
+    userMetadata.fullName ||
+    userMetadata.displayName ||
+    userMetadata.display_name ||
+    (user.email ? user.email.split('@')[0] : '') ||
+    'Patient';
+  
+  // Update user.name if it's missing
+  if (!user.name && extractedName !== 'Patient') {
+    (user as any).name = extractedName;
+  }
+  
+  // Extract avatar with comprehensive fallback
   const avatarSource =
     (user as any).avatar ??
     (user as any).avatarUrl ??
+    (user as any).avatar_url ??
     (user as any).picture ??
     userMetadata.avatar ??
     userMetadata.avatar_url ??
+    userMetadata.avatarUrl ??
     userMetadata.picture ??
     userMetadata.photo ??
     userMetadata.photo_url ??
@@ -82,6 +103,8 @@ export function ProfileViewModal({
     () => normalizeAvatarUrl(avatarSource),
     [avatarSource],
   );
+  
+  // Debug logging removed - too verbose
   const availabilityDisplayOverride =
     typeof (user as any).availabilityDisplay === 'string'
       ? ((user as any).availabilityDisplay as string)
@@ -324,55 +347,198 @@ export function ProfileViewModal({
   // Extract all patient information from user and metadata
   const patientData = user as any;
   const patientMetadata = patientData.metadata || {};
+  
+  // Debug logging removed - too verbose
+  
+  // Calculate age from date_of_birth if available
+  const calculateAge = (dateOfBirth: string | Date | undefined): string | undefined => {
+    if (!dateOfBirth) return undefined;
+    try {
+      const dob = typeof dateOfBirth === 'string' ? new Date(dateOfBirth) : dateOfBirth;
+      if (isNaN(dob.getTime())) return undefined;
+      const today = new Date();
+      let age = today.getFullYear() - dob.getFullYear();
+      const monthDiff = today.getMonth() - dob.getMonth();
+      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate())) {
+        age--;
+      }
+      return age > 0 ? `${age} years` : undefined;
+    } catch {
+      return undefined;
+    }
+  };
+  
+  // Extract date_of_birth from multiple sources
+  const dateOfBirth = 
+    patientData.date_of_birth || 
+    patientData.dateOfBirth || 
+    patientMetadata.date_of_birth || 
+    patientMetadata.dateOfBirth;
+  const calculatedAge = 
+    patientData.age || 
+    patientMetadata.age || 
+    calculateAge(dateOfBirth);
+  
+  // Helper function to safely get nested values
+  const getValue = (...paths: (string | undefined)[]): any => {
+    for (const path of paths) {
+      if (!path) continue;
+      const keys = path.split('.');
+      let value: any = patientData;
+      for (const key of keys) {
+        if (value && typeof value === 'object' && key in value) {
+          value = value[key];
+        } else {
+          value = undefined;
+          break;
+        }
+      }
+      if (value !== undefined && value !== null && value !== '') {
+        return value;
+      }
+    }
+    // Try metadata as fallback
+    for (const path of paths) {
+      if (!path) continue;
+      const keys = path.split('.');
+      let value: any = patientMetadata;
+      for (const key of keys) {
+        if (value && typeof value === 'object' && key in value) {
+          value = value[key];
+        } else {
+          value = undefined;
+          break;
+        }
+      }
+      if (value !== undefined && value !== null && value !== '') {
+        return value;
+      }
+    }
+    return undefined;
+  };
+  
+  // Extract all fields with comprehensive fallback logic
   const allPatientInfo = {
-    // Basic info
-    name: user.name,
-    email: user.email || patientMetadata.email,
-    phoneNumber: patientData.phoneNumber || patientMetadata.phone || patientMetadata.phoneNumber || patientMetadata.contactPhone || patientMetadata.contact_phone,
-    location: patientData.location || patientMetadata.location || patientMetadata.address,
+    // Basic info - these should always be available
+    name: extractedName,
+    email: user.email || getValue('email') || '',
+    phoneNumber: 
+      patientData.phoneNumber ||
+      patientData.contactPhone ||
+      patientData.phone ||
+      patientData.phone_number ||
+      patientData.contact_phone ||
+      getValue('phoneNumber', 'contactPhone', 'phone', 'phone_number', 'contact_phone') || 
+      undefined,
+    location: 
+      patientData.location ||
+      patientData.address ||
+      getValue('location', 'address') || 
+      undefined,
     
-    // Health info
-    diagnosis: patientData.diagnosis || patientMetadata.diagnosis || patientMetadata.cancer_type || patientMetadata.cancerType,
-    treatmentStage: patientData.treatmentStage || patientMetadata.treatment_stage || patientMetadata.treatmentStage || patientMetadata.stage,
-    currentTreatment: patientData.currentTreatment || patientMetadata.current_treatment || patientMetadata.currentTreatment,
-    diagnosisDate: patientData.diagnosisDate || patientMetadata.diagnosis_date || patientMetadata.diagnosisDate,
-    cancerType: patientData.cancerType || patientMetadata.cancer_type || patientMetadata.cancerType,
+    // Health info - check all possible field names
+    // Check direct fields first, then use getValue as fallback
+    diagnosis: 
+      patientData.diagnosis ||
+      patientData.cancer_type ||
+      patientData.cancerType ||
+      getValue('diagnosis', 'cancer_type', 'cancerType') || 
+      undefined,
+    treatmentStage: 
+      patientData.treatmentStage ||
+      patientData.treatment_stage ||
+      patientData.stage ||
+      getValue('treatmentStage', 'treatment_stage', 'stage') || 
+      undefined,
+    currentTreatment: 
+      patientData.currentTreatment ||
+      patientData.current_treatment ||
+      getValue('currentTreatment', 'current_treatment') || 
+      undefined,
+    diagnosisDate: 
+      patientData.diagnosisDate ||
+      patientData.diagnosis_date ||
+      getValue('diagnosisDate', 'diagnosis_date') || 
+      undefined,
+    cancerType: 
+      patientData.cancerType ||
+      patientData.cancer_type ||
+      getValue('cancerType', 'cancer_type') || 
+      undefined,
+    dateOfBirth: dateOfBirth,
     
     // Personal info
-    age: patientData.age || patientMetadata.age,
-    gender: patientData.gender || patientMetadata.gender,
-    preferredLanguage: patientData.preferredLanguage || patientMetadata.preferred_language || patientMetadata.preferredLanguage || patientMetadata.language,
+    age: calculatedAge,
+    gender: 
+      patientData.gender ||
+      getValue('gender') || 
+      undefined,
+    preferredLanguage: 
+      patientData.preferredLanguage ||
+      patientData.preferred_language ||
+      patientData.language ||
+      getValue('preferredLanguage', 'preferred_language', 'language') || 
+      undefined,
     
     // Support info
-    supportNeeds: patientData.supportNeeds || patientMetadata.support_needs || patientMetadata.supportNeeds,
-    familySupport: patientData.familySupport || patientMetadata.family_support || patientMetadata.familySupport,
-    consultationType: patientData.consultationType || patientMetadata.consultation_type || patientMetadata.consultationType,
-    specialRequests: patientData.specialRequests || patientMetadata.special_requests || patientMetadata.specialRequests,
+    supportNeeds: 
+      getValue('supportNeeds', 'support_needs') || 
+      undefined,
+    familySupport: 
+      getValue('familySupport', 'family_support') || 
+      undefined,
+    consultationType: 
+      getValue('consultationType', 'consultation_type') || 
+      undefined,
+    specialRequests: 
+      getValue('specialRequests', 'special_requests') || 
+      undefined,
     
     // Emergency contact
-    emergencyContact: patientData.emergencyContact || patientMetadata.emergency_contact || patientMetadata.emergencyContact,
-    emergencyContactPhone: patientData.emergencyContactPhone || patientMetadata.emergency_contact_phone || patientMetadata.emergencyContactPhone,
-    emergencyContactName: patientData.emergencyContactName || patientMetadata.emergency_contact_name || patientMetadata.emergencyContactName,
+    emergencyContact: 
+      patientData.emergencyContact ||
+      patientData.emergency_contact ||
+      getValue('emergencyContact', 'emergency_contact') || 
+      undefined,
+    emergencyContactPhone: 
+      patientData.emergencyContactPhone ||
+      patientData.emergency_contact_phone ||
+      getValue('emergencyContactPhone', 'emergency_contact_phone') || 
+      undefined,
+    emergencyContactName: 
+      patientData.emergencyContactName ||
+      patientData.emergency_contact_name ||
+      getValue('emergencyContactName', 'emergency_contact_name') || 
+      undefined,
     
     // Progress
-    moduleProgress: patientData.moduleProgress || patientMetadata.module_progress || patientMetadata.moduleProgress,
+    moduleProgress: 
+      getValue('moduleProgress', 'module_progress') || 
+      undefined,
     
     // Assignment
-    assignedCounselor: patientData.assignedCounselor || patientMetadata.assigned_counselor_id || patientMetadata.assignedCounselor,
+    assignedCounselor: 
+      getValue('assignedCounselor', 'assigned_counselor_id') || 
+      undefined,
     
     // Dates
-    createdAt: patientData.createdAt || patientData.created_at || patientMetadata.created_at,
-    
-    // Additional metadata
-    ...patientMetadata
+    createdAt: 
+      patientData.createdAt || 
+      patientData.created_at || 
+      patientMetadata.created_at,
   };
+  
+  // Debug logging removed - too verbose
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-3xl sm:max-w-4xl max-h-[90vh] overflow-hidden px-4 sm:px-6 py-6 flex flex-col">
         <DialogTitle className="sr-only">
-          {isCounselor ? 'Counselor Profile' : 'Patient Profile'} - {user.name}
+          {isCounselor ? 'Counselor Profile' : 'Patient Profile'} - {extractedName}
         </DialogTitle>
+        <DialogDescription className="sr-only">
+          View {isCounselor ? 'counselor' : 'patient'} profile information and details
+        </DialogDescription>
         <div className="relative bg-gradient-to-br from-primary/10 via-primary/5 to-background border-b flex-shrink-0 -mx-4 sm:-mx-6 -mt-6 sm:-mt-6 px-4 sm:px-6 pt-6 sm:pt-8 pb-6 sm:pb-8">
           <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-transparent" />
           <div className="relative">
@@ -380,9 +546,9 @@ export function ProfileViewModal({
               <div className="flex items-center gap-4">
                 <div className="relative">
                   <Avatar className="h-20 w-20 ring-4 ring-background shadow-lg">
-                    <AvatarImage src={avatarUrl} alt={user.name} />
+                    <AvatarImage src={avatarUrl} alt={extractedName} />
                     <AvatarFallback className="text-xl font-semibold bg-primary/10 text-primary">
-                      {user.name?.split(' ').map(n => n[0]).join('') || 'U'}
+                      {extractedName.split(' ').map(n => n[0]).join('') || 'P'}
                     </AvatarFallback>
                   </Avatar>
                   <div className={`absolute -bottom-1 -right-1 w-6 h-6 ${availabilityIndicatorClass} rounded-full border-2 border-background flex items-center justify-center`}>
@@ -390,7 +556,7 @@ export function ProfileViewModal({
                   </div>
                 </div>
                 <div>
-                  <h1 className="text-2xl font-bold text-foreground mb-1">{user.name}</h1>
+                  <h1 className="text-2xl font-bold text-foreground mb-1">{extractedName}</h1>
                   {isCounselor && counselor?.specialty && (
                     <p className="text-primary font-medium mb-2">{counselor.specialty}</p>
                   )}
@@ -605,216 +771,273 @@ export function ProfileViewModal({
                   </>
                 ) : patient && (currentUserRole === 'counselor' || currentUserRole === 'admin') ? (
                   <>
-                    {/* Health Information Section */}
+                    {/* Health Information Section - Always Show */}
                     <Separator className="my-4" />
-                    <div className="space-y-3">
-                      <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                        <Heart className="h-4 w-4 text-primary" />
+                    <div className="space-y-4">
+                      <h4 className="text-base font-semibold text-foreground flex items-center gap-2 mb-3">
+                        <div className="p-2 rounded-lg bg-red-100 dark:bg-red-900/30">
+                          <Heart className="h-5 w-5 text-red-600 dark:text-red-400" />
+                        </div>
                         Health Information
                       </h4>
                       
-                      {allPatientInfo.cancerType && (
-                        <div className="p-3 rounded-lg bg-muted/30">
-                          <p className="text-sm font-medium mb-1">Cancer Type</p>
-                          <p className="text-sm text-muted-foreground capitalize">{allPatientInfo.cancerType}</p>
-                        </div>
-                      )}
-                      {allPatientInfo.diagnosis && (
-                        <div className="p-3 rounded-lg bg-muted/30">
-                          <p className="text-sm font-medium mb-1">Diagnosis</p>
-                          <p className="text-sm text-muted-foreground">{allPatientInfo.diagnosis}</p>
-                        </div>
-                      )}
-                      {allPatientInfo.diagnosisDate && (
-                        <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/30">
-                          <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-900/30">
-                            <CalendarIcon className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {allPatientInfo.cancerType ? (
+                          <div className="p-4 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
+                            <p className="text-xs font-semibold text-red-600 dark:text-red-400 mb-1 uppercase tracking-wide">Cancer Type</p>
+                            <p className="text-sm font-medium text-foreground capitalize">{allPatientInfo.cancerType}</p>
                           </div>
-                          <div>
-                            <p className="text-sm font-medium">Diagnosis Date</p>
-                            <p className="text-sm text-muted-foreground">
+                        ) : (
+                          <div className="p-4 rounded-lg bg-muted/30 border border-dashed">
+                            <p className="text-xs font-semibold text-muted-foreground mb-1 uppercase tracking-wide">Cancer Type</p>
+                            <p className="text-sm text-muted-foreground">Not provided</p>
+                        </div>
+                      )}
+                        
+                        {allPatientInfo.diagnosis ? (
+                          <div className="p-4 rounded-lg bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800">
+                            <p className="text-xs font-semibold text-orange-600 dark:text-orange-400 mb-1 uppercase tracking-wide">Diagnosis</p>
+                            <p className="text-sm font-medium text-foreground">{allPatientInfo.diagnosis}</p>
+                          </div>
+                        ) : (
+                          <div className="p-4 rounded-lg bg-muted/30 border border-dashed">
+                            <p className="text-xs font-semibold text-muted-foreground mb-1 uppercase tracking-wide">Diagnosis</p>
+                            <p className="text-sm text-muted-foreground">Not provided</p>
+                        </div>
+                      )}
+                        
+                        {allPatientInfo.treatmentStage ? (
+                          <div className="p-4 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
+                            <p className="text-xs font-semibold text-blue-600 dark:text-blue-400 mb-1 uppercase tracking-wide">Treatment Stage</p>
+                            <p className="text-sm font-medium text-foreground capitalize">{String(allPatientInfo.treatmentStage).replace(/-/g, ' ')}</p>
+                          </div>
+                        ) : (
+                          <div className="p-4 rounded-lg bg-muted/30 border border-dashed">
+                            <p className="text-xs font-semibold text-muted-foreground mb-1 uppercase tracking-wide">Treatment Stage</p>
+                            <p className="text-sm text-muted-foreground">Not provided</p>
+                          </div>
+                        )}
+                        
+                        {allPatientInfo.currentTreatment ? (
+                          <div className="p-4 rounded-lg bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800">
+                            <p className="text-xs font-semibold text-purple-600 dark:text-purple-400 mb-1 uppercase tracking-wide">Current Treatment</p>
+                            <p className="text-sm font-medium text-foreground capitalize">{String(allPatientInfo.currentTreatment).replace(/-/g, ' ')}</p>
+                          </div>
+                        ) : (
+                          <div className="p-4 rounded-lg bg-muted/30 border border-dashed">
+                            <p className="text-xs font-semibold text-muted-foreground mb-1 uppercase tracking-wide">Current Treatment</p>
+                            <p className="text-sm text-muted-foreground">Not provided</p>
+                          </div>
+                        )}
+                        
+                        {allPatientInfo.diagnosisDate ? (
+                          <div className="p-4 rounded-lg bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800">
+                            <p className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 mb-1 uppercase tracking-wide">Diagnosis Date</p>
+                            <p className="text-sm font-medium text-foreground">
                               {typeof allPatientInfo.diagnosisDate === 'string' 
-                                ? new Date(allPatientInfo.diagnosisDate).toLocaleDateString()
+                                ? new Date(allPatientInfo.diagnosisDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
                                 : allPatientInfo.diagnosisDate}
                             </p>
                           </div>
+                        ) : (
+                          <div className="p-4 rounded-lg bg-muted/30 border border-dashed">
+                            <p className="text-xs font-semibold text-muted-foreground mb-1 uppercase tracking-wide">Diagnosis Date</p>
+                            <p className="text-sm text-muted-foreground">Not provided</p>
                         </div>
                       )}
-                      {allPatientInfo.treatmentStage && (
-                        <div className="p-3 rounded-lg bg-muted/30">
-                          <p className="text-sm font-medium mb-1">Treatment Stage</p>
-                          <p className="text-sm text-muted-foreground capitalize">{allPatientInfo.treatmentStage.replace(/-/g, ' ')}</p>
                         </div>
-                      )}
-                      {allPatientInfo.currentTreatment && (
-                        <div className="p-3 rounded-lg bg-muted/30">
-                          <p className="text-sm font-medium mb-1">Current Treatment</p>
-                          <p className="text-sm text-muted-foreground capitalize">{allPatientInfo.currentTreatment.replace(/-/g, ' ')}</p>
-                        </div>
-                      )}
                     </div>
                     
-                    {/* Personal Information Section */}
-                    {(allPatientInfo.age || allPatientInfo.gender || allPatientInfo.location || allPatientInfo.phoneNumber) && (
-                      <>
+                    {/* Personal Information Section - Always Show */}
                         <Separator className="my-4" />
-                        <div className="space-y-3">
-                          <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                            <User className="h-4 w-4 text-primary" />
+                    <div className="space-y-4">
+                      <h4 className="text-base font-semibold text-foreground flex items-center gap-2 mb-3">
+                        <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-900/30">
+                          <User className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                        </div>
                             Personal Information
                           </h4>
                           
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                            {allPatientInfo.age && (
-                              <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/30">
-                                <div className="p-2 rounded-lg bg-purple-100 dark:bg-purple-900/30">
-                                  <User className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {allPatientInfo.age ? (
+                          <div className="p-4 rounded-lg bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800">
+                            <p className="text-xs font-semibold text-purple-600 dark:text-purple-400 mb-1 uppercase tracking-wide">Age</p>
+                            <p className="text-sm font-medium text-foreground">{allPatientInfo.age}</p>
                                 </div>
-                                <div>
-                                  <p className="text-sm font-medium">Age</p>
-                                  <p className="text-sm text-muted-foreground">{allPatientInfo.age}</p>
-                                </div>
+                        ) : (
+                          <div className="p-4 rounded-lg bg-muted/30 border border-dashed">
+                            <p className="text-xs font-semibold text-muted-foreground mb-1 uppercase tracking-wide">Age</p>
+                            <p className="text-sm text-muted-foreground">Not provided</p>
                               </div>
                             )}
-                            {allPatientInfo.gender && (
-                              <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/30">
-                                <div className="p-2 rounded-lg bg-pink-100 dark:bg-pink-900/30">
-                                  <User className="h-4 w-4 text-pink-600 dark:text-pink-400" />
+                        
+                        {allPatientInfo.gender ? (
+                          <div className="p-4 rounded-lg bg-pink-50 dark:bg-pink-900/20 border border-pink-200 dark:border-pink-800">
+                            <p className="text-xs font-semibold text-pink-600 dark:text-pink-400 mb-1 uppercase tracking-wide">Gender</p>
+                            <p className="text-sm font-medium text-foreground capitalize">{String(allPatientInfo.gender).replace(/-/g, ' ')}</p>
                                 </div>
-                                <div>
-                                  <p className="text-sm font-medium">Gender</p>
-                                  <p className="text-sm text-muted-foreground capitalize">{allPatientInfo.gender.replace(/-/g, ' ')}</p>
-                                </div>
+                        ) : (
+                          <div className="p-4 rounded-lg bg-muted/30 border border-dashed">
+                            <p className="text-xs font-semibold text-muted-foreground mb-1 uppercase tracking-wide">Gender</p>
+                            <p className="text-sm text-muted-foreground">Not provided</p>
                               </div>
                             )}
-                            {allPatientInfo.location && (
-                              <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/30">
-                                <div className="p-2 rounded-lg bg-orange-100 dark:bg-orange-900/30">
-                                  <MapPin className="h-4 w-4 text-orange-600 dark:text-orange-400" />
+                        
+                        {allPatientInfo.location ? (
+                          <div className="p-4 rounded-lg bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800">
+                            <p className="text-xs font-semibold text-orange-600 dark:text-orange-400 mb-1 uppercase tracking-wide">Location</p>
+                            <p className="text-sm font-medium text-foreground">{allPatientInfo.location}</p>
                                 </div>
-                                <div>
-                                  <p className="text-sm font-medium">Location</p>
-                                  <p className="text-sm text-muted-foreground">{allPatientInfo.location}</p>
-                                </div>
+                        ) : (
+                          <div className="p-4 rounded-lg bg-muted/30 border border-dashed">
+                            <p className="text-xs font-semibold text-muted-foreground mb-1 uppercase tracking-wide">Location</p>
+                            <p className="text-sm text-muted-foreground">Not provided</p>
                               </div>
                             )}
-                            {allPatientInfo.phoneNumber && (
-                              <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/30">
-                                <div className="p-2 rounded-lg bg-green-100 dark:bg-green-900/30">
-                                  <Phone className="h-4 w-4 text-green-600 dark:text-green-400" />
+                        
+                        {allPatientInfo.phoneNumber ? (
+                          <div className="p-4 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800">
+                            <p className="text-xs font-semibold text-green-600 dark:text-green-400 mb-1 uppercase tracking-wide">Phone Number</p>
+                            <p className="text-sm font-medium text-foreground">{allPatientInfo.phoneNumber}</p>
                                 </div>
-                                <div>
-                                  <p className="text-sm font-medium">Phone Number</p>
-                                  <p className="text-sm text-muted-foreground">{allPatientInfo.phoneNumber}</p>
-                                </div>
+                        ) : (
+                          <div className="p-4 rounded-lg bg-muted/30 border border-dashed">
+                            <p className="text-xs font-semibold text-muted-foreground mb-1 uppercase tracking-wide">Phone Number</p>
+                            <p className="text-sm text-muted-foreground">Not provided</p>
                               </div>
                             )}
+                        
+                        {allPatientInfo.preferredLanguage ? (
+                          <div className="p-4 rounded-lg bg-teal-50 dark:bg-teal-900/20 border border-teal-200 dark:border-teal-800">
+                            <p className="text-xs font-semibold text-teal-600 dark:text-teal-400 mb-1 uppercase tracking-wide">Preferred Language</p>
+                            <p className="text-sm font-medium text-foreground capitalize">{allPatientInfo.preferredLanguage}</p>
                           </div>
-                          {allPatientInfo.preferredLanguage && (
-                            <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/30">
-                              <div className="p-2 rounded-lg bg-green-100 dark:bg-green-900/30">
-                                <MessageCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
-                              </div>
-                              <div>
-                                <p className="text-sm font-medium">Preferred Language</p>
-                                <p className="text-sm text-muted-foreground capitalize">{allPatientInfo.preferredLanguage}</p>
-                              </div>
+                        ) : (
+                          <div className="p-4 rounded-lg bg-muted/30 border border-dashed">
+                            <p className="text-xs font-semibold text-muted-foreground mb-1 uppercase tracking-wide">Preferred Language</p>
+                            <p className="text-sm text-muted-foreground">Not provided</p>
                             </div>
                           )}
                         </div>
-                      </>
-                    )}
+                    </div>
                     
-                    {/* Support Information Section */}
-                    {(allPatientInfo.supportNeeds || allPatientInfo.familySupport || allPatientInfo.consultationType || allPatientInfo.specialRequests) && (
-                      <>
+                    {/* Support Information Section - Always Show */}
                         <Separator className="my-4" />
-                        <div className="space-y-3">
-                          <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                            <Users className="h-4 w-4 text-primary" />
+                    <div className="space-y-4">
+                      <h4 className="text-base font-semibold text-foreground flex items-center gap-2 mb-3">
+                        <div className="p-2 rounded-lg bg-green-100 dark:bg-green-900/30">
+                          <Users className="h-5 w-5 text-green-600 dark:text-green-400" />
+                        </div>
                             Support & Preferences
                           </h4>
                           
-                          {allPatientInfo.supportNeeds && (
-                            <div className="p-3 rounded-lg bg-muted/30">
-                              <p className="text-sm font-medium mb-2">Support Needs</p>
+                      {allPatientInfo.supportNeeds ? (
+                        <div className="p-4 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800">
+                          <p className="text-xs font-semibold text-green-600 dark:text-green-400 mb-2 uppercase tracking-wide">Support Needs</p>
                               {Array.isArray(allPatientInfo.supportNeeds) && allPatientInfo.supportNeeds.length > 0 ? (
                                 <div className="flex flex-wrap gap-2">
                                   {allPatientInfo.supportNeeds.map((need: string, idx: number) => (
-                                    <Badge key={idx} variant="outline" className="bg-muted/60">
+                                <Badge key={idx} variant="outline" className="bg-background">
                                       {need}
                                     </Badge>
                                   ))}
                                 </div>
                               ) : (
-                                <p className="text-sm text-muted-foreground">{String(allPatientInfo.supportNeeds)}</p>
+                            <p className="text-sm text-foreground">{String(allPatientInfo.supportNeeds)}</p>
                               )}
                             </div>
-                          )}
-                          {allPatientInfo.familySupport && (
-                            <div className="p-3 rounded-lg bg-muted/30">
-                              <p className="text-sm font-medium mb-1">Family Support</p>
-                              <p className="text-sm text-muted-foreground capitalize">{String(allPatientInfo.familySupport).replace(/-/g, ' ')}</p>
+                      ) : (
+                        <div className="p-4 rounded-lg bg-muted/30 border border-dashed">
+                          <p className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide">Support Needs</p>
+                          <p className="text-sm text-muted-foreground">Not provided</p>
+                        </div>
+                      )}
+                      
+                      {allPatientInfo.familySupport ? (
+                        <div className="p-4 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
+                          <p className="text-xs font-semibold text-blue-600 dark:text-blue-400 mb-1 uppercase tracking-wide">Family Support</p>
+                          <p className="text-sm font-medium text-foreground capitalize">{String(allPatientInfo.familySupport).replace(/-/g, ' ')}</p>
+                        </div>
+                      ) : (
+                        <div className="p-4 rounded-lg bg-muted/30 border border-dashed">
+                          <p className="text-xs font-semibold text-muted-foreground mb-1 uppercase tracking-wide">Family Support</p>
+                          <p className="text-sm text-muted-foreground">Not provided</p>
                             </div>
                           )}
-                          {allPatientInfo.consultationType && (
-                            <div className="p-3 rounded-lg bg-muted/30">
-                              <p className="text-sm font-medium mb-2">Preferred Consultation Types</p>
+                      
+                      {allPatientInfo.consultationType ? (
+                        <div className="p-4 rounded-lg bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800">
+                          <p className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 mb-2 uppercase tracking-wide">Preferred Consultation Types</p>
                               {Array.isArray(allPatientInfo.consultationType) && allPatientInfo.consultationType.length > 0 ? (
                                 <div className="flex flex-wrap gap-2">
                                   {allPatientInfo.consultationType.map((type: string, idx: number) => (
-                                    <Badge key={idx} variant="outline" className="bg-muted/60 capitalize">
+                                <Badge key={idx} variant="outline" className="bg-background capitalize">
                                       {type === 'chat' ? 'Text Chat' : type === 'video' ? 'Video Call' : type === 'phone' ? 'Phone Call' : type}
                                     </Badge>
                                   ))}
                                 </div>
                               ) : (
-                                <p className="text-sm text-muted-foreground capitalize">{String(allPatientInfo.consultationType)}</p>
+                            <p className="text-sm text-foreground capitalize">{String(allPatientInfo.consultationType)}</p>
                               )}
                             </div>
-                          )}
-                          {allPatientInfo.specialRequests && (
-                            <div className="p-3 rounded-lg bg-muted/30">
-                              <p className="text-sm font-medium mb-1">Special Requests</p>
-                              <p className="text-sm text-muted-foreground leading-relaxed">{String(allPatientInfo.specialRequests)}</p>
+                      ) : (
+                        <div className="p-4 rounded-lg bg-muted/30 border border-dashed">
+                          <p className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide">Preferred Consultation Types</p>
+                          <p className="text-sm text-muted-foreground">Not provided</p>
                             </div>
                           )}
+                      
+                      {allPatientInfo.specialRequests ? (
+                        <div className="p-4 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
+                          <p className="text-xs font-semibold text-amber-600 dark:text-amber-400 mb-1 uppercase tracking-wide">Special Requests</p>
+                          <p className="text-sm text-foreground leading-relaxed">{String(allPatientInfo.specialRequests)}</p>
                         </div>
-                      </>
-                    )}
+                      ) : (
+                        <div className="p-4 rounded-lg bg-muted/30 border border-dashed">
+                          <p className="text-xs font-semibold text-muted-foreground mb-1 uppercase tracking-wide">Special Requests</p>
+                          <p className="text-sm text-muted-foreground">Not provided</p>
+                        </div>
+                      )}
+                    </div>
                     
-                    {/* Emergency Contact Section */}
-                    {(allPatientInfo.emergencyContact || allPatientInfo.emergencyContactPhone || allPatientInfo.emergencyContactName) && (
-                      <>
+                    {/* Emergency Contact Section - Always Show */}
                         <Separator className="my-4" />
-                        <div className="p-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
-                          <p className="text-sm font-semibold mb-3 flex items-center gap-2">
-                            <AlertCircle className="h-4 w-4 text-red-600 dark:text-red-400" />
+                    <div className="p-4 rounded-lg bg-red-50 dark:bg-red-900/20 border-2 border-red-300 dark:border-red-700">
+                      <p className="text-sm font-semibold mb-4 flex items-center gap-2 text-red-700 dark:text-red-300">
+                        <AlertCircle className="h-5 w-5" />
                             Emergency Contact
                           </p>
-                          <div className="space-y-2">
-                            {allPatientInfo.emergencyContactName && (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {allPatientInfo.emergencyContactName ? (
                               <div>
-                                <p className="text-xs font-medium text-muted-foreground mb-1">Name</p>
-                                <p className="text-sm text-foreground">{allPatientInfo.emergencyContactName}</p>
+                            <p className="text-xs font-semibold text-red-600 dark:text-red-400 mb-1 uppercase tracking-wide">Name</p>
+                            <p className="text-sm font-medium text-foreground">{allPatientInfo.emergencyContactName}</p>
+                              </div>
+                        ) : (
+                              <div>
+                            <p className="text-xs font-semibold text-muted-foreground mb-1 uppercase tracking-wide">Name</p>
+                            <p className="text-sm text-muted-foreground">Not provided</p>
                               </div>
                             )}
-                            {(allPatientInfo.emergencyContact || allPatientInfo.emergencyContactPhone) && (
-                              <div>
-                                <p className="text-xs font-medium text-muted-foreground mb-1">Phone</p>
-                                <p className="text-sm text-foreground">{allPatientInfo.emergencyContactPhone || allPatientInfo.emergencyContact}</p>
-                              </div>
-                            )}
+                        {(allPatientInfo.emergencyContact || allPatientInfo.emergencyContactPhone) ? (
+                          <div>
+                            <p className="text-xs font-semibold text-red-600 dark:text-red-400 mb-1 uppercase tracking-wide">Phone</p>
+                            <p className="text-sm font-medium text-foreground">{allPatientInfo.emergencyContactPhone || allPatientInfo.emergencyContact}</p>
                           </div>
+                        ) : (
+                          <div>
+                            <p className="text-xs font-semibold text-muted-foreground mb-1 uppercase tracking-wide">Phone</p>
+                            <p className="text-sm text-muted-foreground">Not provided</p>
                         </div>
-                      </>
                     )}
+                      </div>
+                    </div>
                     
                     {/* Account Information Section */}
                     {allPatientInfo.createdAt && (
                       <>
                         <Separator className="my-4" />
-                        <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/30">
+                        <div className="flex items-center gap-3 p-4 rounded-lg bg-muted/30">
                           <div className="p-2 rounded-lg bg-gray-100 dark:bg-gray-900/30">
                             <Clock className="h-4 w-4 text-gray-600 dark:text-gray-400" />
                           </div>
@@ -822,9 +1045,9 @@ export function ProfileViewModal({
                             <p className="text-sm font-medium">Account Created</p>
                             <p className="text-sm text-muted-foreground">
                               {typeof allPatientInfo.createdAt === 'string' 
-                                ? new Date(allPatientInfo.createdAt).toLocaleDateString()
+                                ? new Date(allPatientInfo.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
                                 : allPatientInfo.createdAt instanceof Date
-                                ? allPatientInfo.createdAt.toLocaleDateString()
+                                ? allPatientInfo.createdAt.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
                                 : 'Unknown'}
                             </p>
                           </div>

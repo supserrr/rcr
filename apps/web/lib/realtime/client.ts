@@ -233,7 +233,9 @@ export function subscribeToNotifications(
       }
 
       if (status === 'TIMED_OUT') {
-        console.warn('[realtime] Notifications channel timed out. Retrying subscribe…');
+        if (process.env.NODE_ENV === 'development') {
+          console.debug('[realtime] Notifications channel timed out. Retrying subscribe…');
+        }
         await ensureRealtimeAuth(client);
         await channel.subscribe();
         return;
@@ -312,7 +314,9 @@ export function subscribeToSession(
       }
 
       if (status === 'TIMED_OUT') {
-        console.warn('[realtime] Session channel timed out. Retrying subscribe…');
+        if (process.env.NODE_ENV === 'development') {
+          console.debug('[realtime] Session channel timed out. Retrying subscribe…');
+        }
         await ensureRealtimeAuth(client);
         await channel.subscribe();
         return;
@@ -391,7 +395,9 @@ export function subscribeToChat(
       }
 
       if (status === 'TIMED_OUT') {
-        console.warn('[realtime] Chat channel timed out. Retrying subscribe…');
+        if (process.env.NODE_ENV === 'development') {
+          console.debug('[realtime] Chat channel timed out. Retrying subscribe…');
+        }
         await ensureRealtimeAuth(client);
         await channel.subscribe();
         return;

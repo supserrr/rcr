@@ -931,9 +931,19 @@ export class AuthApi {
       credentials.name ??
       data.user.email ??
       credentials.email;
-    const displayNameSignUp = professionalTitleSignUp
-      ? `${professionalTitleSignUp} ${baseNameSignUp}`.trim()
-      : baseNameSignUp;
+    // Only prepend title if baseName doesn't already start with it
+    let displayNameSignUp = baseNameSignUp;
+    if (professionalTitleSignUp && baseNameSignUp) {
+      const normalizedBaseName = baseNameSignUp.trim();
+      const normalizedTitle = professionalTitleSignUp.trim();
+      if (!normalizedBaseName.toLowerCase().startsWith(normalizedTitle.toLowerCase())) {
+        displayNameSignUp = `${professionalTitleSignUp} ${baseNameSignUp}`.trim();
+      } else {
+        displayNameSignUp = normalizedBaseName;
+      }
+    } else if (professionalTitleSignUp) {
+      displayNameSignUp = professionalTitleSignUp;
+    }
 
     const user: User = {
       id: data.user.id,
@@ -1005,9 +1015,19 @@ export class AuthApi {
       coerceStringValue(userMetadata.name) ??
       data.user.email ??
       '';
-    const displayNameSignIn = professionalTitleSignIn
-      ? `${professionalTitleSignIn} ${baseNameSignIn}`.trim()
-      : baseNameSignIn;
+    // Only prepend title if baseName doesn't already start with it
+    let displayNameSignIn = baseNameSignIn;
+    if (professionalTitleSignIn && baseNameSignIn) {
+      const normalizedBaseName = baseNameSignIn.trim();
+      const normalizedTitle = professionalTitleSignIn.trim();
+      if (!normalizedBaseName.toLowerCase().startsWith(normalizedTitle.toLowerCase())) {
+        displayNameSignIn = `${professionalTitleSignIn} ${baseNameSignIn}`.trim();
+      } else {
+        displayNameSignIn = normalizedBaseName;
+      }
+    } else if (professionalTitleSignIn) {
+      displayNameSignIn = professionalTitleSignIn;
+    }
 
     const user: User = {
       id: data.user.id,
@@ -1335,7 +1355,18 @@ export class AuthApi {
       mergedMetadata.professionalTitle = professionalTitle;
       mergedMetadata.professional_title = professionalTitle;
       mergedMetadata.title = professionalTitle;
-      displayName = displayName ? `${professionalTitle} ${displayName}`.trim() : professionalTitle;
+      // Only prepend title if displayName doesn't already start with it
+      if (displayName) {
+        const normalizedDisplayName = displayName.trim();
+        const normalizedTitle = professionalTitle.trim();
+        if (!normalizedDisplayName.toLowerCase().startsWith(normalizedTitle.toLowerCase())) {
+          displayName = `${professionalTitle} ${displayName}`.trim();
+        } else {
+          displayName = normalizedDisplayName;
+        }
+      } else {
+        displayName = professionalTitle;
+      }
     }
 
     const userData: User = {
@@ -1781,9 +1812,19 @@ export class AuthApi {
       coerceStringValue(userMetadata.name) ||
       user.email ||
       '';
-    const displayName = sanitizedProfessionalTitle
-      ? `${sanitizedProfessionalTitle} ${baseName}`.trim()
-      : baseName;
+    // Only prepend title if baseName doesn't already start with it
+    let displayName = baseName;
+    if (sanitizedProfessionalTitle && baseName) {
+      const normalizedBaseName = baseName.trim();
+      const normalizedTitle = sanitizedProfessionalTitle.trim();
+      if (!normalizedBaseName.toLowerCase().startsWith(normalizedTitle.toLowerCase())) {
+        displayName = `${sanitizedProfessionalTitle} ${baseName}`.trim();
+      } else {
+        displayName = normalizedBaseName;
+      }
+    } else if (sanitizedProfessionalTitle) {
+      displayName = sanitizedProfessionalTitle;
+    }
 
     const userData: User = {
       id: user.id,

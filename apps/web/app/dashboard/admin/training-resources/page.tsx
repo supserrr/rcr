@@ -77,7 +77,6 @@ export default function AdminTrainingResourcesPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<'all' | string>('all');
   const [selectedType, setSelectedType] = useState<'all' | string>('all');
-  const [selectedDifficulty, setSelectedDifficulty] = useState<'all' | string>('all');
   const [editingResource, setEditingResource] = useState<Resource | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
@@ -147,8 +146,6 @@ export default function AdminTrainingResourcesPage() {
     return Array.from(typs);
   }, [resources]);
 
-  const difficulties = ['all', 'Beginner', 'Intermediate', 'Advanced'];
-
   const filteredResources = useMemo(() => {
     return resources.filter(resource => {
       const matchesSearch = resource.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -156,10 +153,8 @@ export default function AdminTrainingResourcesPage() {
                            resource.publisher?.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesCategory = selectedCategory === 'all' || resource.tags?.includes(selectedCategory);
       const matchesType = selectedType === 'all' || resource.type === selectedType;
-      // Note: Difficulty is not part of Resource type, so we'll skip it for now
-      const matchesDifficulty = true; // selectedDifficulty === 'all' || resource.difficulty === selectedDifficulty;
       
-      return matchesSearch && matchesCategory && matchesType && matchesDifficulty;
+      return matchesSearch && matchesCategory && matchesType;
     }).sort((a, b) => {
       const dir = sortDir === 'asc' ? 1 : -1;
       switch (sortBy) {
@@ -176,7 +171,7 @@ export default function AdminTrainingResourcesPage() {
           return (new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()) * dir;
       }
     });
-  }, [resources, searchTerm, selectedCategory, selectedType, selectedDifficulty, sortBy, sortDir]);
+  }, [resources, searchTerm, selectedCategory, selectedType, sortBy, sortDir]);
 
   const total = filteredResources.length;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
@@ -1919,19 +1914,6 @@ export default function AdminTrainingResourcesPage() {
             {types.map((type) => (
               <SelectItem key={type} value={type}>
                 {type === 'all' ? 'All Types' : type.charAt(0).toUpperCase() + type.slice(1)}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        <Select value={selectedDifficulty} onValueChange={(value) => setSelectedDifficulty(value)}>
-          <SelectTrigger className="w-full sm:w-48 bg-primary/5 border-primary/20 focus:border-primary/40 focus:bg-primary/10">
-            <SelectValue placeholder="Difficulty" />
-          </SelectTrigger>
-          <SelectContent>
-            {difficulties.map((difficulty) => (
-              <SelectItem key={difficulty} value={difficulty}>
-                {difficulty === 'all' ? 'All Levels' : difficulty}
               </SelectItem>
             ))}
           </SelectContent>

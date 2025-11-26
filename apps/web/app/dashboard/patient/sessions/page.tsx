@@ -310,13 +310,24 @@ export default function PatientSessionsPage() {
         return;
       }
 
+      // Map 'in-person' to 'video' as database only supports 'video', 'audio', 'chat'
+      const sessionType = bookingData.sessionType === 'in-person' 
+        ? 'video' 
+        : (bookingData.sessionType || 'video');
+      
+      // Validate session type
+      if (!['video', 'audio', 'chat'].includes(sessionType)) {
+        toast.error(`Invalid session type: ${sessionType}. Please select a valid session type.`);
+        return;
+      }
+
       await createSession({
         patientId: user.id,
         counselorId: selectedCounselor.id,
         date: bookingData.date,
         time: bookingData.time,
         duration: bookingData.duration,
-        type: bookingData.sessionType || 'video',
+        type: sessionType as 'video' | 'audio' | 'chat',
         notes: bookingData.notes,
       });
       

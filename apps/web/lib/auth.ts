@@ -158,9 +158,86 @@ export function getOnboardingRoute(userRole: UserRole): string {
 
 /**
  * Check if user has completed onboarding
+ * 
+ * For counselors: Checks if they are approved/active or have a counselor profile
+ * For patients: Checks if they have essential profile data (treatment stage, contact info, etc.)
  */
 export function isOnboardingComplete(user: User | null): boolean {
   if (!user) return false;
+  
+  // For counselors: If they are approved or active, they have completed onboarding
+  if (user.role === 'counselor') {
+    // Check approval status from multiple sources
+    const approvalStatus = 
+      user.approvalStatus || 
+      (user.metadata?.approvalStatus as string) || 
+      (user.metadata?.approval_status as string);
+    
+    if (approvalStatus === 'approved' || approvalStatus === 'active') {
+      return true;
+    }
+    
+    // Also check if they have a counselor profile (indicates they've completed onboarding)
+    if (user.counselorProfile) {
+      return true;
+    }
+    
+    // Check if approval was reviewed (even if status is pending, if reviewed, they've completed onboarding)
+    if (user.approvalReviewedAt || user.metadata?.approvalReviewedAt || user.metadata?.approval_reviewed_at) {
+      // If they have a reviewed timestamp, they've gone through the approval process
+      // Only consider it complete if status is not 'rejected'
+      if (approvalStatus !== 'rejected') {
+        return true;
+      }
+    }
+  }
+  
+  // For patients: Check if they have essential profile data indicating onboarding completion
+  if (user.role === 'patient') {
+    const metadata = (user as any).metadata || {};
+    
+    // Check if patient has essential onboarding data filled out
+    // These fields are typically required during patient onboarding
+    const hasTreatmentInfo = 
+      user.treatmentStage || 
+      metadata.treatmentStage || 
+      metadata.treatment_stage ||
+      metadata.diagnosis ||
+      metadata.cancerType ||
+      metadata.cancer_type;
+    
+    const hasContactInfo = 
+      user.contactPhone || 
+      user.phoneNumber ||
+      metadata.contactPhone || 
+      metadata.contact_phone ||
+      metadata.phoneNumber ||
+      metadata.phone_number;
+    
+    const hasEmergencyContact = 
+      user.emergencyContactName ||
+      user.emergencyContactPhone ||
+      metadata.emergencyContactName ||
+      metadata.emergency_contact_name ||
+      metadata.emergencyContactPhone ||
+      metadata.emergency_contact_phone;
+    
+    const hasLocation = 
+      metadata.location ||
+      metadata.address ||
+      metadata.city ||
+      metadata.country;
+    
+    // If patient has treatment info and contact info, they've likely completed onboarding
+    if (hasTreatmentInfo && hasContactInfo) {
+      return true;
+    }
+    
+    // If they have emergency contact and location, also consider it complete
+    if (hasEmergencyContact && hasLocation && hasContactInfo) {
+      return true;
+    }
+  }
   
   // Check if onboarding_completed flag exists in user metadata
   // We'll check this from the user object's metadata

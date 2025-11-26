@@ -38,6 +38,7 @@ export interface Session {
 
 /**
  * Create session input
+ * Note: 'in-person' type is accepted but will be mapped to 'video' for database storage
  */
 export interface CreateSessionInput {
   patientId: string;
@@ -45,7 +46,7 @@ export interface CreateSessionInput {
   date: string;
   time: string;
   duration: number;
-  type: SessionType;
+  type: SessionType | 'in-person';
   notes?: string;
 }
 
@@ -147,37 +148,180 @@ export class SessionsApi {
       throw new Error('Supabase is not configured. Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.');
     }
 
+    // Validate session type - map 'in-person' to 'video' as it's not supported in DB
+    const validType = data.type === 'in-person' ? 'video' : data.type;
+    if (!['video', 'audio', 'chat'].includes(validType)) {
+      throw new Error(`Invalid session type: ${data.type}. Must be one of: video, audio, chat`);
+    }
+
+    // Validate required fields
+    if (!data.patientId || !data.counselorId) {
+      throw new Error('Patient ID and Counselor ID are required');
+    }
+
+    if (!data.date || !data.time) {
+      throw new Error('Date and time are required');
+    }
+
+    if (!data.duration || data.duration <= 0) {
+      throw new Error('Duration must be greater than 0');
+    }
+
+    // Validate and format date (must be YYYY-MM-DD)
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(data.date)) {
+      throw new Error(`Invalid date format: ${data.date}. Expected YYYY-MM-DD format.`);
+    }
+
+    // Validate date is not in the past
+    const sessionDate = new Date(data.date + 'T00:00:00');
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (sessionDate < today) {
+      throw new Error('Session date cannot be in the past');
+    }
+
+    // Validate and format time (must be HH:MM or HH:MM:SS)
+    if (!/^\d{2}:\d{2}(:\d{2})?$/.test(data.time)) {
+      throw new Error(`Invalid time format: ${data.time}. Expected HH:MM or HH:MM:SS format.`);
+    }
+
+    // Get current user to verify authentication and RLS permissions
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      console.error('[SessionsApi.createSession] Auth error:', authError);
+      throw new Error('You must be authenticated to create a session');
+    }
+
+    // Verify user is the patient (RLS requires auth.uid() = patient_id)
+    if (user.id !== data.patientId) {
+      throw new Error('You can only create sessions for yourself as a patient');
+    }
+
     // Validate that patient and counselor exist
-    const [patientCheck, counselorCheck] = await Promise.all([
-      supabase.from('profiles').select('id, role').eq('id', data.patientId).eq('role', 'patient').maybeSingle(),
-      supabase.from('profiles').select('id, role').eq('id', data.counselorId).eq('role', 'counselor').maybeSingle(),
+    // Note: We can't create profiles due to RLS (only handle_new_user trigger can),
+    // so we'll just verify they exist and let the session insert validate foreign keys
+    // RLS policies will handle authorization
+    const [patientProfileCheck, counselorProfileCheck] = await Promise.all([
+      supabase.from('profiles').select('id, role').eq('id', data.patientId).maybeSingle(),
+      supabase.from('profiles').select('id, role').eq('id', data.counselorId).maybeSingle(),
     ]);
 
-    if (patientCheck.error || !patientCheck.data) {
-      throw new Error('Patient not found. Please ensure the patient account exists.');
+    // Check patient profile (optional - profile might not exist yet, but user exists in auth.users)
+    if (patientProfileCheck.error) {
+      console.warn('[SessionsApi.createSession] Patient profile check error (non-blocking):', patientProfileCheck.error);
+      // Don't throw - profile might not exist but user exists in auth.users
+      // The session insert will fail with a foreign key error if user doesn't exist
     }
 
-    if (counselorCheck.error || !counselorCheck.data) {
-      throw new Error('Counselor not found. Please ensure the counselor account exists.');
+    if (patientProfileCheck.data && patientProfileCheck.data.role !== 'patient') {
+      // Profile exists but role is wrong - warn but don't block (RLS will handle permissions)
+      console.warn(`[SessionsApi.createSession] Patient has role '${patientProfileCheck.data.role}' instead of 'patient'. Session creation may still work if RLS allows it.`);
     }
+
+    // Check counselor profile (required - counselor must have a profile)
+    if (counselorProfileCheck.error) {
+      console.error('[SessionsApi.createSession] Counselor profile check error:', counselorProfileCheck.error);
+      // If it's a permission error, we might not be able to see the profile, but the session insert will validate
+      if (counselorProfileCheck.error.code === 'PGRST301' || counselorProfileCheck.error.code === '42501') {
+        console.warn('[SessionsApi.createSession] Cannot verify counselor profile due to permissions. Proceeding with session creation - RLS will validate.');
+      }
+    }
+
+    if (!counselorProfileCheck.data) {
+      // Counselor profile doesn't exist - this is a problem
+      // But we'll let the session insert fail with a foreign key error for a clearer message
+      console.warn('[SessionsApi.createSession] Counselor profile not found. Session insert will validate foreign key constraint.');
+    } else if (counselorProfileCheck.data.role !== 'counselor') {
+      console.warn(`[SessionsApi.createSession] Counselor has role '${counselorProfileCheck.data.role}' instead of 'counselor'. Session creation may still work if RLS allows it.`);
+    }
+
+    // Format time to ensure it's in HH:MM:SS format (PostgreSQL TIME accepts HH:MM but let's be explicit)
+    const formattedTime = data.time.includes(':') && data.time.split(':').length === 2 
+      ? `${data.time}:00` 
+      : data.time;
+
+    const insertData = {
+      patient_id: data.patientId,
+      counselor_id: data.counselorId,
+      date: data.date,
+      time: formattedTime,
+      duration: data.duration,
+      type: validType,
+      notes: data.notes || null,
+      status: 'scheduled' as const,
+    };
+
+    console.log('[SessionsApi.createSession] Inserting session:', {
+      ...insertData,
+      patient_id: insertData.patient_id.substring(0, 8) + '...',
+      counselor_id: insertData.counselor_id.substring(0, 8) + '...',
+    });
 
     const { data: session, error } = await supabase
       .from('sessions')
-      .insert({
-        patient_id: data.patientId,
-        counselor_id: data.counselorId,
-        date: data.date,
-        time: data.time,
-        duration: data.duration,
-        type: data.type,
-        notes: data.notes,
-        status: 'scheduled',
-      })
+      .insert(insertData)
       .select()
       .single();
 
-    if (error || !session) {
-      throw new Error(error?.message || 'Failed to create session');
+    if (error) {
+      console.error('[SessionsApi.createSession] Database error:', {
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        code: error.code,
+        insertData: {
+          ...insertData,
+          patient_id: insertData.patient_id.substring(0, 8) + '...',
+          counselor_id: insertData.counselor_id.substring(0, 8) + '...',
+        }
+      });
+
+      // Provide more specific error messages based on error code
+      if (error.code === '23503') {
+        // Foreign key constraint violation - user doesn't exist in auth.users
+        if (error.message.includes('patient_id') || error.message.includes('patient')) {
+          throw new Error('Patient account does not exist. Please ensure you are signed in with a valid account.');
+        }
+        if (error.message.includes('counselor_id') || error.message.includes('counselor')) {
+          throw new Error('Counselor account does not exist. Please select a valid counselor.');
+        }
+        throw new Error('Invalid patient or counselor ID. Please ensure both users exist.');
+      }
+      if (error.code === '23514') {
+        if (error.message.includes('valid_session_time')) {
+          throw new Error('Session date cannot be in the past');
+        }
+        if (error.message.includes('patient_counselor_different')) {
+          throw new Error('Patient and counselor must be different users');
+        }
+        if (error.message.includes('duration')) {
+          throw new Error('Duration must be greater than 0');
+        }
+        throw new Error(`Validation error: ${error.message}`);
+      }
+      if (error.code === '42501') {
+        throw new Error('Permission denied. You may not have permission to create sessions. Please contact support.');
+      }
+      if (error.code === '23505') {
+        throw new Error('A session with these details already exists.');
+      }
+      if (error.code === 'PGRST116') {
+        throw new Error('No rows returned. The session may not have been created due to database constraints.');
+      }
+
+      // Include the error code and details in the message for debugging
+      const errorDetails = error.details ? ` Details: ${error.details}` : '';
+      const errorHint = error.hint ? ` Hint: ${error.hint}` : '';
+      throw new Error(
+        error.message || 'Failed to create session' + 
+        (error.code ? ` (Error code: ${error.code})` : '') +
+        errorDetails +
+        errorHint
+      );
+    }
+
+    if (!session) {
+      throw new Error('Session was not created. No data returned from database.');
     }
 
     const mapped = this.mapSessionFromDb(session);

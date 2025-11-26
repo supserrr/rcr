@@ -66,7 +66,13 @@ export function useSessions(
       await fetchSessions(); // Refresh list
       return session;
     } catch (err) {
-      const errorMessage = err instanceof ApiError ? err.message : 'Failed to create session';
+      // Preserve the original error message if it exists
+      const errorMessage = err instanceof Error 
+        ? err.message 
+        : (err instanceof ApiError 
+          ? err.message 
+          : 'Failed to create session');
+      console.error('[useSessions.createSession] Error creating session:', err);
       throw new Error(errorMessage);
     }
   }, [fetchSessions]);
