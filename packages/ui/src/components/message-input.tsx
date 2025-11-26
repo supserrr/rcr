@@ -67,16 +67,20 @@ export function MessageInput({
   placeholder = "Type your message...",
   className,
 }: MessageInputProps) {
-  const handleKeyPress = (e: KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+  const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+    // Only send on Enter key, not Shift+Enter (for new lines)
+    if (e.key === 'Enter' && !e.shiftKey && !e.ctrlKey && !e.metaKey) {
       e.preventDefault();
+      e.stopPropagation();
       handleSend();
     }
   };
 
   const handleSend = () => {
-    if (value.trim() && !disabled) {
-      onSend(value.trim());
+    const trimmedValue = value.trim();
+    // Only send if there's actual content and not disabled
+    if (trimmedValue && trimmedValue.length > 0 && !disabled) {
+      onSend(trimmedValue);
       onChange('');
       onTyping?.(false);
     }
@@ -137,7 +141,7 @@ export function MessageInput({
           <Input
             value={value}
             onChange={(e) => handleChange(e.target.value)}
-            onKeyPress={handleKeyPress}
+            onKeyDown={handleKeyDown}
             placeholder={placeholder}
             disabled={disabled}
             className="pr-10 h-10"
@@ -156,7 +160,11 @@ export function MessageInput({
 
         <Button
           type="button"
-          onClick={handleSend}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            handleSend();
+          }}
           disabled={!value.trim() || disabled}
           className="h-10 w-10 p-0 shrink-0"
           title="Send message"

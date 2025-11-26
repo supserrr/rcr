@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState } from 'react';
-import { Avatar, AvatarFallback, AvatarImage } from './avatar';
 import { Button } from './button';
 import { ReactionPicker } from './reaction-picker';
 import {
@@ -212,32 +211,16 @@ export function MessageBubble({
       )}
 
       <div className={cn("flex items-end gap-2 max-w-[70%]", isOwn && 'flex-row-reverse')}>
-        {/* Avatar (only for received messages) */}
-        {!isOwn && senderInfo && (
-          <Avatar className="h-8 w-8 shrink-0">
-            <AvatarImage src={senderInfo.avatar} alt={senderInfo.name || 'User'} />
-            <AvatarFallback>
-              {(senderInfo.name || 'U').charAt(0).toUpperCase()}
-            </AvatarFallback>
-          </Avatar>
-        )}
-
         <div className={cn("flex flex-col", isOwn ? 'items-end' : 'items-start')}>
-          {/* Sender name (only for received messages) */}
-          {!isOwn && senderInfo?.name && (
-            <span className="text-xs text-muted-foreground mb-1 px-1">
-              {senderInfo.name}
-            </span>
-          )}
 
           {/* Reply Preview */}
           {hasReply && (message.replyTo || message.replyToId) && (
             <div
               className={cn(
-                "mb-1 px-3 py-2 rounded-lg border-l-2 text-xs max-w-full",
+                "mb-1 px-3 py-2 rounded-lg border-l-2 text-xs max-w-full backdrop-blur-sm",
                 isOwn
-                  ? "bg-primary/5 border-primary/30 text-primary/70"
-                  : "bg-muted/50 border-muted-foreground/30 text-muted-foreground"
+                  ? "bg-muted/40 dark:bg-muted/40 border-muted-foreground/30 text-muted-foreground"
+                  : "bg-primary/20 dark:bg-primary/30 border-primary/40 text-primary-foreground/80"
               )}
             >
               {message.replyTo ? (
@@ -260,10 +243,10 @@ export function MessageBubble({
           {/* Message Bubble */}
           <div
             className={cn(
-              "group relative rounded-lg px-3 py-2",
+              "group relative rounded-lg px-3 py-2 backdrop-blur-sm",
               isOwn
-                ? "bg-primary text-primary-foreground"
-                : "bg-muted text-foreground",
+                ? "bg-slate-100/90 dark:bg-muted/90 text-slate-900 dark:text-foreground border border-slate-200/70 dark:border-border/70 shadow-sm"
+                : "bg-primary/90 dark:bg-primary/95 text-primary-foreground backdrop-blur-sm",
               isDeleted && "opacity-60"
             )}
           >
@@ -361,7 +344,7 @@ export function MessageBubble({
             <span
               className={cn(
                 "text-xs",
-                isOwn ? "text-primary/70" : "text-muted-foreground"
+                isOwn ? "text-muted-foreground" : "text-primary/70"
               )}
               title={showFullTimestamp ? formatFullDate(message.createdAt) : undefined}
             >

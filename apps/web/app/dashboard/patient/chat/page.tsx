@@ -3,7 +3,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { AnimatedPageHeader } from '@workspace/ui/components/animated-page-header';
-import { AnimatedCard } from '@workspace/ui/components/animated-card';
 import { Button } from '@workspace/ui/components/button';
 import { Input } from '@workspace/ui/components/input';
 import { Badge } from '@workspace/ui/components/badge';
@@ -54,6 +53,8 @@ import { MessageBubble, type Message as MessageBubbleMessage } from '@workspace/
 import { MessageInput } from '@workspace/ui/components/message-input';
 import { TypingIndicator } from '@workspace/ui/components/typing-indicator';
 import type { Message } from '@/lib/api/chat';
+import { useNotifications } from '../../../../hooks/useRealtime';
+import { subscribeToMessages } from '../../../../lib/realtime/client';
 
 export default function PatientChatPage() {
   const router = useRouter();
@@ -98,7 +99,8 @@ export default function PatientChatPage() {
   
   const [replyTo, setReplyTo] = useState<Message | null>(null);
   const [editingMessage, setEditingMessage] = useState<Message | null>(null);
-  const [isTyping, setIsTyping] = useState(false);
+  const [isOtherTyping, setIsOtherTyping] = useState(false);
+  const [shouldScroll, setShouldScroll] = useState(false);
 
   // Load counselors for profile view and booking
   useEffect(() => {
@@ -120,20 +122,207 @@ export default function PatientChatPage() {
     }
   }, [user?.id]);
 
-  // Check for chatId in URL query params on mount
+  // Check for chatId in URL query params (only when chats are loaded and chatId exists)
+  const chatIdFromUrl = searchParams.get('chatId');
+  const hasProcessedChatId = useRef(false);
+  
   useEffect(() => {
-    const chatId = searchParams.get('chatId');
-    if (chatId && chats.length > 0) {
-      selectChat(chatId);
-      // Clean up the URL query parameter
+    if (chatIdFromUrl && chats.length > 0 && !hasProcessedChatId.current) {
+      hasProcessedChatId.current = true;
+      selectChat(chatIdFromUrl);
+      // Clean up the URL query parameter (only once)
       router.replace('/dashboard/patient/chat', { scroll: false });
     }
-  }, [searchParams, router, chats, selectChat]);
+  }, [chatIdFromUrl, chats.length, selectChat, router]);
 
-  // Auto-scroll to bottom when new messages arrive
+  // Subscribe to notifications and show toasts for new messages
+  useNotifications(
+    user?.id || null,
+    (notification) => {
+      // Only show notifications for message_received type
+      if (notification.type_key === 'message_received' && isNotificationsEnabled) {
+        const metadata = notification.metadata as Record<string, unknown> | undefined;
+        const chatId = metadata?.chatId as string | undefined;
+        const senderName = metadata?.senderName as string | undefined;
+        
+        // Only show notification if not viewing this chat
+        if (chatId && chatId !== currentChat?.id) {
+          toast.info(notification.message, {
+            description: senderName ? `From ${senderName}` : undefined,
+            action: {
+              label: 'View',
+              onClick: () => {
+                selectChat(chatId);
+              },
+            },
+          });
+        }
+      }
+    },
+    (error) => {
+      console.error('Notification subscription error:', error);
+    }
+  );
+
+  // Subscribe to messages from all chats to show notifications
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+    if (!user?.id || !isNotificationsEnabled) return;
+
+    const unsubscribes: (() => void)[] = [];
+
+    // Subscribe to messages from all chats
+    chats.forEach((chat) => {
+      // Skip the current chat as it's already handled by useChat
+      if (chat.id === currentChat?.id) return;
+
+      const unsubscribe = subscribeToMessages(
+        chat.id,
+        (message) => {
+          // Only show notification if message is not from current user and not in current chat
+          if (message.sender_id !== user.id && message.chat_id !== currentChat?.id) {
+            const participantId = chat.participants.find((id) => id !== user.id);
+            const participantInfo = participantId
+              ? counselors.find((c) => c.id === participantId)
+              : null;
+            const senderName = participantInfo?.fullName || participantInfo?.email || 'Your counselor';
+
+            toast.info(
+              message.content.length > 50 ? `${message.content.slice(0, 47)}...` : message.content,
+              {
+                description: `From ${senderName}`,
+                action: {
+                  label: 'View',
+                  onClick: () => {
+                    selectChat(chat.id);
+                  },
+                },
+              }
+            );
+          }
+        },
+        (error) => {
+          console.error(`Error subscribing to messages for chat ${chat.id}:`, error);
+        }
+      );
+
+      unsubscribes.push(unsubscribe);
+    });
+
+    return () => {
+      unsubscribes.forEach((unsubscribe) => unsubscribe());
+    };
+  }, [chats, currentChat?.id, user?.id, isNotificationsEnabled, counselors, selectChat]);
+
+  // Force container update when chat changes
+  const [messagesKey, setMessagesKey] = useState(0);
+  const lastMessageIdRef = useRef<string | null>(null);
+  const lastMessageCountRef = useRef<number>(0);
+  const lastChatIdForKeyRef = useRef<string | null>(null);
+  
+  // Update key only when chat changes, not on every message
+  // Delay the update slightly to allow messages to load first
+  useEffect(() => {
+    if (currentChat?.id && lastChatIdForKeyRef.current !== currentChat.id) {
+      lastChatIdForKeyRef.current = currentChat.id;
+      // Delay key update to allow messages to load and scroll to happen first
+      const timeoutId = setTimeout(() => {
+        setMessagesKey(prev => prev + 1);
+        lastMessageIdRef.current = null;
+        lastMessageCountRef.current = 0;
+      }, 100);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [currentChat?.id]);
+
+  // Auto-scroll to bottom when chat is selected or messages are loaded
+  const lastChatIdForScrollRef = useRef<string | null>(null);
+  const lastMessageCountForScrollRef = useRef<number>(0);
+  const needsScrollOnLoadRef = useRef<boolean>(false);
+  
+  // Track when chat changes to trigger scroll after messages load
+  useEffect(() => {
+    if (currentChat?.id && lastChatIdForScrollRef.current !== currentChat.id) {
+      lastChatIdForScrollRef.current = currentChat.id;
+      lastMessageCountForScrollRef.current = 0;
+      needsScrollOnLoadRef.current = true;
+    }
+    if (!currentChat) {
+      lastChatIdForScrollRef.current = null;
+      lastMessageCountForScrollRef.current = 0;
+      needsScrollOnLoadRef.current = false;
+    }
+  }, [currentChat?.id]);
+  
+  // Scroll to bottom when messages are loaded after chat selection
+  useEffect(() => {
+    if (currentChat && messages.length > 0 && needsScrollOnLoadRef.current) {
+      const messageCount = messages.length;
+      // Only scroll if we have messages and haven't scrolled yet for this load
+      if (messageCount > lastMessageCountForScrollRef.current) {
+        lastMessageCountForScrollRef.current = messageCount;
+        // Use multiple timeouts to ensure scroll happens after all DOM updates
+        const timeout1 = setTimeout(() => {
+          messagesEndRef.current?.scrollIntoView({ behavior: 'auto', block: 'end' });
+        }, 150);
+        const timeout2 = setTimeout(() => {
+          messagesEndRef.current?.scrollIntoView({ behavior: 'auto', block: 'end' });
+        }, 500);
+        const timeout3 = setTimeout(() => {
+          messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+          needsScrollOnLoadRef.current = false;
+        }, 800);
+        return () => {
+          clearTimeout(timeout1);
+          clearTimeout(timeout2);
+          clearTimeout(timeout3);
+        };
+      }
+    }
+  }, [currentChat?.id, messages.length, messagesKey]);
+
+  // Auto-scroll to bottom when new messages arrive (only if message count or last message ID changes)
+  const lastMessage = messages.length > 0 ? messages[messages.length - 1] : null;
+  const messageCount = messages.length;
+  const lastMessageId = lastMessage?.id ?? null; // Ensure it's never undefined
+  
+  useEffect(() => {
+    if (messageCount > 0 && currentChat) {
+      // Only scroll if we have a new message (different ID or count increased)
+      if (
+        (lastMessageId && lastMessageId !== lastMessageIdRef.current) ||
+        messageCount > lastMessageCountRef.current
+      ) {
+        lastMessageIdRef.current = lastMessageId;
+        lastMessageCountRef.current = messageCount;
+        
+        // Use setTimeout to ensure DOM is updated
+        const timeoutId = setTimeout(() => {
+          messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        }, 100);
+        return () => clearTimeout(timeoutId);
+      }
+    }
+  }, [messageCount, lastMessageId, currentChat?.id]);
+
+  // Trigger scroll immediately after sending a message
+  useEffect(() => {
+    if (shouldScroll) {
+      // Try scrolling immediately, then again after a delay to catch realtime updates
+      const immediateTimeout = setTimeout(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      }, 50);
+      
+      const delayedTimeout = setTimeout(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        setShouldScroll(false);
+      }, 300);
+      
+      return () => {
+        clearTimeout(immediateTimeout);
+        clearTimeout(delayedTimeout);
+      };
+    }
+  }, [shouldScroll]);
 
   // Update preview length based on screen size
   useEffect(() => {
@@ -172,26 +361,33 @@ export default function PatientChatPage() {
   const handleSendMessage = async (content: string) => {
     if (!content.trim() || !currentChat || !user) return;
     
+    // Prevent any default form behavior
+    const trimmedContent = content.trim();
+    setNewMessage(''); // Clear input immediately for better UX
+    
     try {
       if (editingMessage) {
         // Edit existing message
-        await editMessage(editingMessage.id, content.trim());
+        await editMessage(editingMessage.id, trimmedContent);
         setEditingMessage(null);
         toast.success('Message edited');
       } else {
         // Send new message
         await sendMessage({
           chatId: currentChat.id,
-          content: content.trim(),
+          content: trimmedContent,
           type: 'text',
           replyToId: replyTo?.id,
         });
         setReplyTo(null);
+        // Trigger scroll after sending message
+        setShouldScroll(true);
       }
-      setNewMessage('');
     } catch (error) {
       console.error('Error sending message:', error);
       toast.error(error instanceof Error ? error.message : 'Failed to send message');
+      // Restore message on error
+      setNewMessage(trimmedContent);
     }
   };
 
@@ -389,7 +585,7 @@ export default function PatientChatPage() {
       <div className="grid gap-4 md:gap-6 lg:grid-cols-4 h-[calc(100vh-280px)] md:h-[600px]">
         {/* Chat List */}
         <div className={`lg:col-span-1 ${showConversations ? 'block' : 'hidden lg:block'}`}>
-          <AnimatedCard delay={0.5} className="h-full flex flex-col">
+          <Card className="relative overflow-hidden h-full bg-gradient-to-br from-primary/5 via-background to-primary/10 dark:from-primary/10 dark:via-background dark:to-primary/15 rounded-3xl border-primary/20 dark:border-primary/30 transition-all duration-300 hover:shadow-2xl hover:shadow-primary/30 dark:hover:shadow-primary/40 hover:border-primary/40 dark:hover:border-primary/50 hover:from-primary/10 hover:to-primary/15 dark:hover:from-primary/15 dark:hover:to-primary/20 group h-full flex flex-col">
             <CardHeader className="p-3 md:p-6 pb-2 md:pb-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -456,15 +652,25 @@ export default function PatientChatPage() {
                           className={`p-2 md:p-3 cursor-pointer hover:bg-primary/5 dark:hover:bg-primary/10 hover:border-primary/20 dark:hover:border-primary/30 hover:shadow-md dark:hover:shadow-lg dark:hover:shadow-primary/20 transition-all duration-200 border-b group ${
                             currentChat?.id === chat.id ? 'bg-muted dark:bg-muted/50' : ''
                           }`}
-                          onClick={() => {
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            if (currentChat?.id !== chat.id) {
                             selectChat(chat.id);
+                            }
                             setShowConversations(false);
+                          }}
+                          onMouseDown={(e) => {
+                            // Prevent text selection on click
+                            if (e.detail > 1) {
+                              e.preventDefault();
+                            }
                           }}
                         >
                         <div className="flex items-center space-x-2 md:space-x-3">
                           <div className="relative">
                             <Avatar className="h-8 w-8 md:h-10 md:w-10">
-                              <AvatarImage src={undefined} alt={counselor?.fullName || counselor?.email || 'Counselor'} />
+                              <AvatarImage src={counselor?.avatarUrl} alt={counselor?.fullName || counselor?.email || 'Counselor'} />
                               <AvatarFallback>
                                 {(counselor?.fullName || counselor?.email || 'C').split(' ').map((n: string) => n[0]).join('')}
                               </AvatarFallback>
@@ -476,7 +682,7 @@ export default function PatientChatPage() {
                               <p className="text-sm font-medium truncate">
                                 {counselor?.fullName || counselor?.email || 'Counselor'}
                               </p>
-                               {chat.unreadCount > 0 && (
+                               {chat.unreadCount > 0 && chat.lastMessage?.senderId !== user?.id && (
                                  <Badge variant="destructive" className="h-5 w-5 rounded-full p-0 text-xs">
                                    {chat.unreadCount}
                                  </Badge>
@@ -509,12 +715,12 @@ export default function PatientChatPage() {
                 </div>
               </ScrollArea>
             </CardContent>
-          </AnimatedCard>
+          </Card>
         </div>
 
         {/* Chat Area */}
         <div className={`col-span-1 lg:col-span-3 ${showConversations ? 'hidden lg:block' : 'block'}`}>
-          <AnimatedCard delay={0.7} className="h-full flex flex-col">
+          <Card className="relative overflow-hidden h-full bg-gradient-to-br from-primary/5 via-background to-primary/10 dark:from-primary/10 dark:via-background dark:to-primary/15 rounded-3xl border-primary/20 dark:border-primary/30 transition-all duration-300 hover:shadow-2xl hover:shadow-primary/30 dark:hover:shadow-primary/40 hover:border-primary/40 dark:hover:border-primary/50 hover:from-primary/10 hover:to-primary/15 dark:hover:from-primary/15 dark:hover:to-primary/20 group h-full flex flex-col">
             {currentChat ? (
               <>
                 {/* Chat Header */}
@@ -531,7 +737,7 @@ export default function PatientChatPage() {
                         <ArrowLeft className="h-5 w-5" />
                       </Button>
                       <Avatar className="h-10 w-10">
-                        <AvatarImage src={undefined} />
+                        <AvatarImage src={currentCounselorInfo?.avatarUrl} />
                         <AvatarFallback>
                           {currentCounselorInfo?.fullName?.split(' ').map(n => n[0]).join('') || 
                            currentCounselorInfo?.email?.charAt(0).toUpperCase() || 'C'}
@@ -609,18 +815,11 @@ export default function PatientChatPage() {
                 {/* Messages */}
                 <CardContent className="flex-1 p-0">
                   <ScrollArea className="h-[400px] p-4">
-                    <div className="space-y-4">
+                    <div className="space-y-4" key={`messages-${currentChat?.id}-${messagesKey}`}>
                       {groupedMessages.length > 0 ? (
                         <>
                           {groupedMessages.map((group, groupIndex) => (
                             <div key={group.date}>
-                              {groupIndex > 0 && (
-                                <div className="flex items-center justify-center my-4">
-                                  <div className="px-3 py-1 bg-muted/50 rounded-full text-xs text-muted-foreground">
-                                    {group.date}
-                                  </div>
-                                </div>
-                              )}
                               {group.messages.map((message, msgIndex) => {
                                 const isOwnMessage = message.senderId === user?.id;
                                 const senderInfo = isOwnMessage
@@ -655,8 +854,8 @@ export default function PatientChatPage() {
                                     isOwn={isOwnMessage}
                                     senderInfo={senderInfo}
                                     currentUserId={user?.id}
-                                    showDateSeparator={msgIndex === 0 && groupIndex > 0}
-                                    dateSeparator={msgIndex === 0 && groupIndex > 0 ? group.date : undefined}
+                                    showDateSeparator={msgIndex === 0}
+                                    dateSeparator={msgIndex === 0 ? group.date : undefined}
                                     onReply={(msg) => setReplyTo(msg as Message)}
                                     onReact={handleReact}
                                     onEdit={isOwnMessage ? handleEdit : undefined}
@@ -668,7 +867,7 @@ export default function PatientChatPage() {
                               })}
                             </div>
                           ))}
-                          <TypingIndicator isVisible={isTyping} />
+                          <TypingIndicator isVisible={isOtherTyping} name={currentCounselorInfo?.fullName || currentCounselorInfo?.email || 'Counselor'} />
                           <div ref={messagesEndRef} />
                         </>
                       ) : (
@@ -687,7 +886,10 @@ export default function PatientChatPage() {
                     value={newMessage}
                     onChange={setNewMessage}
                     onSend={handleSendMessage}
-                    onTyping={setIsTyping}
+                    onTyping={() => {
+                      // Don't show typing indicator for current user's typing
+                      // This callback is for future use if we want to send typing status to server
+                    }}
                     replyTo={replyTo}
                     onCancelReply={() => {
                       setReplyTo(null);
@@ -711,30 +913,56 @@ export default function PatientChatPage() {
                 </div>
               </div>
             )}
-          </AnimatedCard>
+          </Card>
         </div>
       </div>
 
       {/* Profile View Modal */}
-      {currentChat && currentCounselorInfo && (
-        <ProfileViewModal
-          isOpen={isProfileOpen}
-          onClose={() => setIsProfileOpen(false)}
-          user={{
-            id: currentCounselorInfo.id,
-            name: currentCounselorInfo.fullName || currentCounselorInfo.email || 'Counselor',
-            email: currentCounselorInfo.email,
-            role: 'counselor' as const,
-            avatar: undefined,
-            createdAt: new Date(currentCounselorInfo.createdAt),
-            specialty: (currentCounselorInfo as any).specialty || 'General Counseling',
-            experience: (currentCounselorInfo as any).experience || 0,
-            availability: (currentCounselorInfo as any).availability || 'available',
-          }}
-          userType="counselor"
-          currentUserRole="patient"
-        />
-      )}
+      {currentChat && currentCounselorInfo && (() => {
+        const specialty = currentCounselorInfo.specialty || 
+          (currentCounselorInfo.metadata?.specialty as string) || 
+          (Array.isArray(currentCounselorInfo.metadata?.specialties) ? (currentCounselorInfo.metadata.specialties as string[])[0] : undefined) ||
+          'General Counseling';
+        
+        const experience = currentCounselorInfo.experience || 
+          currentCounselorInfo.experienceYears || 
+          (currentCounselorInfo.metadata?.experience as number) || 
+          (currentCounselorInfo.metadata?.experience_years as number) ||
+          (currentCounselorInfo.metadata?.years_of_experience as number) ||
+          0;
+        
+        const availabilityRaw = currentCounselorInfo.availability || 
+          (currentCounselorInfo.metadata?.availability as string) || 
+          'available';
+        const availability = (['available', 'busy', 'offline'].includes(availabilityRaw) 
+          ? availabilityRaw 
+          : 'available') as 'available' | 'busy' | 'offline';
+        
+        return (
+          <ProfileViewModal
+            isOpen={isProfileOpen}
+            onClose={() => setIsProfileOpen(false)}
+            user={{
+              id: currentCounselorInfo.id,
+              name: currentCounselorInfo.fullName || currentCounselorInfo.email || 'Counselor',
+              email: currentCounselorInfo.email,
+              role: 'counselor' as const,
+              avatar: currentCounselorInfo.avatarUrl,
+              createdAt: new Date(currentCounselorInfo.createdAt),
+              specialty,
+              experience,
+              availability,
+              bio: currentCounselorInfo.bio,
+              credentials: currentCounselorInfo.credentials,
+              languages: currentCounselorInfo.languages,
+              consultationTypes: currentCounselorInfo.consultationTypes,
+              metadata: currentCounselorInfo.metadata || {},
+            } as any}
+            userType="counselor"
+            currentUserRole="patient"
+          />
+        );
+      })()}
 
       {/* Session Booking Modal */}
       {selectedCounselor && user && (

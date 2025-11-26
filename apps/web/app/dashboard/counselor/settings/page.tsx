@@ -271,9 +271,9 @@ export default function CounselorSettingsPage() {
       patientDirectory: true,
       internal: true,
     } as VisibilitySettings,
-    approvalStatus: 'pending' as CounselorApprovalStatus,
-    approvalSubmittedAt: '',
-    approvalReviewedAt: '',
+    approvalStatus: (user?.approvalStatus as CounselorApprovalStatus) || 'pending' as CounselorApprovalStatus,
+    approvalSubmittedAt: user?.approvalSubmittedAt || '',
+    approvalReviewedAt: user?.approvalReviewedAt || '',
     avatar_url: user?.avatar || '',
   });
   const [documents, setDocuments] = useState<CounselorDocument[]>([]);
@@ -346,8 +346,11 @@ export default function CounselorSettingsPage() {
   // Load user profile data
   useEffect(() => {
     const loadProfile = async () => {
-      if (!user?.id) return;
+      if (!user?.id) {
+        return;
+      }
 
+      // Load profile in background without blocking UI
       try {
         const currentUser = await AuthApi.getCurrentUser();
         if (!currentUser) {
@@ -1022,7 +1025,7 @@ export default function CounselorSettingsPage() {
     { id: 'support', label: 'Support', icon: MessageCircle }
   ];
 
-  // Loading state
+  // Loading state - only show spinner for auth loading, not profile loading
   if (authLoading) {
     return (
       <div className="flex justify-center items-center h-64">

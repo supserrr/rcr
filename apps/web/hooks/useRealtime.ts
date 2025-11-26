@@ -18,6 +18,9 @@ import {
   type RealtimeProfile,
 } from '@/lib/realtime/client';
 
+// Re-export types for convenience
+export type { RealtimeMessage, RealtimeNotification, RealtimeSession, RealtimeProfile };
+
 /**
  * Hook for subscribing to chat messages
  */

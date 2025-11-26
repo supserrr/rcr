@@ -171,19 +171,54 @@ export function subscribeToMessages(
       (payload) => {
         onMessage(payload.new as RealtimeMessage);
       }
-    )
-    .subscribe((status) => {
+    );
+
+  channels.set(channelName, channel);
+
+  void (async () => {
+    await ensureRealtimeAuth(client);
+    await channel.subscribe(async (status) => {
+      if (status === 'SUBSCRIBED') {
+        return;
+      }
+
+      if (status === 'TIMED_OUT') {
+        if (process.env.NODE_ENV === 'development') {
+          console.debug('[realtime] Messages channel timed out. Retrying subscribe…');
+        }
+        await ensureRealtimeAuth(client);
+        await channel.subscribe();
+        return;
+      }
+
+      if (status === 'CLOSED') {
+        // Connection closed - this is normal during reconnection, don't error
+        if (process.env.NODE_ENV === 'development') {
+          console.debug('[realtime] Messages channel closed');
+        }
+        return;
+      }
+
       if (status === 'CHANNEL_ERROR') {
-        const error = new Error(`Failed to subscribe to messages for chat ${chatId}`);
+        const details = (channel as any)?.getError?.();
+        const error = toError(details, `Failed to subscribe to messages for chat ${chatId}`);
+        // Only log persistent errors, not transient connection issues
         if (onError) {
           onError(error);
-        } else {
+        } else if (process.env.NODE_ENV === 'development') {
           console.error(error);
         }
       }
     });
-
-  channels.set(channelName, channel);
+  })().catch((error) => {
+    const err = toError(error, `Failed to subscribe to messages for chat ${chatId}`);
+    // Only log in development to avoid noise
+    if (onError) {
+      onError(err);
+    } else if (process.env.NODE_ENV === 'development') {
+      console.error(err);
+    }
+  });
 
   // Return unsubscribe function
   return () => {
@@ -242,6 +277,10 @@ export function subscribeToNotifications(
       }
 
       if (status === 'CLOSED') {
+        // Connection closed - this is normal during reconnection, don't error
+        if (process.env.NODE_ENV === 'development') {
+          console.debug('[realtime] Notifications channel closed');
+        }
         channels.delete(channelName);
         return;
       }
@@ -250,9 +289,10 @@ export function subscribeToNotifications(
         const details = (channel as any)?.getError?.();
         const error = toError(details, `Failed to subscribe to notifications for user ${userId}`);
         channels.delete(channelName);
+        // Only log persistent errors, not transient connection issues
         if (onError) {
           onError(error);
-        } else {
+        } else if (process.env.NODE_ENV === 'development') {
           console.error(error);
         }
       }
@@ -260,9 +300,10 @@ export function subscribeToNotifications(
   })().catch((error) => {
     const err = toError(error, `Failed to subscribe to notifications for user ${userId}`);
     channels.delete(channelName);
+    // Only log in development to avoid noise
     if (onError) {
       onError(err);
-    } else {
+    } else if (process.env.NODE_ENV === 'development') {
       console.error(err);
     }
   });
@@ -323,6 +364,10 @@ export function subscribeToSession(
       }
 
       if (status === 'CLOSED') {
+        // Connection closed - this is normal during reconnection, don't error
+        if (process.env.NODE_ENV === 'development') {
+          console.debug('[realtime] Session channel closed');
+        }
         channels.delete(channelName);
         return;
       }
@@ -331,9 +376,10 @@ export function subscribeToSession(
         const details = (channel as any)?.getError?.();
         const error = toError(details, `Failed to subscribe to session ${sessionId}`);
         channels.delete(channelName);
+        // Only log persistent errors, not transient connection issues
         if (onError) {
           onError(error);
-        } else {
+        } else if (process.env.NODE_ENV === 'development') {
           console.error(error);
         }
       }
@@ -341,9 +387,10 @@ export function subscribeToSession(
   })().catch((error) => {
     const err = toError(error, `Failed to subscribe to session ${sessionId}`);
     channels.delete(channelName);
+    // Only log in development to avoid noise
     if (onError) {
       onError(err);
-    } else {
+    } else if (process.env.NODE_ENV === 'development') {
       console.error(err);
     }
   });
@@ -404,6 +451,10 @@ export function subscribeToChat(
       }
 
       if (status === 'CLOSED') {
+        // Connection closed - this is normal during reconnection, don't error
+        if (process.env.NODE_ENV === 'development') {
+          console.debug('[realtime] Chat channel closed');
+        }
         channels.delete(channelName);
         return;
       }
@@ -412,9 +463,10 @@ export function subscribeToChat(
         const details = (channel as any)?.getError?.();
         const error = toError(details, `Failed to subscribe to chat ${chatId}`);
         channels.delete(channelName);
+        // Only log persistent errors, not transient connection issues
         if (onError) {
           onError(error);
-        } else {
+        } else if (process.env.NODE_ENV === 'development') {
           console.error(error);
         }
       }
@@ -422,9 +474,10 @@ export function subscribeToChat(
   })().catch((error) => {
     const err = toError(error, `Failed to subscribe to chat ${chatId}`);
     channels.delete(channelName);
+    // Only log in development to avoid noise
     if (onError) {
       onError(err);
-    } else {
+    } else if (process.env.NODE_ENV === 'development') {
       console.error(err);
     }
   });
@@ -492,18 +545,56 @@ export function subscribeToProfiles(
         }
       },
     )
-    .subscribe((status) => {
+    .subscribe(async (status) => {
+      if (status === 'SUBSCRIBED') {
+        return;
+      }
+
+      if (status === 'TIMED_OUT') {
+        if (process.env.NODE_ENV === 'development') {
+          console.debug('[realtime] Profiles channel timed out. Retrying subscribe…');
+        }
+        await ensureRealtimeAuth(client);
+        await channel.subscribe();
+        return;
+      }
+
+      if (status === 'CLOSED') {
+        // Connection closed - this is normal during reconnection, don't error
+        if (process.env.NODE_ENV === 'development') {
+          console.debug('[realtime] Profiles channel closed');
+        }
+        channels.delete(channelName);
+        return;
+      }
+
       if (status === 'CHANNEL_ERROR') {
-        const error = new Error('Failed to subscribe to profiles channel');
+        const details = (channel as any)?.getError?.();
+        const error = toError(details, 'Failed to subscribe to profiles channel');
+        channels.delete(channelName);
+        // Only log persistent errors, not transient connection issues
         if (onError) {
           onError(error);
-        } else {
+        } else if (process.env.NODE_ENV === 'development') {
           console.error(error);
         }
       }
     });
 
   channels.set(channelName, channel);
+
+  void (async () => {
+    await ensureRealtimeAuth(client);
+  })().catch((error) => {
+    const err = toError(error, 'Failed to subscribe to profiles channel');
+    channels.delete(channelName);
+    // Only log in development to avoid noise
+    if (onError) {
+      onError(err);
+    } else if (process.env.NODE_ENV === 'development') {
+      console.error(err);
+    }
+  });
 
   return () => {
     channel.unsubscribe();

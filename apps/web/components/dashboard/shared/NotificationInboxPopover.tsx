@@ -41,6 +41,7 @@ import {
   useNotifications as useRealtimeNotifications,
 } from '../../../hooks/useRealtime';
 import { Spinner } from '@workspace/ui/components/ui/shadcn-io/spinner';
+import { useRouter } from 'next/navigation';
 
 type NotificationTab = 'all' | 'unread';
 
@@ -108,6 +109,7 @@ const mapRealtimeNotification = (notification: {
 
 export function NotificationInboxPopover() {
   const { user } = useAuth();
+  const router = useRouter();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -189,6 +191,8 @@ export function NotificationInboxPopover() {
     async (notificationId: string) => {
       try {
         setMarkingId(notificationId);
+        const notification = notifications.find((n) => n.id === notificationId);
+        
         await NotificationsApi.markNotificationsRead({
           notificationIds: [notificationId],
         });
@@ -200,6 +204,41 @@ export function NotificationInboxPopover() {
               : notification
           )
         );
+
+        // Navigate to relevant page based on notification type
+        if (notification) {
+          if (notification.typeKey === 'message_received') {
+            const metadata = notification.metadata as Record<string, unknown> | undefined;
+            const chatId = metadata?.chatId as string | undefined;
+            if (chatId) {
+              // Determine route based on user role (could be improved with role detection)
+              const isCounselor = (user as any)?.user_metadata?.role === 'counselor';
+              const route = isCounselor 
+                ? `/dashboard/counselor/chat?chatId=${chatId}`
+                : `/dashboard/patient/chat?chatId=${chatId}`;
+              router.push(route);
+            }
+          } else if (notification.typeKey === 'patient_assignment') {
+            const metadata = notification.metadata as Record<string, unknown> | undefined;
+            const patientId = metadata?.patientId as string | undefined;
+            const counselorId = metadata?.counselorId as string | undefined;
+            if ((user as any)?.user_metadata?.role === 'counselor' && patientId) {
+              router.push(`/dashboard/counselor/patients`);
+            } else if ((user as any)?.user_metadata?.role === 'patient' && counselorId) {
+              router.push(`/dashboard/patient/sessions`);
+            }
+          } else if (notification.typeKey === 'session_reminder') {
+            const metadata = notification.metadata as Record<string, unknown> | undefined;
+            const sessionId = metadata?.sessionId as string | undefined;
+            if (sessionId) {
+              const isCounselor = (user as any)?.user_metadata?.role === 'counselor';
+              const route = isCounselor
+                ? `/dashboard/counselor/sessions/session/${sessionId}`
+                : `/dashboard/patient/sessions/session/${sessionId}`;
+              router.push(route);
+            }
+          }
+        }
       } catch (err) {
         console.error('Error marking notification as read:', err);
         toast.error('Failed to mark notification as read');
@@ -207,7 +246,7 @@ export function NotificationInboxPopover() {
         setMarkingId(null);
       }
     },
-    []
+    [notifications, router, user]
   );
 
   const markAllNotificationsAsRead = useCallback(async () => {
@@ -340,9 +379,11 @@ export function NotificationInboxPopover() {
                       </p>
                       <div className="flex items-center gap-2 text-xs text-muted-foreground">
                         <span>{formatTimestamp(notification.createdAt)}</span>
-                        <Badge variant="outline" className="uppercase tracking-wide text-[10px]">
-                          {notification.deliveryStatus}
-                        </Badge>
+                        {notification.deliveryStatus !== 'pending' && notification.deliveryStatus !== 'cancelled' && (
+                          <Badge variant="outline" className="uppercase tracking-wide text-[10px]">
+                            {notification.deliveryStatus}
+                          </Badge>
+                        )}
                         {notification.priority !== 'normal' && (
                           <Badge variant="secondary" className="uppercase tracking-wide text-[10px] bg-primary/10 text-primary border-primary/20">
                             {notification.priority}

@@ -659,13 +659,13 @@ const handleAssignPatientToCounselor = async (
 
     if (roleUpdateError) {
       console.error('[handleAssignPatientToCounselor] Failed to update user role:', roleUpdateError);
-      return new Response(
-        JSON.stringify({ 
-          success: false, 
+    return new Response(
+      JSON.stringify({ 
+        success: false, 
           error: `Failed to update user role to patient: ${roleUpdateError.message || 'Unknown error'}` 
-        }),
+      }),
         { status: 500, headers: corsHeaders },
-      );
+    );
     }
 
     // Update the local patientProfile object to reflect the new role

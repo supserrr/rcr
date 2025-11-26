@@ -406,12 +406,12 @@ export class NotificationService {
     return scheduled.toISOString();
   }
 
-  private static async insertNotification(payload: Partial<EnqueueNotificationOptions> & { userId: string; title: string; message: string; typeKey: string; deliveryStatus: NotificationDeliveryStatus; }): Promise<void> {
+  private static async insertNotification(payload: Partial<EnqueueNotificationOptions> & { userId: string; title: string; message: string; typeKey: string; deliveryStatus: NotificationDeliveryStatus; deliveredAt?: string; }): Promise<void> {
     const service = await NotificationService.getServiceClient();
     if (!service) {
       return;
     }
-    const { error } = await service.from('notifications').insert({
+    const insertData: Record<string, unknown> = {
       user_id: payload.userId,
       title: payload.title,
       message: payload.message,
@@ -421,7 +421,14 @@ export class NotificationService {
       delivery_status: payload.deliveryStatus,
       priority: payload.priority ?? 'normal',
       channels: payload.channels ?? ['in_app'],
-    });
+    };
+
+    // Set delivered_at if provided (for immediate in-app notifications)
+    if (payload.deliveredAt) {
+      insertData.delivered_at = payload.deliveredAt;
+    }
+
+    const { error } = await service.from('notifications').insert(insertData);
 
     if (error) {
       const message = typeof error?.message === 'string' && error.message.length > 0
@@ -448,14 +455,25 @@ export class NotificationService {
       deliveryStatus = 'cancelled';
     } else if (scheduledFor && new Date(scheduledFor).getTime() > Date.now()) {
       deliveryStatus = 'scheduled';
+    } else {
+      // For in-app notifications without scheduling, mark as sent immediately
+      // This ensures they appear in the notification inbox right away
+      const channels = options.channels ?? typeConfig?.default_channels ?? ['in_app'];
+      if (channels.includes('in_app') && !scheduledFor) {
+        deliveryStatus = 'sent';
+      }
     }
+
+    const finalChannels = options.channels ?? typeConfig?.default_channels ?? ['in_app'];
+    const nowIso = new Date().toISOString();
 
     await NotificationService.insertNotification({
       ...options,
       priority: options.priority ?? typeConfig?.default_priority ?? 'normal',
-      channels: options.channels ?? typeConfig?.default_channels ?? ['in_app'],
+      channels: finalChannels,
       scheduledFor,
       deliveryStatus,
+      deliveredAt: deliveryStatus === 'sent' ? nowIso : undefined,
     });
 
     return { status: deliveryStatus };
