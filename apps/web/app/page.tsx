@@ -294,7 +294,7 @@ export default function LandingPage() {
                     }}
                   >
                     <img
-                      src="https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?w=800&h=600&fit=crop&auto=format&q=80"
+                      src="/images/1.jpg"
                       alt="Counselor matching process"
                       className="w-full h-auto rounded-2xl shadow-xl"
                       loading="lazy"
@@ -335,7 +335,7 @@ export default function LandingPage() {
                     }}
                   >
                     <img
-                      src="https://images.unsplash.com/photo-1516321497487-e288fb19713f?w=800&h=600&fit=crop&auto=format&q=80"
+                      src="/images/2.jpg"
                       alt="Communication options - chat, audio, video"
                       className="w-full h-auto rounded-2xl shadow-xl"
                       loading="lazy"
@@ -376,7 +376,7 @@ export default function LandingPage() {
                     }}
                   >
                     <img
-                      src="https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?w=800&h=600&fit=crop&auto=format&q=80"
+                      src="/images/3.jpg"
                       alt="24/7 support accessibility"
                       className="w-full h-auto rounded-2xl shadow-xl"
                       loading="lazy"

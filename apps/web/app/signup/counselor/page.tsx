@@ -289,7 +289,7 @@ export default function CounselorSignUpPage() {
 
       {/* Right column: hero image */}
       <section className="hidden md:block flex-1 relative p-4">
-        <div className="animate-slide-right animate-delay-300 absolute inset-4 rounded-3xl bg-cover bg-center" style={{ backgroundImage: `url(https://images.unsplash.com/photo-1559757175-0eb30cd8c063?w=2160&q=80)` }}></div>
+        <div className="animate-slide-right animate-delay-300 absolute inset-4 rounded-3xl bg-cover bg-center" style={{ backgroundImage: `url(/images/GqBfI8HXEAA_f4S.jpg)` }}></div>
       </section>
       
       {isLoading && (

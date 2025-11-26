@@ -195,7 +195,7 @@ export default function SignInPageDemo() {
           </span>
         }
         description="Access your account and continue your healing journey with us. Whether you're seeking support or offering it, we're here every step of the way."
-        heroImageSrc="https://images.unsplash.com/photo-1559757175-0eb30cd8c063?w=2160&q=80"
+        heroImageSrc="/images/GqBfI8HXEAA_f4S.jpg"
         testimonials={[]}
         onSignIn={handleSignIn}
         onGoogleSignIn={handleGoogleSignIn}
