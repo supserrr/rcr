@@ -10,8 +10,10 @@ export function Providers({ children }: { children: React.ReactNode }) {
     <NextThemesProvider
       attribute="class"
       defaultTheme="system"
+      storageKey="theme"
       enableSystem
       enableColorScheme
+      disableTransitionOnChange={false}
     >
       <AuthProvider>
         {children}

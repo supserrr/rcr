@@ -237,9 +237,19 @@ export default function AdminApprovalsPage() {
     });
   }, [counselors, searchTerm, selectedSpecialty, selectedExperience]);
 
-  const handleViewDetails = (counselor: AdminUser) => {
-    setSelectedCounselor(counselor);
-    setIsDetailModalOpen(true);
+  const handleViewDetails = async (counselor: AdminUser) => {
+    try {
+      // Fetch full counselor details including all documents and profile data
+      const fullCounselor = await AdminApi.getUser(counselor.id);
+      setSelectedCounselor(fullCounselor);
+      setIsDetailModalOpen(true);
+    } catch (error) {
+      console.error('Error fetching counselor details:', error);
+      // Fallback to using the counselor from the list if fetch fails
+      setSelectedCounselor(counselor);
+      setIsDetailModalOpen(true);
+      toast.error('Failed to load full counselor details. Showing available information.');
+    }
   };
 
   const handleCloseModal = () => {
@@ -583,14 +593,14 @@ export default function AdminApprovalsPage() {
 
       {/* Counselor Detail Modal */}
       <Dialog open={isDetailModalOpen} onOpenChange={handleCloseModal}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-5xl lg:max-w-6xl xl:max-w-7xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-3">
               <div className="p-2 rounded-lg bg-primary/10">
                 <User className="h-5 w-5 text-primary" />
               </div>
               <div>
-                <span className="text-muted-foreground">Counselor Application</span>
+                <span className="text-muted-foreground">Counselor Profile</span>
                 <h3 className="text-lg font-semibold">{selectedCounselor?.fullName || selectedCounselor?.email}</h3>
               </div>
             </DialogTitle>
@@ -605,6 +615,13 @@ export default function AdminApprovalsPage() {
 
           {selectedCounselor &&
             (() => {
+              // Debug: Log the selected counselor data to see what we have
+              if (process.env.NODE_ENV !== 'production') {
+                console.log('[Counselor Profile Dialog] Full counselor data:', selectedCounselor);
+                console.log('[Counselor Profile Dialog] Counselor profile:', selectedCounselor.counselorProfile);
+                console.log('[Counselor Profile Dialog] Documents:', selectedCounselor.documents);
+              }
+
               const profile = selectedCounselor.counselorProfile;
               const languages = selectedCounselor.languages ?? profile?.languages ?? [];
               const specializations =
@@ -626,6 +643,14 @@ export default function AdminApprovalsPage() {
 
               return (
             <div className="space-y-6 mt-6">
+              {/* Professional Information Header */}
+              <div className="border-b pb-4">
+                <h3 className="text-lg font-semibold flex items-center gap-2">
+                  <Briefcase className="h-5 w-5" />
+                  Professional Information
+                </h3>
+              </div>
+
               {/* Basic Information */}
               <div className="grid gap-6 md:grid-cols-2">
                 <div className="space-y-4">
@@ -702,14 +727,16 @@ export default function AdminApprovalsPage() {
                     </div>
                   </div>
 
-                      {selectedCounselor.availabilityStatus && (
-                    <div>
-                      <h5 className="font-medium mb-3 text-sm">Availability</h5>
+                  <div>
+                    <h5 className="font-medium mb-3 text-sm">Availability</h5>
+                    {selectedCounselor.availabilityStatus ? (
                       <Badge className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
-                            {selectedCounselor.availabilityStatus}
+                        {selectedCounselor.availabilityStatus}
                       </Badge>
-                    </div>
-                  )}
+                    ) : (
+                      <span className="text-sm text-muted-foreground">Not provided</span>
+                    )}
+                  </div>
 
                       <div className="space-y-2">
                         <h5 className="font-medium mb-1 text-sm">Application Date</h5>
@@ -722,11 +749,7 @@ export default function AdminApprovalsPage() {
               </div>
 
                   {/* Practice & Availability */}
-                  {(selectedCounselor.practiceName ||
-                    selectedCounselor.serviceRegions ||
-                    selectedCounselor.acceptingNewPatients !== undefined ||
-                    selectedCounselor.telehealthOffered !== undefined) && (
-                    <div className="space-y-4 border-t pt-6">
+                  <div className="space-y-4 border-t pt-6">
                       <h5 className="font-medium text-sm flex items-center gap-2">
                         <Briefcase className="h-4 w-4" />
                         Practice & Availability
@@ -800,32 +823,29 @@ export default function AdminApprovalsPage() {
                         ))}
                       </div>
                     </div>
-                  )}
+                      )}
                 </div>
-              )}
 
               {/* Specializations & Consultation Types */}
-                  {(specializations.length > 0 ||
-                    consultationTypes.length > 0 ||
-                    demographics.length > 0 ||
-                    selectedCounselor.approachSummary) && (
                 <div className="space-y-4 border-t pt-6">
-                      {specializations.length > 0 && (
                     <div>
                       <h5 className="font-medium mb-3 text-sm">Specializations</h5>
-                      <div className="flex flex-wrap gap-2">
+                      {specializations.length > 0 ? (
+                        <div className="flex flex-wrap gap-2">
                             {specializations.map((spec, index) => (
                           <Badge key={index} variant="outline" className="text-xs">
                             {spec}
                           </Badge>
                         ))}
                       </div>
+                      ) : (
+                        <span className="text-sm text-muted-foreground">Not provided</span>
+                      )}
                     </div>
-                  )}
-                      {consultationTypes.length > 0 && (
                     <div>
                       <h5 className="font-medium mb-3 text-sm">Consultation Types</h5>
-                      <div className="flex flex-wrap gap-2">
+                      {consultationTypes.length > 0 ? (
+                        <div className="flex flex-wrap gap-2">
                             {consultationTypes.map((type, index) => {
                               const icons: Record<string, React.ElementType> = {
                             chat: MessageCircle,
@@ -846,133 +866,119 @@ export default function AdminApprovalsPage() {
                           );
                         })}
                       </div>
+                      ) : (
+                        <span className="text-sm text-muted-foreground">Not provided</span>
+                      )}
                     </div>
-                  )}
-                      {demographics.length > 0 && (
                         <div>
                           <h5 className="font-medium mb-3 text-sm">Demographics Served</h5>
-                          <div className="flex flex-wrap gap-2">
-                            {demographics.map((demographic, index) => (
-                              <Badge key={index} variant="outline" className="text-xs">
-                                {demographic}
-                              </Badge>
-                            ))}
-                          </div>
+                          {demographics.length > 0 ? (
+                            <div className="flex flex-wrap gap-2">
+                              {demographics.map((demographic, index) => (
+                                <Badge key={index} variant="outline" className="text-xs">
+                                  {demographic}
+                                </Badge>
+                              ))}
+                            </div>
+                          ) : (
+                            <span className="text-sm text-muted-foreground">Not provided</span>
+                          )}
                         </div>
-                      )}
-                      {selectedCounselor.approachSummary && (
                         <div>
                           <h5 className="font-medium mb-2 text-sm">Approach Summary</h5>
-                          <div className="p-4 border rounded-lg bg-muted/50">
-                            <p className="text-sm leading-relaxed whitespace-pre-wrap">
-                              {selectedCounselor.approachSummary}
-                            </p>
-                      </div>
+                          {selectedCounselor.approachSummary ? (
+                            <div className="p-4 border rounded-lg bg-muted/50">
+                              <p className="text-sm leading-relaxed whitespace-pre-wrap">
+                                {selectedCounselor.approachSummary}
+                              </p>
+                            </div>
+                          ) : (
+                            <span className="text-sm text-muted-foreground">Not provided</span>
+                          )}
                     </div>
-                  )}
                 </div>
-              )}
 
                   {/* Professional License Information */}
-                  {(selectedCounselor.licenseNumber ||
-                    selectedCounselor.licenseJurisdiction ||
-                    selectedCounselor.licenseExpiry) && (
                     <div className="space-y-6 border-t pt-6">
                   <h5 className="font-medium flex items-center gap-2 text-sm">
                         <Shield className="h-4 w-4" />
                         Professional License
                   </h5>
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        {selectedCounselor.licenseNumber && (
                           <div>
                             <p className="text-xs text-muted-foreground mb-1">License Number</p>
-                            <p className="text-sm font-medium">{selectedCounselor.licenseNumber}</p>
+                            <p className="text-sm font-medium">{selectedCounselor.licenseNumber || 'Not provided'}</p>
                   </div>
-                        )}
-                        {selectedCounselor.licenseJurisdiction && (
                           <div>
                             <p className="text-xs text-muted-foreground mb-1">License Jurisdiction</p>
-                            <p className="text-sm font-medium">{selectedCounselor.licenseJurisdiction}</p>
+                            <p className="text-sm font-medium">{selectedCounselor.licenseJurisdiction || 'Not provided'}</p>
                           </div>
-                        )}
-                        {selectedCounselor.licenseExpiry && (
                           <div>
                             <p className="text-xs text-muted-foreground mb-1">License Expiry</p>
-                            <p className="text-sm font-medium">{selectedCounselor.licenseExpiry}</p>
+                            <p className="text-sm font-medium">{selectedCounselor.licenseExpiry || 'Not provided'}</p>
                           </div>
-                        )}
                       </div>
                     </div>
-                  )}
 
                   {/* Education Information */}
-                  {(selectedCounselor.highestDegree ||
-                    selectedCounselor.university ||
-                    selectedCounselor.graduationYear ||
-                    educationHistory.length > 0 ||
-                    (selectedCounselor.additionalCertifications &&
-                      selectedCounselor.additionalCertifications.length > 0)) && (
                     <div className="space-y-6 border-t pt-6">
                       <h5 className="font-medium flex items-center gap-2 text-sm">
                         <GraduationCap className="h-4 w-4" />
                         Education & Certifications
                       </h5>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {selectedCounselor.highestDegree && (
                           <div>
                             <p className="text-xs text-muted-foreground mb-1">Highest Degree</p>
-                            <p className="text-sm font-medium">{selectedCounselor.highestDegree}</p>
+                            <p className="text-sm font-medium">{selectedCounselor.highestDegree || 'Not provided'}</p>
                           </div>
-                        )}
-                        {selectedCounselor.university && (
                           <div>
                             <p className="text-xs text-muted-foreground mb-1">University/Institution</p>
-                            <p className="text-sm font-medium">{selectedCounselor.university}</p>
+                            <p className="text-sm font-medium">{selectedCounselor.university || 'Not provided'}</p>
                           </div>
-                        )}
-                        {selectedCounselor.graduationYear && (
                           <div>
                             <p className="text-xs text-muted-foreground mb-1">Graduation Year</p>
-                            <p className="text-sm font-medium">{selectedCounselor.graduationYear}</p>
+                            <p className="text-sm font-medium">{selectedCounselor.graduationYear || 'Not provided'}</p>
                           </div>
-                        )}
                       </div>
 
-                      {educationHistory.length > 0 && (
                         <div className="space-y-3">
                           <p className="text-xs text-muted-foreground mb-1">Education History</p>
-                          <div className="space-y-2">
-                            {educationHistory.map((item, index) => (
-                              <div key={index} className="p-3 border rounded-lg bg-muted/40">
-                                <p className="text-sm font-medium">
-                                  {item.degree || 'Degree not specified'}
-                                </p>
-                                {(item.institution || item.graduationYear) && (
-                                  <p className="text-xs text-muted-foreground">
-                                    {[item.institution, item.graduationYear].filter(Boolean).join(' • ')}
+                          {educationHistory.length > 0 ? (
+                            <div className="space-y-2">
+                              {educationHistory.map((item, index) => (
+                                <div key={index} className="p-3 border rounded-lg bg-muted/40">
+                                  <p className="text-sm font-medium">
+                                    {item.degree || 'Degree not specified'}
                                   </p>
-                                )}
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {selectedCounselor.additionalCertifications &&
-                        selectedCounselor.additionalCertifications.length > 0 && (
-                          <div className="mt-4">
-                            <p className="text-xs text-muted-foreground mb-2">Additional Certifications</p>
-                            <div className="flex flex-wrap gap-2">
-                              {selectedCounselor.additionalCertifications.map((cert, index) => (
-                                <Badge key={index} variant="secondary" className="text-xs">
-                                  {cert}
-                                </Badge>
+                                  {(item.institution || item.graduationYear) && (
+                                    <p className="text-xs text-muted-foreground">
+                                      {[item.institution, item.graduationYear].filter(Boolean).join(' • ')}
+                                    </p>
+                                  )}
+                                </div>
                               ))}
                             </div>
+                          ) : (
+                            <span className="text-sm text-muted-foreground">Not provided</span>
+                          )}
+                        </div>
+
+                          <div className="mt-4">
+                            <p className="text-xs text-muted-foreground mb-2">Additional Certifications</p>
+                            {selectedCounselor.additionalCertifications &&
+                              selectedCounselor.additionalCertifications.length > 0 ? (
+                              <div className="flex flex-wrap gap-2">
+                                {selectedCounselor.additionalCertifications.map((cert, index) => (
+                                  <Badge key={index} variant="secondary" className="text-xs">
+                                    {cert}
+                                  </Badge>
+                                ))}
+                              </div>
+                            ) : (
+                              <span className="text-sm text-muted-foreground">Not provided</span>
+                            )}
                           </div>
-                        )}
                 </div>
-              )}
 
               {/* Professional Information */}
               <div className="space-y-6 border-t pt-6">
@@ -1047,14 +1053,14 @@ export default function AdminApprovalsPage() {
               )}
 
               {/* References */}
-                  {references && references.length > 0 && (
                 <div className="space-y-3 border-t pt-6">
                   <h5 className="font-medium flex items-center gap-2 text-sm">
                     <User className="h-4 w-4" />
                     Professional References
                   </h5>
-                      <div className="space-y-3">
-                        {references.map((reference, index) => {
+                      {references && references.length > 0 ? (
+                        <div className="space-y-3">
+                          {references.map((reference, index) => {
                           const refRecord =
                             reference && typeof reference === 'object'
                               ? (reference as Record<string, unknown>)
@@ -1096,29 +1102,33 @@ export default function AdminApprovalsPage() {
                             </div>
                           );
                         })}
-                  </div>
+                        </div>
+                      ) : (
+                        <span className="text-sm text-muted-foreground">Not provided</span>
+                      )}
                 </div>
-              )}
 
               {/* Emergency Contact */}
-                  {(selectedCounselor.emergencyContactName || selectedCounselor.emergencyContactPhone) && (
                 <div className="space-y-3 border-t pt-6">
                   <h5 className="font-medium flex items-center gap-2 text-sm">
                     <Phone className="h-4 w-4" />
                     Emergency Contact
                   </h5>
-                      <div className="p-4 border rounded-lg bg-muted/50 space-y-1">
-                        {selectedCounselor.emergencyContactName && (
-                          <p className="text-sm font-medium">{selectedCounselor.emergencyContactName}</p>
-                        )}
-                        {selectedCounselor.emergencyContactPhone && (
-                          <p className="text-sm text-muted-foreground">
-                            {selectedCounselor.emergencyContactPhone}
-                          </p>
-                        )}
-                  </div>
+                      {(selectedCounselor.emergencyContactName || selectedCounselor.emergencyContactPhone) ? (
+                        <div className="p-4 border rounded-lg bg-muted/50 space-y-1">
+                          {selectedCounselor.emergencyContactName && (
+                            <p className="text-sm font-medium">{selectedCounselor.emergencyContactName}</p>
+                          )}
+                          {selectedCounselor.emergencyContactPhone && (
+                            <p className="text-sm text-muted-foreground">
+                              {selectedCounselor.emergencyContactPhone}
+                            </p>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-sm text-muted-foreground">Not provided</span>
+                      )}
                 </div>
-              )}
 
               {/* Document Uploads */}
               <div className="space-y-4 border-t pt-6">

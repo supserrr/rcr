@@ -16,21 +16,6 @@
     },
     "supabase": {
       "url": "https://mcp.supabase.com/mcp"
-    },
-    "assistant-ui": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "@assistant-ui/mcp-docs-server"
-      ]
-    },
-    "ai-elements": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "mcp-remote",
-        "https://registry.ai-sdk.dev/api/mcp"
-      ]
     }
   }
 }

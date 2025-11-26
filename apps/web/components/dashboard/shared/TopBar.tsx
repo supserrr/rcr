@@ -80,7 +80,7 @@ export function TopBar({
   };
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b bg-sidebar backdrop-blur supports-[backdrop-filter]:bg-sidebar">
+    <header className="sticky top-0 z-50 w-full border-b border-sidebar-border bg-sidebar">
       <div className="flex h-20 items-center justify-between px-6 w-full">
         {/* Left side - Title */}
         <div className="flex items-center space-x-4">

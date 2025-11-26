@@ -206,11 +206,13 @@ export default function AdminResourcesReviewPage() {
     { value: 'publisher', label: 'Publisher' },
   ];
   const resourceSummary = useMemo(() => {
-    const total = resources.length;
-    const published = resources.filter((resource) => resource.isPublic).length;
+    // Filter out training resources (admin-created resources don't need review)
+    const counselorResources = resources.filter((resource) => !resource.isTrainingResource);
+    const total = counselorResources.length;
+    const published = counselorResources.filter((resource) => resource.isPublic).length;
     const privateCount = total - published;
-    const totalViews = resources.reduce((sum, resource) => sum + (resource.views ?? 0), 0);
-    const totalDownloads = resources.reduce(
+    const totalViews = counselorResources.reduce((sum, resource) => sum + (resource.views ?? 0), 0);
+    const totalDownloads = counselorResources.reduce(
       (sum, resource) => sum + (resource.downloads ?? 0),
       0,
     );
@@ -226,6 +228,11 @@ export default function AdminResourcesReviewPage() {
   // Filter and sort resources
   const filteredResources = useMemo(() => {
     return resources.filter(resource => {
+      // Exclude training resources (admin-created resources don't need review)
+      if (resource.isTrainingResource) {
+        return false;
+      }
+      
       const matchesSearch = resource.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                            (resource.description?.toLowerCase().includes(searchTerm.toLowerCase())) ||
                            (resource.publisher?.toLowerCase().includes(searchTerm.toLowerCase())) ||
@@ -2463,21 +2470,21 @@ export default function AdminResourcesReviewPage() {
             <AlertCircle className="h-4 w-4" />
             <span>Review</span>
             <Badge variant="secondary" className="ml-2">
-              {resources.filter(r => r.status === 'pending_review' || !r.status).length}
+              {resources.filter(r => !r.isTrainingResource && (r.status === 'pending_review' || !r.status)).length}
             </Badge>
           </TabsTrigger>
           <TabsTrigger value="published" className="flex items-center gap-2">
             <Globe className="h-4 w-4" />
             <span>Published</span>
             <Badge variant="secondary" className="ml-2">
-              {resources.filter(r => r.status === 'published').length}
+              {resources.filter(r => !r.isTrainingResource && r.status === 'published').length}
             </Badge>
           </TabsTrigger>
           <TabsTrigger value="rejected" className="flex items-center gap-2">
             <XCircle className="h-4 w-4" />
             <span>Rejected</span>
             <Badge variant="secondary" className="ml-2">
-              {resources.filter(r => r.status === 'rejected').length}
+              {resources.filter(r => !r.isTrainingResource && r.status === 'rejected').length}
             </Badge>
           </TabsTrigger>
         </TabsList>

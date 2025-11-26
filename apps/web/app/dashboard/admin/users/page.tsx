@@ -31,7 +31,21 @@ import {
   Filter,
   Users,
   UserCheck,
-  UserX
+  UserX,
+  User,
+  Mail,
+  Phone,
+  MapPin,
+  Award,
+  Clock,
+  Calendar,
+  Briefcase,
+  Shield,
+  GraduationCap,
+  Star,
+  Heart,
+  FileText,
+  Download
 } from 'lucide-react';
 import {
   AdminApi,
@@ -50,7 +64,7 @@ import {
   DialogTitle,
 } from '@workspace/ui/components/dialog';
 import { ProfileViewModal } from '@workspace/ui/components/profile-view-modal';
-import { Patient, Counselor } from '../../../../lib/types';
+import { Patient, Counselor, type CounselorAvailabilityStatus } from '../../../../lib/types';
 
 const firstDefined = <T,>(...values: Array<T | null | undefined>): T | undefined => {
   for (const value of values) {
@@ -1299,21 +1313,475 @@ export default function AdminUsersPage() {
             avatar: selectedUser.avatarUrl,
             createdAt: new Date(selectedUser.createdAt),
             specialty: selectedUser.specialty || '',
-            experience: selectedUser.experience || 0,
-            availability: (selectedUser.availability as 'available' | 'busy' | 'offline') || 'available',
-          } as Counselor;
+            experience: selectedUser.experienceYears ?? selectedUser.experience ?? 0,
+            availability: (selectedUser.availabilityStatus as 'available' | 'busy' | 'offline') || 
+                         (selectedUser.availability as 'available' | 'busy' | 'offline') || 
+                         'available',
+            // Include all additional fields from AdminUser
+            phoneNumber: selectedUser.phoneNumber,
+            bio: selectedUser.bio,
+            credentials: Array.isArray(selectedUser.credentials) 
+              ? selectedUser.credentials.join(', ') 
+              : selectedUser.credentials,
+            languages: selectedUser.languages,
+            timezone: selectedUser.supportedTimezones?.[0],
+            location: selectedUser.practiceLocation || selectedUser.location,
+            visibilitySettings: selectedUser.visibilitySettings,
+            approvalStatus: selectedUser.approvalStatus,
+            availabilityStatus: selectedUser.availabilityStatus as CounselorAvailabilityStatus | undefined,
+            sessionModalities: selectedUser.sessionModalities,
+            acceptingNewPatients: selectedUser.acceptingNewPatients,
+            telehealthOffered: selectedUser.telehealthOffered,
+            // Additional fields that might be in metadata or counselorProfile
+            practiceName: selectedUser.practiceName,
+            practiceLocation: selectedUser.practiceLocation,
+            serviceRegions: selectedUser.serviceRegions,
+            specializations: selectedUser.specializations,
+            demographicsServed: selectedUser.demographicsServed,
+            approachSummary: selectedUser.approachSummary,
+            professionalHighlights: selectedUser.professionalHighlights,
+            educationHistory: selectedUser.educationHistory,
+            licenseNumber: selectedUser.licenseNumber,
+            licenseJurisdiction: selectedUser.licenseJurisdiction,
+            licenseExpiry: selectedUser.licenseExpiry,
+            motivationStatement: selectedUser.motivationStatement,
+            emergencyContactName: selectedUser.emergencyContactName,
+            emergencyContactPhone: selectedUser.emergencyContactPhone,
+            professionalReferences: selectedUser.professionalReferences,
+            documents: selectedUser.documents,
+            counselorProfile: selectedUser.counselorProfile,
+            metadata: selectedUser.metadata || {},
+          } as Counselor & {
+            practiceName?: string;
+            practiceLocation?: string;
+            serviceRegions?: string[];
+            specializations?: string[];
+            demographicsServed?: string[];
+            approachSummary?: string;
+            professionalHighlights?: string[];
+            educationHistory?: Array<{ degree?: string; institution?: string; graduationYear?: number }>;
+            licenseNumber?: string;
+            licenseJurisdiction?: string;
+            licenseExpiry?: string;
+            motivationStatement?: string;
+            emergencyContactName?: string;
+            emergencyContactPhone?: string;
+            professionalReferences?: Array<{ name?: string; organization?: string; email?: string; phone?: string }>;
+            documents?: Array<{ label: string; url: string; type?: string; storagePath?: string }>;
+            counselorProfile?: any;
+          };
+          
+          // Use comprehensive counselor detail dialog instead of ProfileViewModal
+          const profile = selectedUser.counselorProfile;
+          const languages = selectedUser.languages ?? profile?.languages ?? [];
+          const specializations = selectedUser.specializations ?? profile?.specializations ?? [];
+          const consultationTypes = selectedUser.consultationTypes ?? profile?.sessionModalities ?? [];
+          const demographics = selectedUser.demographicsServed ?? profile?.demographicsServed ?? [];
+          const professionalHighlights = selectedUser.professionalHighlights ?? profile?.professionalHighlights ?? [];
+          const educationHistory = selectedUser.educationHistory ?? profile?.educationHistory ?? [];
+          const documents = selectedUser.documents ?? [];
+          const references = Array.isArray(selectedUser.professionalReferences)
+            ? selectedUser.professionalReferences
+            : profile?.professionalReferences ?? [];
+          const applicationDate = selectedUser.approvalSubmittedAt ?? selectedUser.createdAt;
           
           return (
-            <ProfileViewModal
-              isOpen={isProfileModalOpen}
-              onClose={() => {
+            <Dialog open={isProfileModalOpen} onOpenChange={() => {
                 setIsProfileModalOpen(false);
                 setSelectedUser(null);
-              }}
-              user={counselorUser}
-              userType="counselor"
-              currentUserRole="admin"
-            />
+            }}>
+              <DialogContent className="max-w-5xl lg:max-w-6xl xl:max-w-7xl max-h-[90vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-primary/10">
+                      <User className="h-5 w-5 text-primary" />
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Counselor Profile</span>
+                      <h3 className="text-lg font-semibold">{selectedUser.fullName || selectedUser.email}</h3>
+                    </div>
+                  </DialogTitle>
+                  <DialogDescription>
+                    <span>
+                      {(selectedUser.specialty || specializations[0] || 'General Counseling')} • {(selectedUser.experienceYears ?? selectedUser.experience ?? 0)} years experience • {languages.length} languages
+                    </span>
+                  </DialogDescription>
+                </DialogHeader>
+
+                <div className="space-y-6 mt-6">
+                  {/* Professional Information Header */}
+                  <div className="border-b pb-4">
+                    <h3 className="text-lg font-semibold flex items-center gap-2">
+                      <Briefcase className="h-5 w-5" />
+                      Professional Information
+                    </h3>
+                  </div>
+
+                  {/* Basic Information */}
+                  <div className="grid gap-6 md:grid-cols-2">
+                    <div className="space-y-4">
+                      <div className="flex items-start gap-4">
+                        <Avatar className="h-16 w-16 flex-shrink-0">
+                          <AvatarImage
+                            src={toAbsoluteAvatarSrc(selectedUser.avatarUrl)}
+                            alt={selectedUser.fullName || selectedUser.email}
+                          />
+                          <AvatarFallback className="text-lg">
+                            {(selectedUser.fullName || selectedUser.email || 'C')
+                              .split(' ')
+                              .map((n) => n[0])
+                              .join('')
+                              .slice(0, 2)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="min-w-0 flex-1 space-y-2">
+                          <h4 className="text-lg font-semibold">
+                            {selectedUser.fullName || selectedUser.email}
+                          </h4>
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                              <Mail className="h-3 w-3 flex-shrink-0" />
+                              <span className="break-all">{selectedUser.email}</span>
+                            </div>
+                            {selectedUser.phoneNumber && (
+                              <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                                <Phone className="h-3 w-3 flex-shrink-0" />
+                                <span>{selectedUser.phoneNumber}</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="space-y-3">
+                        {(selectedUser.practiceLocation || selectedUser.location) && (
+                          <div className="flex items-center gap-2">
+                            <MapPin className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                            <span className="text-sm">
+                              {selectedUser.practiceLocation || selectedUser.location}
+                            </span>
+                          </div>
+                        )}
+                        <div className="flex items-center gap-2">
+                          <Award className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                          <span className="text-sm">
+                            {selectedUser.specialty || specializations[0] || 'General Counseling'}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Clock className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                          <span className="text-sm">
+                            {selectedUser.experienceYears ?? selectedUser.experience ?? 0} years experience
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-4">
+                      <div>
+                        <h5 className="font-medium mb-3 text-sm">Languages</h5>
+                        <div className="flex flex-wrap gap-2">
+                          {languages.length > 0 ? (
+                            languages.map((language, index) => (
+                              <Badge key={index} variant="secondary" className="text-xs">
+                                {language}
+                              </Badge>
+                            ))
+                          ) : (
+                            <span className="text-sm text-muted-foreground">Not provided</span>
+                          )}
+                        </div>
+                      </div>
+
+                      <div>
+                        <h5 className="font-medium mb-3 text-sm">Availability</h5>
+                        {selectedUser.availabilityStatus ? (
+                          <Badge className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
+                            {selectedUser.availabilityStatus}
+                          </Badge>
+                        ) : (
+                          <span className="text-sm text-muted-foreground">Not provided</span>
+                        )}
+                      </div>
+
+                      <div className="space-y-2">
+                        <h5 className="font-medium mb-1 text-sm">Application Date</h5>
+                        <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                          <Calendar className="h-3 w-3 flex-shrink-0" />
+                          <span>{new Date(applicationDate).toLocaleDateString()}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Practice & Availability */}
+                  <div className="space-y-4 border-t pt-6">
+                    <h5 className="font-medium text-sm flex items-center gap-2">
+                      <Briefcase className="h-4 w-4" />
+                      Practice & Availability
+                    </h5>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-1">Practice Name</p>
+                        <p className="text-sm font-medium">{selectedUser.practiceName || 'Not provided'}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-1">Practice Location</p>
+                        <p className="text-sm font-medium">{selectedUser.practiceLocation || 'Not provided'}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-1">Accepting New Patients</p>
+                        {selectedUser.acceptingNewPatients !== undefined ? (
+                          <Badge variant="outline" className="text-xs">
+                            {selectedUser.acceptingNewPatients ? 'Yes' : 'No'}
+                          </Badge>
+                        ) : (
+                          <span className="text-sm text-muted-foreground">Not provided</span>
+                        )}
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-1">Telehealth Offered</p>
+                        {selectedUser.telehealthOffered !== undefined ? (
+                          <Badge variant="outline" className="text-xs">
+                            {selectedUser.telehealthOffered ? 'Yes' : 'No'}
+                          </Badge>
+                        ) : (
+                          <span className="text-sm text-muted-foreground">Not provided</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Professional License Information */}
+                  <div className="space-y-6 border-t pt-6">
+                    <h5 className="font-medium flex items-center gap-2 text-sm">
+                      <Shield className="h-4 w-4" />
+                      Professional License
+                    </h5>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-1">License Number</p>
+                        <p className="text-sm font-medium">{selectedUser.licenseNumber || 'Not provided'}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-1">License Jurisdiction</p>
+                        <p className="text-sm font-medium">{selectedUser.licenseJurisdiction || 'Not provided'}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-1">License Expiry</p>
+                        <p className="text-sm font-medium">{selectedUser.licenseExpiry || 'Not provided'}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Education Information */}
+                  <div className="space-y-6 border-t pt-6">
+                    <h5 className="font-medium flex items-center gap-2 text-sm">
+                      <GraduationCap className="h-4 w-4" />
+                      Education & Certifications
+                    </h5>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-1">Highest Degree</p>
+                        <p className="text-sm font-medium">{selectedUser.highestDegree || 'Not provided'}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-1">University/Institution</p>
+                        <p className="text-sm font-medium">{selectedUser.university || 'Not provided'}</p>
+                      </div>
+                    </div>
+                    {educationHistory.length > 0 && (
+                      <div className="space-y-3">
+                        <p className="text-xs text-muted-foreground mb-1">Education History</p>
+                        <div className="space-y-2">
+                          {educationHistory.map((item, index) => (
+                            <div key={index} className="p-3 border rounded-lg bg-muted/40">
+                              <p className="text-sm font-medium">
+                                {item.degree || 'Degree not specified'}
+                              </p>
+                              {(item.institution || item.graduationYear) && (
+                                <p className="text-xs text-muted-foreground">
+                                  {[item.institution, item.graduationYear].filter(Boolean).join(' • ')}
+                                </p>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Professional Information */}
+                  <div className="space-y-6 border-t pt-6">
+                    <div className="space-y-3">
+                      <h5 className="font-medium flex items-center gap-2 text-sm">
+                        <GraduationCap className="h-4 w-4" />
+                        Credentials
+                      </h5>
+                      <div className="p-4 border rounded-lg bg-muted/50">
+                        <p className="text-sm leading-relaxed">
+                          {Array.isArray(selectedUser.credentials)
+                            ? selectedUser.credentials.join(', ')
+                            : selectedUser.credentials || 'Not provided'}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="space-y-3">
+                      <h5 className="font-medium flex items-center gap-2 text-sm">
+                        <FileText className="h-4 w-4" />
+                        Professional Bio
+                      </h5>
+                      <div className="p-4 border rounded-lg bg-muted/50">
+                        <p className="text-sm leading-relaxed">
+                          {selectedUser.bio || profile?.bio || 'Not provided'}
+                        </p>
+                      </div>
+                    </div>
+
+                    {professionalHighlights.length > 0 && (
+                      <div className="space-y-3">
+                        <h5 className="font-medium flex items-center gap-2 text-sm">
+                          <Star className="h-4 w-4" />
+                          Professional Highlights
+                        </h5>
+                        <ul className="list-disc list-inside text-sm space-y-1 text-muted-foreground">
+                          {professionalHighlights.map((highlight, index) => (
+                            <li key={index}>{highlight}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Motivation */}
+                  {selectedUser.motivationStatement && (
+                    <div className="space-y-3 border-t pt-6">
+                      <h5 className="font-medium flex items-center gap-2 text-sm">
+                        <Heart className="h-4 w-4" />
+                        Motivation to Join RCR
+                      </h5>
+                      <div className="p-4 border rounded-lg bg-muted/50">
+                        <p className="text-sm leading-relaxed whitespace-pre-wrap">
+                          {selectedUser.motivationStatement}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* References */}
+                  {references && references.length > 0 && (
+                    <div className="space-y-3 border-t pt-6">
+                      <h5 className="font-medium flex items-center gap-2 text-sm">
+                        <User className="h-4 w-4" />
+                        Professional References
+                      </h5>
+                      <div className="space-y-3">
+                        {references.map((reference, index) => {
+                          const refRecord =
+                            reference && typeof reference === 'object'
+                              ? (reference as Record<string, unknown>)
+                              : typeof reference === 'string'
+                                ? ({ name: reference } as Record<string, unknown>)
+                                : undefined;
+
+                          const referenceName = (() => {
+                            const recordName = refRecord?.name;
+                            if (typeof recordName === 'string') {
+                              const trimmed = recordName.trim();
+                              if (trimmed.length > 0) {
+                                return trimmed;
+                              }
+                            }
+                            return 'Reference';
+                          })();
+
+                          const detailKeys: Array<'organization' | 'email' | 'phone'> = [
+                            'organization',
+                            'email',
+                            'phone',
+                          ];
+                          const refDetails = detailKeys
+                            .map((key) => {
+                              const value = refRecord?.[key];
+                              return typeof value === 'string' && value.trim().length > 0
+                                ? value.trim()
+                                : undefined;
+                            })
+                            .filter((value): value is string => Boolean(value));
+
+                          return (
+                            <div key={index} className="p-4 border rounded-lg bg-muted/40">
+                              <p className="text-sm font-medium">{referenceName}</p>
+                              {refDetails.length > 0 ? (
+                                <p className="text-xs text-muted-foreground">{refDetails.join(' • ')}</p>
+                              ) : null}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Emergency Contact */}
+                  {(selectedUser.emergencyContactName || selectedUser.emergencyContactPhone) && (
+                    <div className="space-y-3 border-t pt-6">
+                      <h5 className="font-medium flex items-center gap-2 text-sm">
+                        <Phone className="h-4 w-4" />
+                        Emergency Contact
+                      </h5>
+                      <div className="p-4 border rounded-lg bg-muted/50 space-y-1">
+                        {selectedUser.emergencyContactName && (
+                          <p className="text-sm font-medium">{selectedUser.emergencyContactName}</p>
+                        )}
+                        {selectedUser.emergencyContactPhone && (
+                          <p className="text-sm text-muted-foreground">
+                            {selectedUser.emergencyContactPhone}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Document Uploads */}
+                  <div className="space-y-4 border-t pt-6">
+                    <h5 className="font-medium flex items-center gap-2 text-sm">
+                      <Download className="h-4 w-4" />
+                      Uploaded Documents
+                    </h5>
+                    {documents.length > 0 ? (
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        {documents.map((doc, index) => (
+                          <div key={index} className="p-4 border rounded-lg bg-muted/30 flex flex-col gap-2">
+                            <div className="flex items-center gap-2 text-sm font-medium">
+                              <FileText className="h-4 w-4" />
+                              {doc.label}
+                            </div>
+                            <Button variant="outline" size="sm" asChild>
+                              <a href={toAbsoluteAvatarSrc(doc.url) ?? doc.url} target="_blank" rel="noopener noreferrer">
+                                <Download className="h-4 w-4 mr-2" />
+                                View Document
+                              </a>
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-sm text-muted-foreground">No documents uploaded</div>
+                    )}
+                  </div>
+                </div>
+
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => {
+                    setIsProfileModalOpen(false);
+                    setSelectedUser(null);
+                  }}>
+                    Close
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
           );
         }
         

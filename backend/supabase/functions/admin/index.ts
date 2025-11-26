@@ -221,7 +221,7 @@ const handleListUsers = async (
     .select(
       'id,full_name,role,is_verified,metadata,specialty,experience_years,availability,avatar_url,assigned_counselor_id,' +
         'created_at,updated_at,visibility_settings,approval_status,approval_submitted_at,approval_reviewed_at,' +
-        'approval_notes,counselor_profiles(*),counselor_documents(*)',
+        'approval_notes',
       { count: 'exact' },
     );
 
@@ -256,6 +256,7 @@ const handleListUsers = async (
   const authUsersMap = await fetchAuthUsers(serviceClient, ids);
 
   const documentsByProfile = new Map<string, any[]>();
+  const counselorProfilesByProfile = new Map<string, any[]>();
   const sessionStatsByProfile = new Map<string, any>();
   if (ids.length > 0) {
     const { data: documents } = await serviceClient
@@ -268,6 +269,19 @@ const handleListUsers = async (
         const existing = documentsByProfile.get(profileId) ?? [];
         existing.push(doc);
         documentsByProfile.set(profileId, existing);
+      }
+    });
+
+    const { data: counselorProfiles } = await serviceClient
+      .from('counselor_profiles')
+      .select('*')
+      .in('profile_id', ids);
+    (counselorProfiles ?? []).forEach((profile) => {
+      const profileId = profile.profile_id as string | undefined;
+      if (profileId) {
+        const existing = counselorProfilesByProfile.get(profileId) ?? [];
+        existing.push(profile);
+        counselorProfilesByProfile.set(profileId, existing);
       }
     });
 
@@ -293,6 +307,7 @@ const handleListUsers = async (
       lastLogin: authUser?.last_login ?? row.updated_at,
       createdAt: authUser?.created_at ?? row.created_at,
       counselor_documents: documentsByProfile.get(row.id) ?? [],
+      counselor_profiles: counselorProfilesByProfile.get(row.id) ?? [],
       session_stats: sessionStatsByProfile.get(row.id) ?? null,
     };
   });
@@ -326,7 +341,7 @@ const handleGetUser = async (
     .select(
       'id,full_name,role,is_verified,metadata,specialty,experience_years,availability,avatar_url,assigned_counselor_id,' +
         'created_at,updated_at,visibility_settings,approval_status,approval_submitted_at,approval_reviewed_at,' +
-        'approval_notes,counselor_profiles(*)',
+        'approval_notes',
     )
     .eq('id', payload.userId)
     .maybeSingle();
@@ -353,6 +368,11 @@ const handleGetUser = async (
     .select('*')
     .eq('profile_id', payload.userId);
 
+  const { data: counselorProfiles } = await serviceClient
+    .from('counselor_profiles')
+    .select('*')
+    .eq('profile_id', payload.userId);
+
   return new Response(
     JSON.stringify({
       success: true,
@@ -362,6 +382,7 @@ const handleGetUser = async (
         lastLogin: authData?.last_login ?? data.updated_at,
         createdAt: authData?.created_at ?? data.created_at,
         counselor_documents: documents ?? [],
+        counselor_profiles: counselorProfiles ?? [],
       },
     }),
     { status: 200, headers: corsHeaders },
@@ -423,7 +444,7 @@ const handleUpdateUserRole = async (
     .select(
       'id,full_name,role,is_verified,metadata,specialty,experience_years,availability,avatar_url,assigned_counselor_id,' +
         'created_at,updated_at,visibility_settings,approval_status,approval_submitted_at,approval_reviewed_at,' +
-        'approval_notes,counselor_profiles(*)',
+        'approval_notes',
     )
     .maybeSingle();
 
@@ -501,7 +522,7 @@ const handleUpdateCounselorApproval = async (
     .select(
       'id,full_name,role,is_verified,metadata,specialty,experience_years,availability,avatar_url,assigned_counselor_id,' +
         'created_at,updated_at,visibility_settings,approval_status,approval_submitted_at,approval_reviewed_at,' +
-        'approval_notes,counselor_profiles(*)',
+        'approval_notes',
     )
     .maybeSingle();
 

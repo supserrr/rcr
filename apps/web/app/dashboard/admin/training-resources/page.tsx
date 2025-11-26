@@ -32,6 +32,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@workspace/ui/components/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@workspace/ui/components/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@workspace/ui/components/card';
 import { 
   Search, 
@@ -55,21 +56,28 @@ import {
   Award,
   AlertTriangle,
   X,
+  Play,
+  Globe,
+  ExternalLink,
+  ArrowLeft,
+  Settings,
 } from 'lucide-react';
 import { ResourceViewerModalV2 } from '../../../../components/viewers/resource-viewer-modal-v2';
 import { Resource } from '@/lib/api/resources';
 import { useResources } from '../../../../hooks/useResources';
 import { ResourcesApi } from '../../../../lib/api/resources';
+import { useAuth } from '../../../../components/auth/AuthProvider';
 import { toast } from 'sonner';
 import { Spinner } from '@workspace/ui/components/ui/shadcn-io/spinner';
 
 export default function AdminTrainingResourcesPage() {
+  const { user } = useAuth();
+  const [activeTab, setActiveTab] = useState<'add-resources' | 'manage-resources'>('manage-resources');
+  const [activeUploadType, setActiveUploadType] = useState<'audio' | 'video' | 'pdf' | 'external-link' | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<'all' | string>('all');
   const [selectedType, setSelectedType] = useState<'all' | string>('all');
   const [selectedDifficulty, setSelectedDifficulty] = useState<'all' | string>('all');
-  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
   const [editingResource, setEditingResource] = useState<Resource | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
@@ -81,21 +89,34 @@ export default function AdminTrainingResourcesPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
 
-  // File input ref
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  // File input refs for different resource types
+  const audioFileInputRef = useRef<HTMLInputElement>(null);
+  const videoFileInputRef = useRef<HTMLInputElement>(null);
+  const pdfFileInputRef = useRef<HTMLInputElement>(null);
+  const bulkFileInputRef = useRef<HTMLInputElement>(null);
 
-  const [uploadForm, setUploadForm] = useState({
-    title: '',
-    description: '',
-    type: 'course' as 'course' | 'workshop' | 'video' | 'document' | 'presentation',
-    category: '',
-    duration: '',
-    difficulty: 'Beginner' as 'Beginner' | 'Intermediate' | 'Advanced',
-    instructor: '',
-    learningObjectives: '',
-    tags: ''
+  // Upload form state matching counselor dashboard
+  const [uploadFormData, setUploadFormData] = useState<{
+    audio: { file: File | null; title: string; description: string; tags: string; duration: string };
+    video: { file: File | null; title: string; description: string; tags: string; duration: string; isYouTube: boolean; youtubeUrl: string };
+    pdf: { file: File | null; title: string; description: string; tags: string };
+    bulk: { files: File[] };
+    externalLink: { url: string; title: string; description: string; tags: string; category: string; duration: string; isYouTube: boolean };
+  }>({
+    audio: { file: null, title: '', description: '', tags: '', duration: '' },
+    video: { file: null, title: '', description: '', tags: '', duration: '', isYouTube: false, youtubeUrl: '' },
+    pdf: { file: null, title: '', description: '', tags: '' },
+    bulk: { files: [] },
+    externalLink: { url: '', title: '', description: '', tags: '', category: '', duration: '', isYouTube: false },
   });
+
+  // External link preview state
+  const [linkPreview, setLinkPreview] = useState<{
+    title?: string;
+    description?: string;
+    thumbnail?: string;
+    loading: boolean;
+  }>({ loading: false });
 
   // Load training resources (public resources)
   const {
@@ -190,120 +211,563 @@ export default function AdminTrainingResourcesPage() {
     };
   };
 
-  // Map training resource types to API resource types
-  const mapTrainingTypeToResourceType = (type: string): 'audio' | 'pdf' | 'video' | 'article' => {
-    switch (type) {
-      case 'video':
-        return 'video';
-      case 'document':
-      case 'presentation':
-        return 'pdf';
-      case 'course':
-      case 'workshop':
-        return 'article';
-      default:
-        return 'article';
-    }
+
+  // File selection handlers matching counselor dashboard
+  const handleChooseAudioFile = () => {
+    audioFileInputRef.current?.click();
   };
 
-  // Get accept attribute based on resource type
-  const getAcceptAttribute = (type: string): string => {
-    switch (type) {
-      case 'video':
-        return 'video/*,.mp4,.mov,.avi,.mkv,.webm';
-      case 'document':
-      case 'presentation':
-        return '.pdf,.doc,.docx,.ppt,.pptx';
-      case 'course':
-      case 'workshop':
-        return '.pdf,.doc,.docx';
-      default:
-        return '*';
-    }
+  const handleChooseVideoFile = () => {
+    videoFileInputRef.current?.click();
   };
 
-  // Handle file selection
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChoosePdfFile = () => {
+    pdfFileInputRef.current?.click();
+  };
+
+  const handleChooseBulkFiles = () => {
+    bulkFileInputRef.current?.click();
+  };
+
+  const handleAudioFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      // Validate file size (100MB limit for training resources)
       const maxFileSize = 100 * 1024 * 1024; // 100MB
       if (file.size > maxFileSize) {
         toast.error(`File size (${(file.size / 1024 / 1024).toFixed(2)}MB) exceeds the maximum allowed size of 100MB`);
+        if (event.target) event.target.value = '';
         return;
       }
-      setSelectedFile(file);
-      toast.success('File selected');
-      // Auto-fill title if empty
-      if (!uploadForm.title) {
-        const fileName = file.name.replace(/\.[^/.]+$/, '');
-        setUploadForm(prev => ({ ...prev, title: fileName }));
+      setUploadFormData(prev => ({
+        ...prev,
+        audio: {
+          ...prev.audio,
+          file,
+          title: prev.audio.title || file.name.replace(/\.[^/.]+$/, ''),
+        },
+      }));
+      toast.success('Audio file selected');
+    }
+    if (event.target) event.target.value = '';
+  };
+
+  const handleVideoFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      const maxFileSize = 500 * 1024 * 1024; // 500MB
+      if (file.size > maxFileSize) {
+        toast.error(`File size (${(file.size / 1024 / 1024).toFixed(2)}MB) exceeds the maximum allowed size of 500MB`);
+        if (event.target) event.target.value = '';
+        return;
       }
+      setUploadFormData(prev => ({
+        ...prev,
+        video: {
+          ...prev.video,
+          file,
+          title: prev.video.title || file.name.replace(/\.[^/.]+$/, ''),
+        },
+      }));
+      toast.success('Video file selected');
     }
-    // Reset input value to allow selecting the same file again
-    if (event.target) {
-      event.target.value = '';
-    }
+    if (event.target) event.target.value = '';
   };
 
-  // Handle file input click
-  const handleChooseFile = () => {
-    fileInputRef.current?.click();
+  const handlePdfFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      const maxFileSize = 50 * 1024 * 1024; // 50MB
+      if (file.size > maxFileSize) {
+        toast.error(`File size (${(file.size / 1024 / 1024).toFixed(2)}MB) exceeds the maximum allowed size of 50MB`);
+        if (event.target) event.target.value = '';
+        return;
+      }
+      setUploadFormData(prev => ({
+        ...prev,
+        pdf: {
+          ...prev.pdf,
+          file,
+          title: prev.pdf.title || file.name.replace(/\.[^/.]+$/, ''),
+        },
+      }));
+      toast.success('PDF file selected');
+    }
+    if (event.target) event.target.value = '';
   };
 
-  const handleUpload = async () => {
-    if (!uploadForm.title || !uploadForm.description) {
-      toast.error('Please fill in all required fields');
+  const handleBulkFilesChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files || []);
+    if (files.length > 0) {
+      setUploadFormData(prev => ({
+        ...prev,
+        bulk: { files },
+      }));
+      toast.success(`${files.length} file${files.length > 1 ? 's' : ''} selected`);
+    }
+    if (event.target) event.target.value = '';
+  };
+
+  // Upload handlers matching counselor dashboard
+  const handleUploadAudio = async () => {
+    const { file, title, description, tags } = uploadFormData.audio;
+    const isEditMode = !!editingResource && editingResource.type === 'audio';
+    
+    if (!isEditMode && !file) {
+      toast.error('Please select an audio file');
       return;
     }
-
-    // For new resources, require a file unless it's an article type
-    if (!isEditing && !selectedFile && uploadForm.type !== 'course' && uploadForm.type !== 'workshop') {
-      toast.error('Please select a file to upload');
+    if (!title.trim()) {
+      toast.error('Please enter a title');
       return;
     }
 
     setIsUploading(true);
     try {
-      const tagsArray = uploadForm.tags.split(',').map(t => t.trim()).filter(Boolean);
+      const tagsArray = tags.split(',').map(t => t.trim()).filter(t => t);
       
-      if (isEditing && editingResource) {
-        // Update existing resource
+      if (isEditMode && editingResource) {
         await updateResource(editingResource.id, {
-          title: uploadForm.title,
-          description: uploadForm.description,
-          type: mapTrainingTypeToResourceType(uploadForm.type),
+          title: title.trim(),
+          description: description.trim(),
           tags: tagsArray,
-          category: uploadForm.category,
+          publisherName: editingResource.publisherName || user?.name || 'Admin',
         });
-        toast.success('Training resource updated successfully!');
+        toast.success('Audio resource updated successfully');
+        await refreshResources();
+        setEditingResource(null);
+        setActiveUploadType(null);
+        setActiveTab('manage-resources');
       } else {
-        // Create new resource
-        const resourceData = {
-          title: uploadForm.title,
-          description: uploadForm.description,
-          type: mapTrainingTypeToResourceType(uploadForm.type),
+        if (!file) {
+          toast.error('Please select an audio file');
+          setIsUploading(false);
+          return;
+        }
+        
+        await createResourceWithFile(file, {
+          title: title.trim(),
+          description: description.trim(),
+          type: 'audio',
           tags: tagsArray,
           isPublic: true,
-          category: uploadForm.category,
-        };
+          publisherName: user?.name || 'Admin',
+          isTrainingResource: true,
+        });
+        toast.success('Audio resource uploaded successfully');
+        await refreshResources();
+        setActiveUploadType(null);
+        setActiveTab('manage-resources');
+      }
+      
+      setUploadFormData(prev => ({
+        ...prev,
+        audio: { file: null, title: '', description: '', tags: '', duration: '' },
+      }));
+    } catch (error) {
+      console.error('Error uploading audio:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to upload audio');
+    } finally {
+      setIsUploading(false);
+    }
+  };
 
-        if (selectedFile) {
-          // Upload with file
-          await createResourceWithFile(selectedFile, resourceData);
-          toast.success('Training resource uploaded successfully!');
+  const handleUploadVideo = async () => {
+    const { file, title, description, tags, isYouTube, youtubeUrl } = uploadFormData.video;
+    const isEditMode = !!editingResource && editingResource.type === 'video';
+    
+    if (!isEditMode && !file && !isYouTube) {
+      toast.error('Please select a video file or enable YouTube');
+      return;
+    }
+    if (!title.trim()) {
+      toast.error('Please enter a title');
+      return;
+    }
+    if (isYouTube && !youtubeUrl?.trim()) {
+      toast.error('Please enter a YouTube URL');
+      return;
+    }
+
+    setIsUploading(true);
+    try {
+      const tagsArray = tags.split(',').map(t => t.trim()).filter(t => t);
+      
+      if (isEditMode && editingResource) {
+        await updateResource(editingResource.id, {
+          title: title.trim(),
+          description: description.trim(),
+          tags: tagsArray,
+          publisherName: editingResource.publisherName || user?.name || 'Admin',
+          youtubeUrl: isYouTube ? youtubeUrl?.trim() : undefined,
+        });
+        toast.success('Video resource updated successfully');
+        await refreshResources();
+        setEditingResource(null);
+        setActiveUploadType(null);
+        setActiveTab('manage-resources');
+      } else {
+        if (isYouTube) {
+          await createResource({
+            title: title.trim(),
+            description: description.trim(),
+            type: 'video',
+          tags: tagsArray,
+          isPublic: true,
+            youtubeUrl: youtubeUrl?.trim(),
+            publisherName: user?.name || 'Admin',
+            isTrainingResource: true,
+          });
+          toast.success('YouTube video resource created successfully');
         } else {
-          // Create without file (for articles/courses)
-          await createResource(resourceData);
-          toast.success('Training resource created successfully!');
+          if (!file) {
+            toast.error('Please select a video file');
+            setIsUploading(false);
+            return;
+          }
+          
+          await createResourceWithFile(file, {
+            title: title.trim(),
+            description: description.trim(),
+            type: 'video',
+            tags: tagsArray,
+            isPublic: true,
+            publisherName: user?.name || 'Admin',
+            isTrainingResource: true,
+          });
+          toast.success('Video resource uploaded successfully');
+        }
+        await refreshResources();
+        setActiveUploadType(null);
+        setActiveTab('manage-resources');
+      }
+      
+      setUploadFormData(prev => ({
+        ...prev,
+        video: { file: null, title: '', description: '', tags: '', duration: '', isYouTube: false, youtubeUrl: '' },
+      }));
+    } catch (error) {
+      console.error('Error uploading video:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to upload video');
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleUploadPdf = async () => {
+    const { file, title, description, tags } = uploadFormData.pdf;
+    const isEditMode = !!editingResource && editingResource.type === 'pdf';
+    
+    if (!isEditMode && !file) {
+      toast.error('Please select a PDF file');
+      return;
+    }
+    if (!title.trim()) {
+      toast.error('Please enter a title');
+      return;
+    }
+
+    setIsUploading(true);
+    try {
+      const tagsArray = tags.split(',').map(t => t.trim()).filter(t => t);
+      
+      if (isEditMode && editingResource) {
+        await updateResource(editingResource.id, {
+          title: title.trim(),
+          description: description.trim(),
+          tags: tagsArray,
+          publisherName: editingResource.publisherName || user?.name || 'Admin',
+        });
+        toast.success('PDF resource updated successfully');
+        await refreshResources();
+        setEditingResource(null);
+        setActiveUploadType(null);
+        setActiveTab('manage-resources');
+        } else {
+        if (!file) {
+          toast.error('Please select a PDF file');
+          setIsUploading(false);
+          return;
+        }
+        
+        await createResourceWithFile(file, {
+          title: title.trim(),
+          description: description.trim(),
+          type: 'pdf',
+          tags: tagsArray,
+          isPublic: true,
+          publisherName: user?.name || 'Admin',
+          isTrainingResource: true,
+        });
+        toast.success('PDF resource uploaded successfully');
+        await refreshResources();
+        setActiveUploadType(null);
+        setActiveTab('manage-resources');
+      }
+      
+      setUploadFormData(prev => ({
+        ...prev,
+        pdf: { file: null, title: '', description: '', tags: '' },
+      }));
+    } catch (error) {
+      console.error('Error uploading PDF:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to upload PDF');
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  // Helper function to convert ISO 8601 duration to MM:SS or HH:MM:SS format
+  const convertISODurationToTime = (isoDuration: string): string => {
+    const match = isoDuration.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
+    if (!match) return '';
+    
+    const hours = parseInt(match[1] || '0', 10);
+    const minutes = parseInt(match[2] || '0', 10);
+    const seconds = parseInt(match[3] || '0', 10);
+    
+    if (hours > 0) {
+      return `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    } else {
+      return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+    }
+  };
+
+  const handleFetchYouTubeVideoInfo = async () => {
+    const url = uploadFormData.video.youtubeUrl.trim();
+    if (!url) {
+      toast.error('Please enter a YouTube URL');
+      return;
+    }
+
+    try {
+      new URL(url);
+    } catch {
+      toast.error('Please enter a valid URL');
+      return;
+    }
+
+    const isYouTube = url.includes('youtube.com') || url.includes('youtu.be');
+    if (!isYouTube) {
+      toast.error('Please enter a valid YouTube URL');
+      return;
+    }
+
+    try {
+      let videoId = '';
+      if (url.includes('youtu.be')) {
+        videoId = url.split('/').pop()?.split('?')[0] || '';
+      } else {
+        const urlObj = new URL(url);
+        videoId = urlObj.searchParams.get('v') || '';
+      }
+
+      if (!videoId) {
+        throw new Error('Invalid YouTube URL');
+      }
+
+      const oEmbedUrl = `https://www.youtube.com/oembed?url=${encodeURIComponent(url)}&format=json`;
+      const response = await fetch(oEmbedUrl);
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch YouTube video information');
+      }
+
+      const data = await response.json();
+      
+      let duration = '';
+      let fullDescription = '';
+      let videoTags: string[] = [];
+      const youtubeApiKey = process.env.NEXT_PUBLIC_YOUTUBE_API_KEY;
+      
+      if (youtubeApiKey) {
+        try {
+          const apiUrl = `https://www.googleapis.com/youtube/v3/videos?id=${videoId}&part=contentDetails,snippet,statistics&key=${youtubeApiKey}`;
+          const apiResponse = await fetch(apiUrl);
+          if (apiResponse.ok) {
+            const apiData = await apiResponse.json();
+            if (apiData.items && apiData.items[0]) {
+              const video = apiData.items[0];
+              
+              if (video.contentDetails?.duration) {
+                duration = convertISODurationToTime(video.contentDetails.duration);
+              }
+              
+              if (video.snippet?.description) {
+                fullDescription = video.snippet.description;
+              }
+              
+              if (video.snippet?.tags && Array.isArray(video.snippet.tags)) {
+                videoTags = video.snippet.tags.slice(0, 10);
+              }
+            }
+          }
+        } catch (apiError) {
+          console.warn('Failed to fetch additional data from YouTube API:', apiError);
         }
       }
-      setIsUploadModalOpen(false);
-      resetForm();
-      setSelectedFile(null);
+      
+      setUploadFormData(prev => ({
+        ...prev,
+        video: {
+          ...prev.video,
+          title: data.title || prev.video.title,
+          description: fullDescription || prev.video.description,
+          duration: duration || prev.video.duration,
+          tags: videoTags.length > 0 ? videoTags.join(', ') : prev.video.tags,
+          isYouTube: true,
+          youtubeUrl: url,
+        },
+      }));
+      
+      toast.success('YouTube video information fetched successfully');
     } catch (error) {
-      console.error('Error uploading resource:', error);
-      toast.error(error instanceof Error ? error.message : 'Failed to upload resource. Please try again.');
+      console.error('Error fetching YouTube video info:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to fetch YouTube video information');
+    }
+  };
+
+  const handleFetchLinkInfo = async () => {
+    const url = uploadFormData.externalLink.url.trim();
+    if (!url) {
+      toast.error('Please enter a URL');
+      return;
+    }
+
+    try {
+      new URL(url);
+    } catch {
+      toast.error('Please enter a valid URL');
+      return;
+    }
+
+    setLinkPreview({ loading: true });
+
+    try {
+      const isYouTube = url.includes('youtube.com') || url.includes('youtu.be');
+      
+      if (isYouTube) {
+        let videoId = '';
+        if (url.includes('youtu.be')) {
+          videoId = url.split('/').pop()?.split('?')[0] || '';
+        } else {
+          const urlObj = new URL(url);
+          videoId = urlObj.searchParams.get('v') || '';
+        }
+
+        if (videoId) {
+          const oEmbedUrl = `https://www.youtube.com/oembed?url=${encodeURIComponent(url)}&format=json`;
+          const response = await fetch(oEmbedUrl);
+          
+          if (response.ok) {
+            const data = await response.json();
+            
+            setLinkPreview({
+              title: data.title,
+              description: data.author_name ? `By ${data.author_name}` : '',
+              thumbnail: `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`,
+              loading: false,
+            });
+            
+            setUploadFormData(prev => ({
+              ...prev,
+              externalLink: {
+                ...prev.externalLink,
+                title: data.title || '',
+                description: data.author_name ? `By ${data.author_name}` : '',
+                isYouTube: true,
+              },
+            }));
+            
+            toast.success('Link information fetched successfully');
+          } else {
+            throw new Error('Failed to fetch YouTube video information');
+          }
+        } else {
+          throw new Error('Invalid YouTube URL');
+        }
+      } else {
+        const urlObj = new URL(url);
+        setLinkPreview({
+          title: urlObj.hostname,
+          description: '',
+          thumbnail: undefined,
+          loading: false,
+        });
+        
+        setUploadFormData(prev => ({
+          ...prev,
+          externalLink: {
+            ...prev.externalLink,
+            title: urlObj.hostname,
+            isYouTube: false,
+          },
+        }));
+        
+        toast.success('Link ready. Please fill in the details manually.');
+      }
+    } catch (error) {
+      console.error('Error fetching link info:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to fetch link information');
+      setLinkPreview({ loading: false });
+    }
+  };
+
+  const handleAddExternalLink = async () => {
+    const { url, title, description, tags, category, isYouTube } = uploadFormData.externalLink;
+
+    if (!url.trim()) {
+      toast.error('Please enter a URL');
+      return;
+    }
+
+    if (!title.trim()) {
+      toast.error('Please enter a title');
+      return;
+    }
+
+    setIsUploading(true);
+
+    try {
+      const tagsArray = tags.split(',').map(t => t.trim()).filter(Boolean);
+
+      const isArticle = !isYouTube && (
+        url.includes('/article/') || 
+        url.includes('/post/') || 
+        url.includes('/blog/') ||
+        url.includes('/news/') ||
+        url.includes('/story/')
+      );
+      
+      const resourceData: import('../../../../lib/api/resources').CreateResourceInput = {
+        title: title.trim(),
+        description: description.trim() || 'External link resource',
+        type: isYouTube ? 'video' : (isArticle ? 'article' : 'article'),
+        url: url.trim(),
+        thumbnail: linkPreview.thumbnail,
+        tags: tagsArray,
+        isPublic: true,
+        youtubeUrl: isYouTube ? url.trim() : undefined,
+        category: category || undefined,
+        publisherName: user?.name || 'Admin',
+        content: undefined,
+        isTrainingResource: true,
+      };
+
+      await createResource(resourceData);
+      
+      toast.success('External link added successfully');
+      await refreshResources();
+      
+      setUploadFormData(prev => ({
+        ...prev,
+        externalLink: { url: '', title: '', description: '', tags: '', category: '', duration: '', isYouTube: false },
+      }));
+      setLinkPreview({ loading: false });
+      setActiveUploadType(null);
+      setActiveTab('manage-resources');
+    } catch (error) {
+      console.error('Error adding external link:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to add external link');
     } finally {
       setIsUploading(false);
     }
@@ -311,19 +775,46 @@ export default function AdminTrainingResourcesPage() {
 
   const handleEdit = (resource: Resource) => {
     setEditingResource(resource);
-    setUploadForm({
+    setActiveTab('add-resources');
+    
+    if (resource.type === 'audio') {
+      setActiveUploadType('audio');
+      setUploadFormData(prev => ({
+        ...prev,
+        audio: {
+          file: null,
       title: resource.title,
       description: resource.description || '',
-      type: resource.type as any,
-      category: resource.tags?.[0] || '',
+          tags: resource.tags?.join(', ') || '',
       duration: '',
-      difficulty: 'Beginner',
-      instructor: resource.publisher || '',
-      learningObjectives: '',
-      tags: resource.tags?.join(', ') || ''
-    });
-    setIsEditing(true);
-    setIsUploadModalOpen(true);
+        },
+      }));
+    } else if (resource.type === 'video') {
+      setActiveUploadType('video');
+      setUploadFormData(prev => ({
+        ...prev,
+        video: {
+          file: null,
+          title: resource.title,
+          description: resource.description || '',
+          tags: resource.tags?.join(', ') || '',
+          duration: '',
+          isYouTube: !!resource.youtubeUrl,
+          youtubeUrl: resource.youtubeUrl || '',
+        },
+      }));
+    } else if (resource.type === 'pdf') {
+      setActiveUploadType('pdf');
+      setUploadFormData(prev => ({
+        ...prev,
+        pdf: {
+          file: null,
+          title: resource.title,
+          description: resource.description || '',
+          tags: resource.tags?.join(', ') || '',
+        },
+      }));
+    }
   };
 
   const handleDelete = async (resourceId: string) => {
@@ -331,6 +822,7 @@ export default function AdminTrainingResourcesPage() {
     
     try {
       await deleteResource(resourceId);
+      await refreshResources();
       toast.success('Training resource deleted successfully!');
     } catch (error) {
       console.error('Error deleting resource:', error);
@@ -344,6 +836,7 @@ export default function AdminTrainingResourcesPage() {
     
     try {
       await Promise.all(Array.from(selectedIds).map(id => deleteResource(id)));
+      await refreshResources();
       toast.success(`Deleted ${selectedIds.size} resource(s) successfully.`);
       setSelectedIds(new Set());
     } catch (error) {
@@ -368,6 +861,7 @@ export default function AdminTrainingResourcesPage() {
   const handleToggleActive = async (resource: Resource, next: boolean) => {
     try {
       await updateResource(resource.id, { isPublic: next });
+      await refreshResources();
       toast.success(`${resource.title} ${next ? 'published' : 'unpublished'} successfully!`);
     } catch (error) {
       console.error('Error toggling resource status:', error);
@@ -375,28 +869,15 @@ export default function AdminTrainingResourcesPage() {
     }
   };
 
-  const resetForm = () => {
-    setUploadForm({
-      title: '',
-      description: '',
-      type: 'course',
-      category: '',
-      duration: '',
-      difficulty: 'Beginner',
-      instructor: '',
-      learningObjectives: '',
-      tags: ''
-    });
-    setIsEditing(false);
-    setEditingResource(null);
-    setSelectedFile(null);
-  };
 
   const getTypeIcon = (type: string) => {
     switch (type) {
+      case 'audio': return <Play className="h-4 w-4" />;
+      case 'video': return <Video className="h-4 w-4" />;
+      case 'pdf': return <FileText className="h-4 w-4" />;
+      case 'article': return <FileText className="h-4 w-4" />;
       case 'course': return <BookOpen className="h-4 w-4" />;
       case 'workshop': return <Users className="h-4 w-4" />;
-      case 'video': return <Video className="h-4 w-4" />;
       case 'document': return <FileText className="h-4 w-4" />;
       case 'presentation': return <Presentation className="h-4 w-4" />;
       default: return <BookOpen className="h-4 w-4" />;
@@ -446,7 +927,7 @@ export default function AdminTrainingResourcesPage() {
               <Button variant="outline" onClick={refreshResources}>
                 Retry
               </Button>
-              <Button onClick={() => setIsUploadModalOpen(true)}>
+              <Button onClick={() => setActiveTab('add-resources')}>
                 <Plus className="mr-2 h-4 w-4" />
                 Add Resource
               </Button>
@@ -518,6 +999,892 @@ export default function AdminTrainingResourcesPage() {
         </AnimatedCard>
       </div>
 
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'add-resources' | 'manage-resources')}>
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="add-resources" className="flex items-center gap-2">
+            <Plus className="h-4 w-4" />
+            <span>Add Resources</span>
+          </TabsTrigger>
+          <TabsTrigger value="manage-resources" className="flex items-center gap-2">
+            <BookOpen className="h-4 w-4" />
+            <span>Manage Resources</span>
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="add-resources" className="mt-6">
+          <div className="space-y-8">
+            <div className="text-center space-y-2">
+              <h2 className="text-2xl font-bold">Add New Training Resource</h2>
+              <p className="text-muted-foreground max-w-2xl mx-auto">
+                Choose how you'd like to add content to the training resource library. All resources will be available to counselors.
+              </p>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              <AnimatedCard delay={0.1} className="group relative">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-purple-500/10 rounded-full blur-2xl -z-0 pointer-events-none"></div>
+                <div className="relative z-10 p-5">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="p-2.5 rounded-lg bg-purple-100 text-purple-800 flex-shrink-0">
+                      <Play className="h-5 w-5" />
+                    </div>
+                    <h4 className="font-semibold text-base">Audio Files</h4>
+                  </div>
+                  <p className="text-sm text-muted-foreground mb-3 line-clamp-2">
+                    Upload podcasts, guided meditations, or audio lessons
+                  </p>
+                  <div className="flex flex-wrap gap-1.5 mb-3">
+                    <Badge variant="outline" className="text-xs">MP3</Badge>
+                    <Badge variant="outline" className="text-xs">WAV</Badge>
+                    <Badge variant="outline" className="text-xs">M4A</Badge>
+                  </div>
+                  <div className="relative z-20">
+                    <Button 
+                      type="button"
+                      size="sm" 
+                      className="w-full bg-purple-600 hover:bg-purple-700 cursor-pointer pointer-events-auto"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setEditingResource(null);
+                        setActiveUploadType('audio');
+                        setUploadFormData(prev => ({
+                          ...prev,
+                          audio: { file: null, title: '', description: '', tags: '', duration: '' },
+                        }));
+                        // Scroll to form after a brief delay to allow render
+                        setTimeout(() => {
+                          const formElement = document.querySelector('[data-upload-form="audio"]');
+                          formElement?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        }, 100);
+                      }}
+                    >
+                      <Upload className="h-4 w-4 mr-2" />
+                      Upload Audio
+                    </Button>
+                  </div>
+                </div>
+              </AnimatedCard>
+
+              <AnimatedCard delay={0.2} className="group relative">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full blur-2xl -z-0 pointer-events-none"></div>
+                <div className="relative z-10 p-5">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="p-2.5 rounded-lg bg-blue-100 text-blue-800 flex-shrink-0">
+                      <Video className="h-5 w-5" />
+                    </div>
+                    <h4 className="font-semibold text-base">Video Files</h4>
+                  </div>
+                  <p className="text-sm text-muted-foreground mb-3 line-clamp-2">
+                    Upload educational videos, demonstrations, or tutorials
+                  </p>
+                  <div className="flex flex-wrap gap-1.5 mb-3">
+                    <Badge variant="outline" className="text-xs">MP4</Badge>
+                    <Badge variant="outline" className="text-xs">MOV</Badge>
+                    <Badge variant="outline" className="text-xs">AVI</Badge>
+                  </div>
+                  <div className="relative z-20">
+                    <Button 
+                      type="button"
+                      size="sm" 
+                      className="w-full bg-blue-600 hover:bg-blue-700 cursor-pointer pointer-events-auto"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setEditingResource(null);
+                        setActiveUploadType('video');
+                        setUploadFormData(prev => ({
+                          ...prev,
+                          video: { file: null, title: '', description: '', tags: '', duration: '', isYouTube: false, youtubeUrl: '' },
+                        }));
+                        setTimeout(() => {
+                          const formElement = document.querySelector('[data-upload-form="video"]');
+                          formElement?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        }, 100);
+                      }}
+                    >
+                      <Upload className="h-4 w-4 mr-2" />
+                      Upload Video
+                    </Button>
+                  </div>
+                </div>
+              </AnimatedCard>
+
+              <AnimatedCard delay={0.3} className="group relative">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-red-500/10 rounded-full blur-2xl -z-0 pointer-events-none"></div>
+                <div className="relative z-10 p-5">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="p-2.5 rounded-lg bg-red-100 text-red-800 flex-shrink-0">
+                      <FileText className="h-5 w-5" />
+                    </div>
+                    <h4 className="font-semibold text-base">PDF Documents</h4>
+                  </div>
+                  <p className="text-sm text-muted-foreground mb-3 line-clamp-2">
+                    Upload guides, worksheets, or informational documents
+                  </p>
+                  <div className="flex flex-wrap gap-1.5 mb-3">
+                    <Badge variant="outline" className="text-xs">PDF</Badge>
+                  </div>
+                  <div className="relative z-20">
+                    <Button 
+                      type="button"
+                      size="sm" 
+                      className="w-full bg-red-600 hover:bg-red-700 cursor-pointer pointer-events-auto"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setEditingResource(null);
+                        setActiveUploadType('pdf');
+                        setUploadFormData(prev => ({
+                          ...prev,
+                          pdf: { file: null, title: '', description: '', tags: '' },
+                        }));
+                        setTimeout(() => {
+                          const formElement = document.querySelector('[data-upload-form="pdf"]');
+                          formElement?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        }, 100);
+                      }}
+                    >
+                      <Upload className="h-4 w-4 mr-2" />
+                      Upload Document
+                    </Button>
+                  </div>
+                </div>
+              </AnimatedCard>
+
+              <AnimatedCard delay={0.4} className="group relative">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-orange-500/10 rounded-full blur-2xl -z-0 pointer-events-none"></div>
+                <div className="relative z-10 p-5">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="p-2.5 rounded-lg bg-orange-100 text-orange-800 flex-shrink-0">
+                      <ExternalLink className="h-5 w-5" />
+                    </div>
+                    <h4 className="font-semibold text-base">External Link</h4>
+                  </div>
+                  <p className="text-sm text-muted-foreground mb-3 line-clamp-2">
+                    Link to YouTube videos, websites, or other online resources
+                  </p>
+                  <div className="flex flex-wrap gap-1.5 mb-3">
+                    <Badge variant="outline" className="text-xs">YouTube</Badge>
+                    <Badge variant="outline" className="text-xs">Websites</Badge>
+                  </div>
+                  <div className="relative z-20">
+                    <Button 
+                      type="button"
+                      size="sm" 
+                      className="w-full bg-orange-600 hover:bg-orange-700 cursor-pointer pointer-events-auto"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setEditingResource(null);
+                        setActiveUploadType('external-link');
+                        setUploadFormData(prev => ({
+                          ...prev,
+                          externalLink: { url: '', title: '', description: '', tags: '', category: '', duration: '', isYouTube: false },
+                        }));
+                        setTimeout(() => {
+                          const formElement = document.querySelector('[data-upload-form="external-link"]');
+                          formElement?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        }, 100);
+                      }}
+                    >
+                      <Globe className="h-4 w-4 mr-2" />
+                      Add Link
+                    </Button>
+                  </div>
+                </div>
+              </AnimatedCard>
+            </div>
+
+            {/* Upload Forms */}
+            {activeUploadType === 'audio' && (
+              <div className="space-y-6 mt-8" data-upload-form="audio">
+                <div className="flex items-center space-x-4">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => setActiveUploadType(null)}
+                    className="flex items-center gap-2"
+                  >
+                    <ArrowLeft className="h-4 w-4" />
+                    Back
+                  </Button>
+                  <div>
+                    <h3 className="text-xl font-semibold">
+                      {editingResource && editingResource.type === 'audio' ? 'Edit Audio Resource' : 'Upload Audio File'}
+                    </h3>
+                    <p className="text-sm text-muted-foreground">
+                      Add audio content for training resources
+                    </p>
+                  </div>
+                </div>
+
+                <input
+                  ref={audioFileInputRef}
+                  type="file"
+                  accept="audio/*,.mp3,.wav,.m4a,.aac,.ogg,.flac"
+                  onChange={handleAudioFileChange}
+                  className="hidden"
+                />
+
+                <AnimatedCard className="p-8">
+                  {editingResource && editingResource.type === 'audio' && editingResource.url ? (
+                    <div className="border-2 border-purple-200 rounded-xl p-6 bg-purple-50 dark:bg-purple-950">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                          <div className="w-16 h-16 bg-purple-100 dark:bg-purple-900 rounded-lg flex items-center justify-center">
+                            <Play className="h-8 w-8 text-purple-600 dark:text-purple-400" />
+                          </div>
+                          <div>
+                            <p className="font-semibold text-purple-900 dark:text-purple-100">Current Audio File</p>
+                            <p className="text-sm text-purple-700 dark:text-purple-300">
+                              {editingResource.url.split('/').pop() || 'Audio file'}
+                            </p>
+                          </div>
+                        </div>
+                        <Button variant="outline" size="sm" onClick={handleChooseAudioFile}>
+                          <Upload className="h-4 w-4 mr-2" />
+                          Replace File
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="border-2 border-dashed border-purple-200 rounded-xl p-12 text-center hover:border-purple-300 transition-colors">
+                      <div className="w-20 h-20 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                        <Play className="h-10 w-10 text-purple-600" />
+                      </div>
+                      <h4 className="text-xl font-semibold mb-2">Drop your audio file here</h4>
+                      <p className="text-muted-foreground mb-6 max-w-md mx-auto">
+                        Supported formats: MP3, WAV, M4A, AAC. Maximum file size: 100MB
+                      </p>
+                      {uploadFormData.audio.file && (
+                        <div className="mb-4 p-3 bg-purple-50 dark:bg-purple-950 rounded-lg">
+                          <p className="text-sm font-medium text-purple-900 dark:text-purple-100">
+                            Selected: {uploadFormData.audio.file.name}
+                          </p>
+                          <p className="text-xs text-purple-700 dark:text-purple-300">
+                            {(uploadFormData.audio.file.size / 1024 / 1024).toFixed(2)} MB
+                          </p>
+                        </div>
+                      )}
+                      <div className="flex flex-col sm:flex-row gap-3 justify-center mt-6">
+                        <Button onClick={handleChooseAudioFile} className="bg-purple-600 hover:bg-purple-700">
+                          <Upload className="h-4 w-4 mr-2" />
+                          {uploadFormData.audio.file ? 'Change Audio File' : 'Choose Audio File'}
+                        </Button>
+                        {uploadFormData.audio.file && (
+                          <Button 
+                            variant="outline" 
+                            onClick={() => setUploadFormData(prev => ({ ...prev, audio: { ...prev.audio, file: null } }))}
+                          >
+                            <X className="h-4 w-4 mr-2" />
+                            Remove
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </AnimatedCard>
+
+                <AnimatedCard className="p-6">
+                  <h4 className="font-semibold mb-4">Resource Details</h4>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div>
+                      <label className="text-sm font-medium text-muted-foreground mb-2 block">Title</label>
+                      <Input 
+                        placeholder="Enter audio title..." 
+                        value={uploadFormData.audio.title}
+                        onChange={(e) => setUploadFormData(prev => ({ ...prev, audio: { ...prev.audio, title: e.target.value } }))}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-muted-foreground mb-2 block">Duration</label>
+                      <Input 
+                        placeholder="e.g., 15:30" 
+                        value={uploadFormData.audio.duration}
+                        onChange={(e) => setUploadFormData(prev => ({ ...prev, audio: { ...prev.audio, duration: e.target.value } }))}
+                      />
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="text-sm font-medium text-muted-foreground mb-2 block">Description</label>
+                      <Textarea 
+                        placeholder="Describe the audio content..." 
+                        rows={3}
+                        value={uploadFormData.audio.description}
+                        onChange={(e) => setUploadFormData(prev => ({ ...prev, audio: { ...prev.audio, description: e.target.value } }))}
+                      />
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="text-sm font-medium text-muted-foreground mb-2 block">Tags</label>
+                      <Input 
+                        placeholder="Enter tags separated by commas..." 
+                        value={uploadFormData.audio.tags}
+                        onChange={(e) => setUploadFormData(prev => ({ ...prev, audio: { ...prev.audio, tags: e.target.value } }))}
+                      />
+                    </div>
+                  </div>
+                  <div className="flex justify-end space-x-3 mt-6">
+                    <Button variant="outline" onClick={() => setActiveUploadType(null)}>
+                      Cancel
+                    </Button>
+                    <Button 
+                      className="bg-purple-600 hover:bg-purple-700"
+                      onClick={handleUploadAudio}
+                      disabled={isUploading || (!uploadFormData.audio.file && !(editingResource && editingResource.type === 'audio'))}
+                    >
+                      {isUploading ? (
+                        <>
+                          <Spinner variant="bars" size={16} className="mr-2" />
+                          {editingResource && editingResource.type === 'audio' ? 'Updating...' : 'Uploading...'}
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="h-4 w-4 mr-2" />
+                          {editingResource && editingResource.type === 'audio' ? 'Update & Save' : 'Upload & Save'}
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </AnimatedCard>
+              </div>
+            )}
+
+            {activeUploadType === 'video' && (
+              <div className="space-y-6 mt-8" data-upload-form="video">
+                <div className="flex items-center space-x-4">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => setActiveUploadType(null)}
+                    className="flex items-center gap-2"
+                  >
+                    <ArrowLeft className="h-4 w-4" />
+                    Back
+                  </Button>
+                  <div>
+                    <h3 className="text-xl font-semibold">
+                      {editingResource && editingResource.type === 'video' ? 'Edit Video Resource' : 'Upload Video File'}
+                    </h3>
+                    <p className="text-sm text-muted-foreground">
+                      Add video content for training resources
+                    </p>
+                  </div>
+                </div>
+
+                <input
+                  ref={videoFileInputRef}
+                  type="file"
+                  accept="video/*,.mp4,.mov,.avi,.mkv,.webm,.flv"
+                  onChange={handleVideoFileChange}
+                  className="hidden"
+                />
+
+                <AnimatedCard className="p-8">
+                  {editingResource && editingResource.type === 'video' && editingResource.youtubeUrl ? (
+                    <div className="border-2 border-dashed border-orange-200 dark:border-orange-800 rounded-xl p-12 text-center hover:border-orange-300 dark:hover:border-orange-700 transition-colors bg-orange-50 dark:bg-orange-950">
+                      <div className="w-20 h-20 bg-orange-100 dark:bg-orange-900 rounded-full flex items-center justify-center mx-auto mb-6">
+                        <Globe className="h-10 w-10 text-orange-600 dark:text-orange-400" />
+                      </div>
+                      <h4 className="text-xl font-semibold mb-2">Paste your YouTube link here</h4>
+                      <div className="max-w-lg mx-auto mb-4">
+                        <div className="relative">
+                          <Input 
+                            placeholder="Paste YouTube URL (e.g., https://youtube.com/watch?v=...)"
+                            className="pr-24"
+                            value={uploadFormData.video.youtubeUrl}
+                            onChange={(e) => {
+                              const url = e.target.value;
+                              setUploadFormData(prev => ({ 
+                                ...prev, 
+                                video: { 
+                                  ...prev.video, 
+                                  youtubeUrl: url,
+                                  isYouTube: url.trim().length > 0 && (url.includes('youtube.com') || url.includes('youtu.be'))
+                                } 
+                              }));
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' && uploadFormData.video.youtubeUrl.trim()) {
+                                e.preventDefault();
+                                handleFetchYouTubeVideoInfo();
+                              }
+                            }}
+                          />
+                          <Button 
+                            size="sm" 
+                            variant="ghost" 
+                            className="absolute right-1 top-1/2 -translate-y-1/2 text-xs"
+                            onClick={handleFetchYouTubeVideoInfo}
+                            disabled={!uploadFormData.video.youtubeUrl.trim()}
+                          >
+                            Fetch Info
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  ) : editingResource && editingResource.type === 'video' && editingResource.url ? (
+                    <div className="border-2 border-blue-200 rounded-xl p-6 bg-blue-50 dark:bg-blue-950">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                          <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900 rounded-lg flex items-center justify-center">
+                            <Video className="h-8 w-8 text-blue-600 dark:text-blue-400" />
+                          </div>
+                          <div>
+                            <p className="font-semibold text-blue-900 dark:text-blue-100">Current Video</p>
+                            <p className="text-sm text-blue-700 dark:text-blue-300">
+                              {editingResource.url.split('/').pop() || 'Video file'}
+                            </p>
+                          </div>
+                        </div>
+                        <Button variant="outline" size="sm" onClick={handleChooseVideoFile}>
+                          <Upload className="h-4 w-4 mr-2" />
+                          Replace File
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="border-2 border-dashed border-blue-200 rounded-xl p-12 text-center hover:border-blue-300 transition-colors">
+                      <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                        <Video className="h-10 w-10 text-blue-600" />
+                      </div>
+                      <h4 className="text-xl font-semibold mb-2">Drop your video file here</h4>
+                      <p className="text-muted-foreground mb-6 max-w-md mx-auto">
+                        Supported formats: MP4, MOV, AVI, MKV. Maximum file size: 500MB
+                      </p>
+                      {uploadFormData.video.file && (
+                        <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-950 rounded-lg">
+                          <p className="text-sm font-medium text-blue-900 dark:text-blue-100">
+                            Selected: {uploadFormData.video.file.name}
+                          </p>
+                          <p className="text-xs text-blue-700 dark:text-blue-300">
+                            {(uploadFormData.video.file.size / 1024 / 1024).toFixed(2)} MB
+                          </p>
+                        </div>
+                      )}
+                      <div className="flex flex-col sm:flex-row gap-3 justify-center mt-6">
+                        <Button onClick={handleChooseVideoFile} className="bg-blue-600 hover:bg-blue-700">
+                          <Upload className="h-4 w-4 mr-2" />
+                          {uploadFormData.video.file ? 'Change Video File' : 'Choose Video File'}
+                        </Button>
+                        {uploadFormData.video.file && (
+                          <Button 
+                            variant="outline" 
+                            onClick={() => setUploadFormData(prev => ({ ...prev, video: { ...prev.video, file: null } }))}
+                          >
+                            <X className="h-4 w-4 mr-2" />
+                            Remove
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </AnimatedCard>
+
+                <AnimatedCard className="p-6">
+                  <h4 className="font-semibold mb-4">Resource Details</h4>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div>
+                      <label className="text-sm font-medium text-muted-foreground mb-2 block">Title</label>
+                      <Input 
+                        placeholder="Enter video title..." 
+                        value={uploadFormData.video.title}
+                        onChange={(e) => setUploadFormData(prev => ({ ...prev, video: { ...prev.video, title: e.target.value } }))}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-muted-foreground mb-2 block">Duration</label>
+                      <Input 
+                        placeholder="e.g., 25:45" 
+                        value={uploadFormData.video.duration}
+                        onChange={(e) => setUploadFormData(prev => ({ ...prev, video: { ...prev.video, duration: e.target.value } }))}
+                      />
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="text-sm font-medium text-muted-foreground mb-2 block">Description</label>
+                      <Textarea 
+                        placeholder="Describe the video content..." 
+                        rows={3}
+                        value={uploadFormData.video.description}
+                        onChange={(e) => setUploadFormData(prev => ({ ...prev, video: { ...prev.video, description: e.target.value } }))}
+                      />
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="text-sm font-medium text-muted-foreground mb-2 block">YouTube URL (optional)</label>
+                      <Input 
+                        placeholder="https://www.youtube.com/watch?v=..." 
+                        value={uploadFormData.video.youtubeUrl}
+                        onChange={(e) => {
+                          const url = e.target.value;
+                          setUploadFormData(prev => ({ 
+                            ...prev, 
+                            video: { 
+                              ...prev.video, 
+                              youtubeUrl: url,
+                              isYouTube: url.trim().length > 0 && (url.includes('youtube.com') || url.includes('youtu.be'))
+                            } 
+                          }));
+                        }}
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {uploadFormData.video.youtubeUrl ? 'YouTube video will be used instead of uploaded file' : 'Leave empty to upload a video file'}
+                      </p>
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="text-sm font-medium text-muted-foreground mb-2 block">Tags</label>
+                      <Input 
+                        placeholder="Enter tags separated by commas..." 
+                        value={uploadFormData.video.tags}
+                        onChange={(e) => setUploadFormData(prev => ({ ...prev, video: { ...prev.video, tags: e.target.value } }))}
+                      />
+                    </div>
+                  </div>
+                  <div className="flex justify-end space-x-3 mt-6">
+                    <Button variant="outline" onClick={() => setActiveUploadType(null)}>
+                      Cancel
+                    </Button>
+                    <Button 
+                      className="bg-blue-600 hover:bg-blue-700"
+                      onClick={handleUploadVideo}
+                      disabled={isUploading || (!uploadFormData.video.file && !uploadFormData.video.isYouTube && !(editingResource && editingResource.type === 'video'))}
+                    >
+                      {isUploading ? (
+                        <>
+                          <Spinner variant="bars" size={16} className="mr-2" />
+                          {editingResource && editingResource.type === 'video' ? 'Updating...' : 'Uploading...'}
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="h-4 w-4 mr-2" />
+                          {editingResource && editingResource.type === 'video' ? 'Update & Save' : 'Upload & Save'}
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </AnimatedCard>
+              </div>
+            )}
+
+            {activeUploadType === 'pdf' && (
+              <div className="space-y-6 mt-8" data-upload-form="pdf">
+                <div className="flex items-center space-x-4">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => setActiveUploadType(null)}
+                    className="flex items-center gap-2"
+                  >
+                    <ArrowLeft className="h-4 w-4" />
+                    Back
+                  </Button>
+                  <div>
+                    <h3 className="text-xl font-semibold">
+                      {editingResource && editingResource.type === 'pdf' ? 'Edit PDF Resource' : 'Upload PDF Document'}
+                    </h3>
+                    <p className="text-sm text-muted-foreground">
+                      Add PDF content for training resources
+                    </p>
+                  </div>
+                </div>
+
+                <input
+                  ref={pdfFileInputRef}
+                  type="file"
+                  accept=".pdf,application/pdf"
+                  onChange={handlePdfFileChange}
+                  className="hidden"
+                />
+
+                <AnimatedCard className="p-8">
+                  {editingResource && editingResource.type === 'pdf' && editingResource.url ? (
+                    <div className="border-2 border-red-200 rounded-xl p-6 bg-red-50 dark:bg-red-950">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                          <div className="w-16 h-16 bg-red-100 dark:bg-red-900 rounded-lg flex items-center justify-center">
+                            <FileText className="h-8 w-8 text-red-600 dark:text-red-400" />
+                          </div>
+                          <div>
+                            <p className="font-semibold text-red-900 dark:text-red-100">Current PDF File</p>
+                            <p className="text-sm text-red-700 dark:text-red-300">
+                              {editingResource.url.split('/').pop() || 'PDF file'}
+                            </p>
+                          </div>
+                        </div>
+                        <Button variant="outline" size="sm" onClick={handleChoosePdfFile}>
+                          <Upload className="h-4 w-4 mr-2" />
+                          Replace File
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="border-2 border-dashed border-red-200 rounded-xl p-12 text-center hover:border-red-300 transition-colors">
+                      <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                        <FileText className="h-10 w-10 text-red-600" />
+                      </div>
+                      <h4 className="text-xl font-semibold mb-2">Drop your PDF file here</h4>
+                      <p className="text-muted-foreground mb-6 max-w-md mx-auto">
+                        Supported formats: PDF. Maximum file size: 50MB
+                      </p>
+                      {uploadFormData.pdf.file && (
+                        <div className="mb-4 p-3 bg-red-50 dark:bg-red-950 rounded-lg">
+                          <p className="text-sm font-medium text-red-900 dark:text-red-100">
+                            Selected: {uploadFormData.pdf.file.name}
+                          </p>
+                          <p className="text-xs text-red-700 dark:text-red-300">
+                            {(uploadFormData.pdf.file.size / 1024 / 1024).toFixed(2)} MB
+                          </p>
+                        </div>
+                      )}
+                      <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                        <Button onClick={handleChoosePdfFile} className="bg-red-600 hover:bg-red-700">
+                          <Upload className="h-4 w-4 mr-2" />
+                          {uploadFormData.pdf.file ? 'Change PDF File' : 'Choose PDF File'}
+                        </Button>
+                        {uploadFormData.pdf.file && (
+                          <Button 
+                            variant="outline" 
+                            onClick={() => setUploadFormData(prev => ({ ...prev, pdf: { ...prev.pdf, file: null } }))}
+                          >
+                            <X className="h-4 w-4 mr-2" />
+                            Remove
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </AnimatedCard>
+
+                <AnimatedCard className="p-6">
+                  <h4 className="font-semibold mb-4">Resource Details</h4>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="md:col-span-2">
+                      <label className="text-sm font-medium text-muted-foreground mb-2 block">Title</label>
+                      <Input 
+                        placeholder="Enter document title..." 
+                        value={uploadFormData.pdf.title}
+                        onChange={(e) => setUploadFormData(prev => ({ ...prev, pdf: { ...prev.pdf, title: e.target.value } }))}
+                      />
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="text-sm font-medium text-muted-foreground mb-2 block">Description</label>
+                      <Textarea 
+                        placeholder="Describe the document content..." 
+                        rows={3}
+                        value={uploadFormData.pdf.description}
+                        onChange={(e) => setUploadFormData(prev => ({ ...prev, pdf: { ...prev.pdf, description: e.target.value } }))}
+                      />
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="text-sm font-medium text-muted-foreground mb-2 block">Tags</label>
+                      <Input 
+                        placeholder="Enter tags separated by commas..." 
+                        value={uploadFormData.pdf.tags}
+                        onChange={(e) => setUploadFormData(prev => ({ ...prev, pdf: { ...prev.pdf, tags: e.target.value } }))}
+                      />
+                    </div>
+                  </div>
+                  <div className="flex justify-end space-x-3 mt-6">
+                    <Button variant="outline" onClick={() => setActiveUploadType(null)}>
+                      Cancel
+                    </Button>
+                    <Button 
+                      className="bg-red-600 hover:bg-red-700"
+                      onClick={handleUploadPdf}
+                      disabled={isUploading || (!uploadFormData.pdf.file && !(editingResource && editingResource.type === 'pdf'))}
+                    >
+                      {isUploading ? (
+                        <>
+                          <Spinner variant="bars" size={16} className="mr-2" />
+                          {editingResource && editingResource.type === 'pdf' ? 'Updating...' : 'Uploading...'}
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="h-4 w-4 mr-2" />
+                          {editingResource && editingResource.type === 'pdf' ? 'Update & Save' : 'Upload & Save'}
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </AnimatedCard>
+              </div>
+            )}
+
+            {activeUploadType === 'external-link' && (
+              <div className="space-y-6 mt-8 max-w-4xl mx-auto" data-upload-form="external-link">
+                <div className="flex items-center space-x-4">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => setActiveUploadType(null)}
+                    className="flex items-center gap-2"
+                  >
+                    <ArrowLeft className="h-4 w-4" />
+                    Back
+                  </Button>
+                  <div>
+                    <h3 className="text-xl font-semibold">Add External Link</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Link to YouTube videos, websites, or other online resources
+                    </p>
+                  </div>
+                </div>
+
+                <AnimatedCard className="p-8">
+                  <div className="border-2 border-dashed border-orange-200 dark:border-orange-800 rounded-xl p-12 text-center hover:border-orange-300 dark:hover:border-orange-700 transition-colors">
+                    <div className="w-20 h-20 bg-orange-100 dark:bg-orange-900 rounded-full flex items-center justify-center mx-auto mb-6">
+                      <Globe className="h-10 w-10 text-orange-600 dark:text-orange-400" />
+                    </div>
+                    <h4 className="text-xl font-semibold mb-2">Paste your link here</h4>
+                    <p className="text-muted-foreground mb-6 max-w-md mx-auto">
+                      Supported: YouTube videos, websites, and other online resources. We'll automatically fetch the title, description, and thumbnail.
+                    </p>
+                    <div className="max-w-lg mx-auto mb-4">
+                      <div className="relative">
+                        <Input 
+                          placeholder="Paste YouTube URL or website link (e.g., https://youtube.com/watch?v=...)"
+                          className="pr-24"
+                          value={uploadFormData.externalLink.url}
+                          onChange={(e) => setUploadFormData(prev => ({ ...prev, externalLink: { ...prev.externalLink, url: e.target.value } }))}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              handleFetchLinkInfo();
+                            }
+                          }}
+                        />
+                        <Button 
+                          size="sm" 
+                          variant="ghost" 
+                          className="absolute right-1 top-1/2 -translate-y-1/2 text-xs"
+                          onClick={handleFetchLinkInfo}
+                          disabled={linkPreview.loading || !uploadFormData.externalLink.url.trim()}
+                        >
+                          {linkPreview.loading ? 'Fetching...' : 'Fetch Info'}
+                        </Button>
+                      </div>
+                    </div>
+                    <div className="border-2 border-dashed border-orange-100 dark:border-orange-900 rounded-lg p-8 text-center bg-orange-50/50 dark:bg-orange-950/50">
+                      {linkPreview.loading ? (
+                        <div className="flex flex-col items-center">
+                          <Spinner variant="bars" size={32} className="mb-3" />
+                          <p className="text-sm text-muted-foreground">Fetching link information...</p>
+                        </div>
+                      ) : linkPreview.title || linkPreview.thumbnail ? (
+                        <div className="text-left">
+                          {linkPreview.thumbnail && (
+                            <img 
+                              src={linkPreview.thumbnail} 
+                              alt={linkPreview.title || 'Preview'} 
+                              className="w-full h-48 object-cover rounded-lg mb-4"
+                            />
+                          )}
+                          {linkPreview.title && (
+                            <h5 className="font-semibold mb-2">{linkPreview.title}</h5>
+                          )}
+                          {linkPreview.description && (
+                            <p className="text-sm text-muted-foreground">{linkPreview.description}</p>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="w-16 h-16 bg-muted rounded-lg flex items-center justify-center mx-auto mb-3">
+                          <ExternalLink className="h-8 w-8 text-muted-foreground" />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </AnimatedCard>
+
+                <AnimatedCard className="p-6">
+                  <h4 className="font-semibold mb-4">Resource Details</h4>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="md:col-span-2">
+                      <label className="text-sm font-medium text-muted-foreground mb-2 block">Title</label>
+                      <Input 
+                        placeholder="Resource title (auto-filled from URL)" 
+                        value={uploadFormData.externalLink.title}
+                        onChange={(e) => setUploadFormData(prev => ({ ...prev, externalLink: { ...prev.externalLink, title: e.target.value } }))}
+                      />
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="text-sm font-medium text-muted-foreground mb-2 block">Description</label>
+                      <Textarea 
+                        rows={3}
+                        placeholder="Resource description (auto-filled from URL or add your own)"
+                        value={uploadFormData.externalLink.description}
+                        onChange={(e) => setUploadFormData(prev => ({ ...prev, externalLink: { ...prev.externalLink, description: e.target.value } }))}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-muted-foreground mb-2 block">Category</label>
+                      <Select 
+                        value={uploadFormData.externalLink.category}
+                        onValueChange={(value) => setUploadFormData(prev => ({ ...prev, externalLink: { ...prev.externalLink, category: value } }))}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select category" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="educational">Educational</SelectItem>
+                          <SelectItem value="meditation">Meditation</SelectItem>
+                          <SelectItem value="therapy">Therapy</SelectItem>
+                          <SelectItem value="wellness">Wellness</SelectItem>
+                          <SelectItem value="support">Support</SelectItem>
+                          <SelectItem value="other">Other</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-muted-foreground mb-2 block">Duration (if video)</label>
+                      <Input 
+                        placeholder="e.g., 12:30" 
+                        value={uploadFormData.externalLink.duration}
+                        onChange={(e) => setUploadFormData(prev => ({ ...prev, externalLink: { ...prev.externalLink, duration: e.target.value } }))}
+                      />
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="text-sm font-medium text-muted-foreground mb-2 block">Tags</label>
+                      <Input 
+                        placeholder="Enter tags separated by commas..." 
+                        value={uploadFormData.externalLink.tags}
+                        onChange={(e) => setUploadFormData(prev => ({ ...prev, externalLink: { ...prev.externalLink, tags: e.target.value } }))}
+                      />
+                    </div>
+                  </div>
+                  <div className="flex justify-end space-x-3 mt-6">
+                    <Button variant="outline" onClick={() => {
+                      setUploadFormData(prev => ({
+                        ...prev,
+                        externalLink: { url: '', title: '', description: '', tags: '', category: '', duration: '', isYouTube: false },
+                      }));
+                      setLinkPreview({ loading: false });
+                      setActiveUploadType(null);
+                    }}>
+                      Cancel
+                    </Button>
+                    <Button 
+                      className="bg-orange-600 hover:bg-orange-700"
+                      onClick={handleAddExternalLink}
+                      disabled={isUploading || !uploadFormData.externalLink.url.trim() || !uploadFormData.externalLink.title.trim()}
+                    >
+                      {isUploading ? (
+                        <>
+                          <Spinner variant="bars" size={16} className="mr-2" />
+                          Adding...
+                        </>
+                      ) : (
+                        <>
+                          <Globe className="h-4 w-4 mr-2" />
+                          Add Resource
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </AnimatedCard>
+              </div>
+            )}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="manage-resources" className="mt-6">
       {/* Action Bar */}
       <div className="flex flex-col gap-4">
         <div className="flex flex-col sm:flex-row gap-4">
@@ -570,10 +1937,6 @@ export default function AdminTrainingResourcesPage() {
           </SelectContent>
         </Select>
 
-        <Button onClick={() => setIsUploadModalOpen(true)}>
-          <Plus className="h-4 w-4 mr-2" />
-          Add Resource
-        </Button>
         </div>
 
         <div className="flex gap-2 items-center">
@@ -593,14 +1956,6 @@ export default function AdminTrainingResourcesPage() {
               <SelectItem value="desc">Desc</SelectItem>
             </SelectContent>
           </Select>
-          <div className="ml-auto flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={handleBulkDelete} disabled={selectedIds.size === 0}>
-              Bulk Delete
-            </Button>
-            <Button variant="outline" size="sm">
-              Export CSV
-            </Button>
-          </div>
         </div>
       </div>
 
@@ -800,242 +2155,8 @@ export default function AdminTrainingResourcesPage() {
         </div>
       </div>
 
-      {/* Upload/Edit Modal */}
-      <Dialog open={isUploadModalOpen} onOpenChange={setIsUploadModalOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-primary/10">
-                <Upload className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <span className="text-muted-foreground">
-                  {isEditing ? 'Edit' : 'Upload'} Training Resource
-                </span>
-                <h3 className="text-lg font-semibold">
-                  {isEditing ? 'Update Resource' : 'Add New Resource'}
-                </h3>
-              </div>
-            </DialogTitle>
-            <DialogDescription>
-              {isEditing ? 'Update the training resource information' : 'Upload a new training resource for counselors'}
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-6 mt-6">
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Title *</label>
-                <Input
-                  placeholder="Enter resource title"
-                  value={uploadForm.title}
-                  onChange={(e) => setUploadForm({...uploadForm, title: e.target.value})}
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Instructor *</label>
-                <Input
-                  placeholder="Enter instructor name"
-                  value={uploadForm.instructor}
-                  onChange={(e) => setUploadForm({...uploadForm, instructor: e.target.value})}
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Description *</label>
-              <Textarea
-                placeholder="Enter resource description"
-                value={uploadForm.description}
-                onChange={(e) => setUploadForm({...uploadForm, description: e.target.value})}
-                rows={3}
-              />
-            </div>
-
-            {/* Hidden file input */}
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept={getAcceptAttribute(uploadForm.type)}
-              onChange={handleFileChange}
-              className="hidden"
-            />
-
-            <div className="grid gap-4 md:grid-cols-3">
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Type *</label>
-                <Select value={uploadForm.type} onValueChange={(value: any) => setUploadForm({...uploadForm, type: value})}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="course">Course</SelectItem>
-                    <SelectItem value="workshop">Workshop</SelectItem>
-                    <SelectItem value="video">Video</SelectItem>
-                    <SelectItem value="document">Document</SelectItem>
-                    <SelectItem value="presentation">Presentation</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Category *</label>
-                <Input
-                  placeholder="e.g., Psychology"
-                  value={uploadForm.category}
-                  onChange={(e) => setUploadForm({...uploadForm, category: e.target.value})}
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Duration *</label>
-                <Input
-                  placeholder="e.g., 4 hours"
-                  value={uploadForm.duration}
-                  onChange={(e) => setUploadForm({...uploadForm, duration: e.target.value})}
-                />
-              </div>
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Difficulty *</label>
-                <Select value={uploadForm.difficulty} onValueChange={(value: any) => setUploadForm({...uploadForm, difficulty: value})}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Beginner">Beginner</SelectItem>
-                    <SelectItem value="Intermediate">Intermediate</SelectItem>
-                    <SelectItem value="Advanced">Advanced</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Tags</label>
-                <Input
-                  placeholder="e.g., psychology, fundamentals, cancer"
-                  value={uploadForm.tags}
-                  onChange={(e) => setUploadForm({...uploadForm, tags: e.target.value})}
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Learning Objectives</label>
-              <Textarea
-                placeholder="Enter learning objectives (one per line)"
-                value={uploadForm.learningObjectives}
-                onChange={(e) => setUploadForm({...uploadForm, learningObjectives: e.target.value})}
-                rows={4}
-              />
-            </div>
-
-            {(uploadForm.type === 'video' || uploadForm.type === 'document' || uploadForm.type === 'presentation') && (
-              <div className="space-y-2">
-                <label className="text-sm font-medium">
-                  File Upload {!isEditing ? '*' : ''}
-                </label>
-                {selectedFile && (
-                  <div className="mb-3 p-3 bg-primary/10 rounded-lg">
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <p className="text-sm font-medium text-primary">
-                          {selectedFile.name}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
-                        </p>
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setSelectedFile(null)}
-                        className="h-8 w-8 p-0"
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                )}
-                <div 
-                  className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-6 text-center cursor-pointer hover:border-primary/50 transition-colors"
-                  onClick={handleChooseFile}
-                >
-                  <Upload className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
-                  <p className="text-sm text-muted-foreground mb-2">
-                    {selectedFile ? 'Click to change file' : 'Click to upload or drag and drop'}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {uploadForm.type === 'video' 
-                      ? 'MP4, MOV, AVI, MKV files up to 100MB'
-                      : 'PDF, DOC, DOCX, PPT, PPTX files up to 100MB'}
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {(uploadForm.type === 'course' || uploadForm.type === 'workshop') && (
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Content</label>
-                <Textarea
-                  placeholder="Enter course/workshop content or description"
-                  value={uploadForm.description}
-                  onChange={(e) => setUploadForm({...uploadForm, description: e.target.value})}
-                  rows={6}
-                />
-                <p className="text-xs text-muted-foreground">
-                  For courses and workshops, you can enter content directly or upload a document.
-                </p>
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleChooseFile}
-                    type="button"
-                  >
-                    <Upload className="h-4 w-4 mr-2" />
-                    Upload Document (Optional)
-                  </Button>
-                  {selectedFile && (
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <span>{selectedFile.name}</span>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setSelectedFile(null)}
-                        className="h-6 w-6 p-0"
-                      >
-                        <X className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-
-          <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => {setIsUploadModalOpen(false); resetForm();}}>
-              Cancel
-            </Button>
-            <Button
-              onClick={handleUpload}
-              disabled={isUploading}
-            >
-              {isUploading ? (
-                <>
-                  <Spinner variant="bars" size={16} className="text-white mr-2" />
-                  {isEditing ? 'Updating...' : 'Uploading...'}
-                </>
-              ) : (
-                <>
-                  <Upload className="h-4 w-4 mr-2" />
-                  {isEditing ? 'Update Resource' : 'Upload Resource'}
-                </>
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </TabsContent>
+        </Tabs>
 
       {/* Viewer Modal */}
       {selectedResource && (

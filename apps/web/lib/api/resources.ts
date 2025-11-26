@@ -42,6 +42,7 @@ export interface Resource {
   reviewedAt?: string;
   reviewedBy?: string;
   status?: ResourceStatus;
+  isTrainingResource?: boolean;
 }
 
 /**
@@ -88,6 +89,7 @@ export interface CreateResourceInput {
   category?: string;
   readingTime?: string;
   publisherName?: string;
+  isTrainingResource?: boolean;
 }
 
 /**
@@ -125,6 +127,7 @@ export interface ResourceQueryParams {
   offset?: number;
   sortBy?: 'title' | 'created_at' | 'views' | 'downloads';
   sortOrder?: 'asc' | 'desc';
+  excludeTrainingResources?: boolean;
 }
 
 /**
@@ -164,6 +167,15 @@ export class ResourcesApi {
       throw new Error('User not authenticated');
     }
 
+    // Determine if this is a training resource (admin-created, no review needed)
+    const isTrainingResource = data.isTrainingResource === true;
+    
+    // Training resources are published immediately without review
+    // Counselor resources require review before publishing
+    const isPublic = isTrainingResource ? true : false;
+    const status = isTrainingResource ? 'published' : 'pending_review';
+    const reviewed = isTrainingResource ? true : false;
+
     const { data: resource, error } = await supabase
       .from('resources')
       .insert({
@@ -173,8 +185,10 @@ export class ResourcesApi {
         url: data.url,
         thumbnail: data.thumbnail,
         tags: data.tags,
-        is_public: false, // Resources must be reviewed before publishing
-        status: 'pending_review', // Default status - must be reviewed before publishing
+        is_public: isPublic,
+        status: status,
+        reviewed: reviewed,
+        is_training_resource: isTrainingResource,
         publisher: user.id,
         publisher_name: data.publisherName || user.user_metadata?.name || user.email?.split('@')[0] || 'Unknown',
         youtube_url: data.youtubeUrl,
@@ -396,6 +410,15 @@ export class ResourcesApi {
         }
       }
 
+      // Determine if this is a training resource (admin-created, no review needed)
+      const isTrainingResource = data.isTrainingResource === true;
+      
+      // Training resources are published immediately without review
+      // Counselor resources require review before publishing
+      const isPublic = isTrainingResource ? true : false;
+      const status = isTrainingResource ? 'published' : 'pending_review';
+      const reviewed = isTrainingResource ? true : false;
+
       // Create resource with file URL
       const { data: resource, error: insertError } = await supabase
         .from('resources')
@@ -406,8 +429,10 @@ export class ResourcesApi {
           url: publicUrl,
           thumbnail: data.thumbnail,
           tags: data.tags,
-          is_public: false, // Resources must be reviewed before publishing
-          status: 'pending_review', // Default status - must be reviewed before publishing
+          is_public: isPublic,
+          status: status,
+          reviewed: reviewed,
+          is_training_resource: isTrainingResource,
           publisher: user.id,
           publisher_name: data.publisherName || user.user_metadata?.name || user.email?.split('@')[0] || 'Unknown',
           youtube_url: data.youtubeUrl,
@@ -606,6 +631,12 @@ export class ResourcesApi {
     }
     if (params?.publisher) {
       query = query.eq('publisher', params.publisher);
+    }
+    if (params?.excludeTrainingResources === true) {
+      // Exclude training resources (only show counselor resources)
+      // Filter where is_training_resource is not true (i.e., false or null)
+      // Use PostgREST OR syntax: field.is.null,field.eq.value
+      query = query.or('is_training_resource.is.null,is_training_resource.eq.false');
     }
     if (params?.search) {
       query = query.or(`title.ilike.%${params.search}%,description.ilike.%${params.search}%`);
@@ -965,6 +996,7 @@ export class ResourcesApi {
       reviewedAt: dbResource.reviewed_at as string | undefined,
       reviewedBy: dbResource.reviewed_by as string | undefined,
       status: (dbResource.status as ResourceStatus) || 'pending_review',
+      isTrainingResource: dbResource.is_training_resource as boolean | undefined,
     };
   }
 

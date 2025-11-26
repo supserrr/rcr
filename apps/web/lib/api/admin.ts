@@ -299,6 +299,9 @@ export interface ListUsersResponse {
 
 let mapToAdminUserRef: ((raw: any) => AdminUser) | undefined;
 
+// Declare the function type so it's available throughout the file
+declare function mapToAdminUser(raw: any): AdminUser;
+
 function ensureMapToAdminUser(): (raw: any) => AdminUser {
   if (!mapToAdminUserRef) {
     throw new Error('mapToAdminUserRef is not initialized');
@@ -736,23 +739,27 @@ export class AdminApi {
       throw new Error(error instanceof Error ? error.message : 'Failed to get user');
     }
 
-    return {
-      id: user.id,
-      email: user.email || '',
-      fullName: user.fullName || user.full_name,
-      role:
-        this.normalizeRoleValue(user.role) ??
-        this.normalizeRoleValue(user.metadata?.role) ??
-        ('patient' as AdminUser['role']),
-      isVerified: user.isVerified || user.is_verified || false,
-      createdAt: user.createdAt || user.created_at,
-      lastLogin: user.lastLogin || user.last_login || undefined,
-      metadata: {
-        ...(user.metadata ?? {}),
-        // Include assigned_counselor_id in metadata if present
-        ...(user.assigned_counselor_id ? { assigned_counselor_id: user.assigned_counselor_id } : {}),
-      },
-    };
+    // Use mapToAdminUser to get all normalized data including documents and counselor_profiles
+    // The function is hoisted, so it should be available at runtime
+    // Initialize the reference if not already done
+    if (!mapToAdminUserRef) {
+      // Function declarations are hoisted, so mapToAdminUser should be available
+      // Access it directly - the function is defined in this file and hoisted
+      const func = mapToAdminUser;
+      if (func && typeof func === 'function') {
+        mapToAdminUserRef = func;
+      } else {
+        // If direct access fails, the function might not be hoisted in this context
+        // This should not happen, but we'll throw a helpful error
+        throw new Error('mapToAdminUser function is not available. This indicates a module loading or hoisting issue.');
+      }
+    }
+    
+    // Use the reference to map the user data
+    if (user && user.data) {
+      return mapToAdminUserRef(user.data);
+    }
+    return mapToAdminUserRef(user);
   }
 
   /**
@@ -865,6 +872,24 @@ export class AdminApi {
       }
     } else if (currentUser) {
       currentRole = deriveRoleFromUser(currentUser) ?? 'patient';
+      
+      // If role is still not determined, try querying the profiles table directly
+      if (currentRole !== 'admin' && currentRole !== 'counselor') {
+        try {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('role')
+            .eq('id', currentUser.id)
+            .maybeSingle();
+          
+          if (profile?.role === 'admin' || profile?.role === 'counselor') {
+            currentRole = profile.role;
+          }
+        } catch (profileError) {
+          // If we can't query the profile, continue with the fallback
+          console.warn('[AdminApi.listUsers] Could not query profile for role:', profileError);
+        }
+      }
     }
     const limit = params?.limit ?? 50;
     const offset = params?.offset ?? 0;
@@ -1221,6 +1246,7 @@ export class AdminApi {
   };
 
   function mapToAdminUser(raw: any): AdminUser {
+    // This function is defined here and will be hoisted
     const metadata = normalizeMetadata(raw?.metadata);
 
     const sessionStats =
@@ -1404,8 +1430,13 @@ export class AdminApi {
     const approvalNotes =
       toString(raw?.approval_notes ?? raw?.approvalNotes ?? metadata.approvalNotes);
 
-    const counselorProfile =
-      mapCounselorProfile(raw?.counselor_profile ?? raw?.counselor_profiles ?? metadata.counselorProfile);
+    // Handle counselor_profiles as array (from edge function) or single object
+    const counselorProfileRaw = raw?.counselor_profile ?? 
+      (Array.isArray(raw?.counselor_profiles) && raw.counselor_profiles.length > 0 
+        ? raw.counselor_profiles[0] 
+        : raw?.counselor_profiles) ?? 
+      metadata.counselorProfile;
+    const counselorProfile = mapCounselorProfile(counselorProfileRaw);
 
     if ((!languages || languages.length === 0) && counselorProfile?.languages?.length) {
       languages = counselorProfile.languages;
@@ -1840,7 +1871,28 @@ export class AdminApi {
     };
   }
 
-  mapToAdminUserRef = mapToAdminUser;
+  // Initialize the reference immediately after the function is defined
+  // The function declaration is hoisted, so it's available here at runtime
+  // We must initialize it here so getUser can use it even if called before listUsers
+  // Use a type-safe approach that works at runtime
+  try {
+    // Access the hoisted function - it should be available due to hoisting
+    // We use a workaround to access it since TypeScript doesn't recognize hoisting
+    const func = (() => {
+      // Function declarations are hoisted to the top of their scope
+      // At runtime, mapToAdminUser should be available here
+      return typeof mapToAdminUser !== 'undefined' ? mapToAdminUser : null;
+    })();
+    
+    if (func && typeof func === 'function') {
+      mapToAdminUserRef = func;
+    }
+  } catch (e) {
+    // If initialization fails, it will be done lazily in getUser or listUsers
+    if (process.env.NODE_ENV !== 'production') {
+      console.warn('[AdminApi] Could not initialize mapToAdminUserRef at module load:', e);
+    }
+  }
 
     if (currentRole === 'admin') {
       const functionPayload: Record<string, unknown> = {

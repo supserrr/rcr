@@ -56,10 +56,12 @@ export default function PatientResourcesPage() {
       status?: 'published';
       sortBy?: 'title' | 'created_at' | 'views' | 'downloads';
       sortOrder?: 'asc' | 'desc';
+      excludeTrainingResources?: boolean;
     } = {
       status: 'published', // Only show published resources for patients
       sortBy,
       sortOrder,
+      excludeTrainingResources: true, // Patients should never see training resources
     };
 
     if (selectedType !== 'all') {
