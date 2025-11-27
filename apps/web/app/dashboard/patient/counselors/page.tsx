@@ -713,6 +713,12 @@ const mapProfileRecordToAdminUser = (profile: RealtimeProfile): AdminUser => {
 };
 
 const canDisplayCounselorToPatient = (adminUser: AdminUser, viewerId?: string): boolean => {
+  // Only show approved counselors to patients
+  const approvalStatus = adminUser.approvalStatus;
+  if (approvalStatus && approvalStatus !== 'approved') {
+    return false;
+  }
+
   const visibility = adminUser.visibilitySettings;
   if (!visibility || visibility.patientDirectory !== false) {
     return true;
