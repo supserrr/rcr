@@ -619,21 +619,13 @@ function CounselorCard({ counselor }: { counselor: Counselor }) {
       </div>
       
       {/* Availability Badge */}
-      <div className="absolute top-4 right-4 z-10 flex flex-col gap-2 items-end">
+      <div className="absolute top-4 right-4 z-10">
         <Badge 
           variant="outline" 
           className={`${getAvailabilityBadgeStyle()} border backdrop-blur-sm text-xs font-semibold shadow-lg`}
         >
           {availabilityDisplay}
         </Badge>
-        {counselor.completedSessions !== undefined && counselor.completedSessions > 0 && (
-          <Badge 
-            variant="outline" 
-            className="bg-background/80 backdrop-blur-sm text-xs border-border shadow-lg"
-          >
-            {counselor.completedSessions} session{counselor.completedSessions === 1 ? '' : 's'}
-          </Badge>
-        )}
       </div>
 
       {/* Smooth Blur Overlay - Multiple layers for seamless fade */}

@@ -9,9 +9,144 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { getOnboardingRoute } from '@/lib/auth';
 import { env } from '@/src/env';
+import type { CounselorApprovalStatus } from '@/lib/types';
 
 const OAUTH_STORAGE_KEY = 'rcr.oauth.payload';
 const CALLBACK_LOADING_PATH = '/auth/callback/loading';
+
+/**
+ * Check if user has completed onboarding (server-side version)
+ * Uses the same logic as isOnboardingComplete in lib/auth.ts
+ */
+async function checkOnboardingComplete(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string,
+  userRole: string,
+  userMetadata: Record<string, unknown>
+): Promise<boolean> {
+  if (!supabase) return false;
+
+  // For counselors: Check approval status and profile
+  if (userRole === 'counselor') {
+    // Check approval status from metadata first
+    const approvalStatus = 
+      (userMetadata.approvalStatus as CounselorApprovalStatus) || 
+      (userMetadata.approval_status as CounselorApprovalStatus);
+    
+    if (approvalStatus === 'approved') {
+      return true;
+    }
+
+    // Check profile for approval status
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('approval_status, approval_reviewed_at')
+      .eq('id', userId)
+      .maybeSingle();
+
+    if (profile) {
+      const profileApprovalStatus = profile.approval_status as CounselorApprovalStatus | null;
+      if (profileApprovalStatus === 'approved') {
+        return true;
+      }
+
+      // Check if they have a counselor profile (indicates onboarding was completed)
+      const { data: counselorProfile } = await supabase
+        .from('counselor_profiles')
+        .select('id')
+        .eq('profile_id', userId)
+        .maybeSingle();
+
+      if (counselorProfile) {
+        return true;
+      }
+
+      // Check if approval was reviewed (even if pending, if reviewed, they've completed onboarding)
+      if (profile.approval_reviewed_at) {
+        if (profileApprovalStatus !== 'rejected') {
+          return true;
+        }
+      }
+    }
+  }
+
+  // For patients: Check if they have essential profile data
+  if (userRole === 'patient') {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('treatment_stage, contact_phone, emergency_contact_name, emergency_contact_phone, metadata')
+      .eq('id', userId)
+      .maybeSingle();
+
+    if (profile) {
+      const profileMetadata = (profile.metadata || {}) as Record<string, unknown>;
+      
+      const hasTreatmentInfo = 
+        profile.treatment_stage ||
+        profileMetadata.treatmentStage || 
+        profileMetadata.treatment_stage ||
+        profileMetadata.diagnosis ||
+        profileMetadata.cancerType ||
+        profileMetadata.cancer_type;
+      
+      const hasContactInfo = 
+        profile.contact_phone ||
+        userMetadata.contactPhone || 
+        userMetadata.contact_phone ||
+        userMetadata.phoneNumber ||
+        userMetadata.phone_number;
+      
+      const hasEmergencyContact = 
+        profile.emergency_contact_name ||
+        profile.emergency_contact_phone ||
+        userMetadata.emergencyContactName ||
+        userMetadata.emergency_contact_name ||
+        userMetadata.emergencyContactPhone ||
+        userMetadata.emergency_contact_phone;
+
+      // If patient has treatment info and contact info, they've likely completed onboarding
+      if (hasTreatmentInfo && hasContactInfo) {
+        return true;
+      }
+
+      // If they have emergency contact and contact info, also consider it complete
+      if (hasEmergencyContact && hasContactInfo) {
+        return true;
+      }
+    }
+  }
+
+    // Check onboarding_completed flag from metadata
+    const onboardingObj = userMetadata.onboarding as Record<string, unknown> | undefined;
+    const flag =
+      userMetadata.onboarding_completed ??
+      userMetadata.onboardingCompleted ??
+      userMetadata.onboarding_complete ??
+      userMetadata.has_completed_onboarding ??
+      onboardingObj?.completed ??
+      onboardingObj?.isComplete ??
+      onboardingObj?.is_completed;
+
+  if (typeof flag === 'boolean') {
+    return flag;
+  }
+
+  if (typeof flag === 'string') {
+    const normalized = flag.trim().toLowerCase();
+    return normalized === 'true' || normalized === '1' || normalized === 'yes' || normalized === 'completed';
+  }
+
+  if (typeof flag === 'number') {
+    return flag === 1;
+  }
+
+  // Check for completion timestamp
+  if (userMetadata.onboarding_completed_at || userMetadata.onboardingCompletedAt) {
+    return true;
+  }
+
+  return false;
+}
 
 /**
  * OAuth callback handler
@@ -133,10 +268,10 @@ export async function GET(request: Request) {
         }
       }
 
-      // Check if onboarding is complete
+      // Check if onboarding is complete using comprehensive check
       const userMetadata = data.user.user_metadata || {};
-      const onboardingCompleted = userMetadata.onboarding_completed === true;
       const userRole = (userMetadata.role as string) || role || 'patient';
+      const onboardingCompleted = await checkOnboardingComplete(supabase, data.user.id, userRole, userMetadata);
       
       // If onboarding is not complete, redirect to onboarding
       // If "next" is already an onboarding route, use it; otherwise redirect to appropriate onboarding
@@ -283,10 +418,10 @@ export async function GET(request: Request) {
         }
       }
 
-      // Check if onboarding is complete
+      // Check if onboarding is complete using comprehensive check
       const userMetadata = data.user.user_metadata || {};
-      const onboardingCompleted = userMetadata.onboarding_completed === true;
       const userRole = (userMetadata.role as string) || role || 'patient';
+      const onboardingCompleted = await checkOnboardingComplete(supabase, data.user.id, userRole, userMetadata);
       
       // If onboarding is not complete, redirect to onboarding
       // If "next" is already an onboarding route, use it; otherwise redirect to appropriate onboarding

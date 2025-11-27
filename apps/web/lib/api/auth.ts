@@ -533,11 +533,13 @@ async function syncProfileRecord(
     fallback: unknown,
     existing: unknown,
   ) => {
-    if (explicit !== undefined) {
+    // Always use explicit value if provided (for updates)
+    if (explicit !== undefined && explicit !== null) {
       payload[key] = explicit;
       return;
     }
 
+    // Use fallback if no existing value
     if (!existingProfile || existing === null || existing === undefined) {
       if (fallback !== undefined) {
         payload[key] = fallback;

@@ -1071,10 +1071,6 @@ export default function PatientCounselorsPage() {
             {featuredDisplayCounselors.map((counselor, index) => {
               const isFeatured = index === 0;
               const primaryBadgeLabel = isFeatured ? 'Featured' : 'Top Pick';
-              const completedSessionsLabel =
-                typeof counselor.completedSessions === 'number' && counselor.completedSessions > 0
-                  ? `${counselor.completedSessions} session${counselor.completedSessions === 1 ? '' : 's'} completed`
-                  : null;
 
               return (
                 <div key={counselor.id} className="relative">
@@ -1100,11 +1096,6 @@ export default function PatientCounselorsPage() {
                     <Star className="w-3 h-3 mr-1 fill-current" />
                     {primaryBadgeLabel}
                   </Badge>
-                  {completedSessionsLabel && (
-                    <Badge className="absolute top-4 right-4 bg-background/80 backdrop-blur border border-border shadow-md text-xs">
-                      {completedSessionsLabel}
-                    </Badge>
-                  )}
                 </div>
               );
             })}

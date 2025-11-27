@@ -243,9 +243,9 @@ export default function AdminResourcesReviewPage() {
                            (statusFilter === 'private' && !resource.isPublic);
       // Filter by review status based on active tab
       const matchesReviewStatus = reviewTab === 'review'
-        ? (resource.status === 'pending_review' || !resource.status)
+        ? (resource.status === 'pending_review' || !resource.status || resource.status === 'reviewed')
         : reviewTab === 'published'
-        ? (resource.status === 'published')
+        ? (resource.status === 'published' || (resource.isPublic && (!resource.status || resource.status === 'reviewed')))
         : reviewTab === 'rejected'
         ? (resource.status === 'rejected')
         : false;

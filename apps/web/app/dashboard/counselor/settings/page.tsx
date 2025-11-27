@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatedPageHeader } from '@workspace/ui/components/animated-page-header';
 import { AnimatedCard } from '@workspace/ui/components/animated-card';
 import { Button } from '@workspace/ui/components/button';
@@ -188,7 +188,7 @@ const getApprovalBadgeStyles = (status: CounselorApprovalStatus) => {
 };
 
 export default function CounselorSettingsPage() {
-  const { user, isLoading: authLoading } = useAuth();
+  const { user, isLoading: authLoading, checkAuth } = useAuth();
   const [activeTab, setActiveTab] = useState('profile');
   const [isSaving, setIsSaving] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
@@ -197,6 +197,8 @@ export default function CounselorSettingsPage() {
   const [deleteConfirmation, setDeleteConfirmation] = useState('');
   const [newLanguage, setNewLanguage] = useState('');
   const [isCreatingTicket, setIsCreatingTicket] = useState(false);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [ticketForm, setTicketForm] = useState({
     subject: '',
     category: '',
@@ -614,6 +616,51 @@ export default function CounselorSettingsPage() {
 
     loadProfile();
   }, [user]);
+
+  const handleAvatarButtonClick = () => {
+    if (isUploadingAvatar) return;
+    fileInputRef.current?.click();
+  };
+
+  const handleAvatarFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const isImage = /image\/(png|jpeg|jpg)/i.test(file.type);
+    const isSmallEnough = file.size <= 2 * 1024 * 1024;
+
+    if (!isImage || !isSmallEnough) {
+      toast.error('Please upload a JPG or PNG image under 2MB.');
+      event.target.value = '';
+      return;
+    }
+
+    setIsUploadingAvatar(true);
+    try {
+      const { url, user: updatedUser } = await AuthApi.uploadProfileImage(file);
+      
+      // Update local profile state
+      setProfile((prev) => ({
+        ...prev,
+        avatar_url: url,
+      }));
+      
+      // Refresh user in auth context to update avatar across the app
+      await checkAuth();
+      
+      toast.success('Profile image updated successfully.');
+    } catch (error) {
+      console.error('Failed to upload avatar:', error);
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : 'Failed to update profile image. Please try again.',
+      );
+    } finally {
+      setIsUploadingAvatar(false);
+      event.target.value = '';
+    }
+  };
 
   const handleSaveProfile = async () => {
     if (!user?.id) {
@@ -1102,11 +1149,23 @@ export default function CounselorSettingsPage() {
                           size="sm"
                           variant="outline"
                           className="absolute -bottom-2 -right-2 h-8 w-8 rounded-full shadow-lg border-primary/20 hover:bg-primary/10"
-                          disabled
-                          title="Profile photo uploads will arrive soon"
+                          onClick={handleAvatarButtonClick}
+                          disabled={isUploadingAvatar}
+                          title="Upload profile picture"
                         >
-                          <Camera className="h-4 w-4 text-primary" />
+                          {isUploadingAvatar ? (
+                            <Spinner variant="bars" size={16} className="text-primary" />
+                          ) : (
+                            <Camera className="h-4 w-4 text-primary" />
+                          )}
                         </Button>
+                        <input
+                          ref={fileInputRef}
+                          type="file"
+                          accept="image/png,image/jpeg,image/jpg"
+                          className="hidden"
+                          onChange={handleAvatarFileChange}
+                        />
                       </div>
                       <div>
                         <h2 className="text-2xl font-bold text-foreground">{displayFullName}</h2>

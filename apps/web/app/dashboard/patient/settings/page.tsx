@@ -64,7 +64,7 @@ import { Spinner } from '@workspace/ui/components/ui/shadcn-io/spinner';
 import { normalizeAvatarUrl } from '@workspace/ui/lib/avatar';
 
 export default function PatientSettingsPage() {
-  const { user, isLoading: authLoading } = useAuth();
+  const { user, isLoading: authLoading, checkAuth } = useAuth();
   const [activeTab, setActiveTab] = useState('profile');
   const [isSaving, setIsSaving] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
@@ -102,11 +102,17 @@ export default function PatientSettingsPage() {
 
     setIsUploadingAvatar(true);
     try {
-      const { url } = await AuthApi.uploadProfileImage(file);
+      const { url, user: updatedUser } = await AuthApi.uploadProfileImage(file);
+      
+      // Update local profile state
       setProfile((prev) => ({
         ...prev,
         avatar_url: url,
       }));
+      
+      // Refresh user in auth context to update avatar across the app
+      await checkAuth();
+      
       toast.success('Profile image updated successfully.');
     } catch (error) {
       console.error('Failed to upload avatar:', error);

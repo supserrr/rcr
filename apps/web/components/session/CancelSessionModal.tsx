@@ -49,9 +49,12 @@ export function CancelSessionModal({
     setIsLoading(true);
     try {
       await onCancel(session.id, cancellationReason, cancellationNotes);
+      // Only close if cancellation was successful
       onClose();
     } catch (error) {
       console.error('Error cancelling session:', error);
+      // Re-throw error so parent component can handle it (show toast, etc.)
+      throw error;
     } finally {
       setIsLoading(false);
     }

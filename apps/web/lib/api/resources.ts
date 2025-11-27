@@ -627,7 +627,15 @@ export class ResourcesApi {
       query = query.eq('is_public', params.isPublic);
     }
     if (params?.status) {
-      query = query.eq('status', params.status);
+      if (params.status === 'published') {
+        // For 'published' status, fetch resources that are either:
+        // 1. Explicitly marked as 'published', OR
+        // 2. Public resources (which should be considered published)
+        // We'll filter more precisely in the mapping step below
+        query = query.or('status.eq.published,is_public.eq.true');
+      } else {
+        query = query.eq('status', params.status);
+      }
     }
     if (params?.publisher) {
       query = query.eq('publisher', params.publisher);
@@ -657,8 +665,21 @@ export class ResourcesApi {
       throw new Error(error.message || 'Failed to list resources');
     }
 
+    // Map resources and apply additional filtering for 'published' status
+    // This handles cases where resources are public but status is 'reviewed' or null
+    let mappedResources = (resources || []).map(r => this.mapResourceFromDb(r));
+    
+    // If filtering by 'published' status, also include resources that are public
+    // but have 'reviewed' status or null status (legacy resources)
+    if (params?.status === 'published') {
+      mappedResources = mappedResources.filter(r => 
+        r.status === 'published' || 
+        (r.isPublic && (!r.status || r.status === 'reviewed'))
+      );
+    }
+
     return {
-      resources: (resources || []).map(r => this.mapResourceFromDb(r)),
+      resources: mappedResources,
       total: count || 0,
       limit,
       offset,

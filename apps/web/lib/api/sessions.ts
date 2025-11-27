@@ -78,6 +78,7 @@ export interface RescheduleSessionInput {
  */
 export interface CancelSessionInput {
   reason?: string;
+  notes?: string;
 }
 
 /**
@@ -514,22 +515,66 @@ export class SessionsApi {
       throw new Error('Supabase is not configured. Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.');
     }
 
+    // First, get the current session to check if it exists and can be cancelled
+    const { data: currentSession, error: fetchError } = await supabase
+      .from('sessions')
+      .select('id, status, notes, patient_id, counselor_id')
+      .eq('id', sessionId)
+      .single();
+
+    if (fetchError || !currentSession) {
+      throw new Error(fetchError?.message || 'Session not found');
+    }
+
+    // Check if session is already cancelled
+    if (currentSession.status === 'cancelled') {
+      throw new Error('Session is already cancelled');
+    }
+
+    // Check if session is completed (can't cancel completed sessions)
+    if (currentSession.status === 'completed') {
+      throw new Error('Cannot cancel a completed session');
+    }
+
+    // Build update object - only include notes if reason is provided
+    const updateData: { status: string; notes?: string; updated_at?: string } = {
+      status: 'cancelled',
+      updated_at: new Date().toISOString(),
+    };
+
+    // Handle notes - append cancellation reason to existing notes if they exist
+    if (data?.reason) {
+      const cancellationNote = `Cancelled: ${data.reason}${data.notes ? ` - ${data.notes}` : ''}`;
+      if (currentSession.notes) {
+        updateData.notes = `${currentSession.notes}\n\n${cancellationNote}`;
+      } else {
+        updateData.notes = cancellationNote;
+      }
+    } else if (data?.notes) {
+      // If only notes provided without reason
+      const cancellationNote = `Cancelled: ${data.notes}`;
+      if (currentSession.notes) {
+        updateData.notes = `${currentSession.notes}\n\n${cancellationNote}`;
+      } else {
+        updateData.notes = cancellationNote;
+      }
+    }
+
     const { data: session, error } = await supabase
       .from('sessions')
-      .update({
-        status: 'cancelled',
-        notes: data?.reason ? `Cancelled: ${data.reason}` : undefined,
-      })
+      .update(updateData)
       .eq('id', sessionId)
       .select()
       .single();
 
     if (error || !session) {
+      console.error('[SessionsApi.cancelSession] Update error:', error);
       throw new Error(error?.message || 'Failed to cancel session');
     }
 
     const mapped = this.mapSessionFromDb(session);
 
+    // Send notification asynchronously (don't wait for it)
     void fetch('/api/notifications/events/session', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
