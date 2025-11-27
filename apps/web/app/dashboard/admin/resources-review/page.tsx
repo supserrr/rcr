@@ -2593,10 +2593,10 @@ export default function AdminResourcesReviewPage() {
                           onClick={async () => {
                             try {
                               await updateResource(resource.id, {
-                                status: 'reviewed',
+                                status: 'published',
                                 reviewed: true,
                               });
-                              toast.success('Resource accepted');
+                              toast.success('Resource accepted and published');
                               refreshResources();
                             } catch (error) {
                               console.error('Error accepting resource:', error);

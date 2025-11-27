@@ -736,17 +736,20 @@ export class ResourcesApi {
         }
       } else if (data.status === 'published') {
         // Publishing requires reviewed status
-        // First check if resource is reviewed
+        // Check if resource is already reviewed OR if reviewed flag is being set in this update
         const { data: existingResource } = await supabase
           .from('resources')
           .select('reviewed, status')
           .eq('id', resourceId)
           .single();
         
-        if (existingResource && !existingResource.reviewed) {
+        // Allow publishing if resource is already reviewed OR if reviewed flag is being set in this update
+        const isBeingReviewed = data.reviewed === true;
+        if (existingResource && !existingResource.reviewed && !isBeingReviewed) {
           throw new Error('Resource must be reviewed before it can be published');
         }
         
+        // Always set reviewed to true when publishing
         updateData.reviewed = true;
         updateData.is_public = true;
         if (!updateData.reviewed_at) {
