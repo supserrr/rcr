@@ -250,14 +250,18 @@ export interface Session {
 - `@jitsi/react-sdk`: ^1.4.4
 - Jitsi Meet External API (loaded dynamically)
 
+## Documentation
+
+For detailed setup and configuration guides, see:
+
+- **[Setup Guide](jitsi/SETUP.md)** - Basic configuration and deployment options
+- **[Keys Setup Guide](jitsi/KEYS_SETUP.md)** - How to configure Jitsi JaaS keys
+- **[Production Deployment](../deployment/JITSI_PRODUCTION.md)** - Production deployment guide
+- **[Environment Variables](../deployment/ENV_EXAMPLE.md)** - Complete environment variable reference
+
 ## Environment Variables
 
-For production deployment, consider adding:
-
-```env
-NEXT_PUBLIC_JITSI_DOMAIN=your-jitsi-domain.com
-NEXT_PUBLIC_JITSI_APP_ID=your-app-id
-```
+For production deployment, see the [Environment Variables documentation](../deployment/ENV_EXAMPLE.md) for complete setup instructions.
 
 ## Testing
 
@@ -272,6 +276,8 @@ Test the implementation:
 7. Test video/audio controls
 8. End session
 9. Verify post-session flow
+
+For detailed testing instructions, see the [Jitsi Testing Guide](jitsi/TESTING.md).
 
 ## Notes
 

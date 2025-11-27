@@ -144,8 +144,11 @@ Both scripts connect to Supabase using the environment variables configured in `
 - Start at the [Documentation Index](docs/INDEX.md)
 - Architecture decisions: `docs/architecture/`
 - Component usage and design system: `docs/components/`
+- Deployment guides: `docs/deployment/`
+- Feature documentation: `docs/features/`
 - Application-specific guides: `docs/apps/`
 - Development practices: `docs/development/`
+- Bug fixes and troubleshooting: `docs/fixes/`
 - Legacy backend archive: `docs/legacy/backend/`
 
 Follow the writing standards in `docs/README.md` when adding or updating documentation.

@@ -11,8 +11,11 @@ docs/
 ├── architecture/               # System architecture and design decisions
 ├── components/                 # UI component documentation
 ├── development/                # Development guides and best practices
+├── deployment/                 # Deployment and environment setup guides
+├── features/                   # Feature-specific documentation
+├── fixes/                      # Bug fix summaries and troubleshooting
 ├── apps/                       # Application-specific documentation
-└── backend/                    # Backend documentation (coming soon)
+└── legacy/                     # Archived documentation for reference
 ```
 
 ## 🏗️ Architecture Documentation
@@ -64,13 +67,42 @@ Located in `docs/apps/`:
 
 Located in `docs/development/`:
 
-*Coming soon - development guides, coding standards, and best practices*
+- **[Consistency Fixes](development/CONSISTENCY_FIXES.md)** - Code consistency improvements
+- **[Demo Removal Summary](development/DEMO_REMOVAL_SUMMARY.md)** - Cleanup of demo content
+- **[Frontend Architecture Study](development/FRONTEND_ARCHITECTURE_STUDY.md)** - Architecture analysis
 
-## 🗄️ Backend Documentation
+## 🚀 Deployment Documentation
 
-Located in `docs/backend/`:
+Located in `docs/deployment/`:
 
-*Coming soon - backend services, API documentation, and database schemas*
+- **[Environment Variables Example](deployment/ENV_EXAMPLE.md)** - Complete environment variable reference
+- **[Google OAuth Setup](deployment/GOOGLE_OAUTH_SETUP.md)** - Google OAuth configuration guide
+- **[Jitsi Production Deployment](deployment/JITSI_PRODUCTION.md)** - Jitsi production setup
+- **[Resend Email Setup](deployment/RESEND_EMAIL_SETUP.md)** - Email configuration
+- **[Resend Quick Setup](deployment/RESEND_QUICK_SETUP.md)** - Quick email setup guide
+- **[Supabase Redirect URLs](deployment/SUPABASE_REDIRECT_URLS.md)** - URL configuration
+- **[Supabase Storage Limits](deployment/SUPABASE_STORAGE_LIMITS.md)** - Storage information
+- **[Vercel Deployment](deployment/VERCEL_DEPLOYMENT.md)** - Vercel deployment guide
+- **[Vercel Deployment Summary](deployment/VERCEL_DEPLOYMENT_SUMMARY.md)** - Deployment overview
+
+## 🎯 Features Documentation
+
+Located in `docs/features/`:
+
+### Jitsi Video Conferencing
+
+- **[Jitsi Integration Overview](features/JITSI_INTEGRATION.md)** - Complete Jitsi integration guide
+- **[Jitsi Setup Guide](features/jitsi/SETUP.md)** - Basic configuration and setup
+- **[Jitsi Keys Setup](features/jitsi/KEYS_SETUP.md)** - JaaS keys configuration
+- **[Jitsi Testing Guide](features/jitsi/TESTING.md)** - Testing instructions
+
+## 🔧 Fixes Documentation
+
+Located in `docs/fixes/`:
+
+- **[Session Card Patient Details Fix](fixes/SESSION_CARD_PATIENT_DETAILS_FIX.md)** - Patient details display fix
+- **[Supabase Query Error Troubleshooting](fixes/SUPABASE_QUERY_ERROR_TROUBLESHOOTING.md)** - Query error solutions
+- **[Testing Session Card Fixes](fixes/TESTING_SESSION_CARD_FIXES.md)** - Testing guide for fixes
 
 ## 🎯 Quick Navigation
 
@@ -93,13 +125,15 @@ Located in `docs/backend/`:
 
 ## 📊 Documentation Statistics
 
-- **Total Documentation Files**: 25+
+- **Total Documentation Files**: 40+
 - **Architecture Documents**: 3
 - **Component Integration Guides**: 7
 - **Quick Start Guides**: 7
 - **Component Overviews**: 3
-- **Application Guides**: 4
-- **Setup Documentation**: 1
+- **Application Guides**: 2
+- **Deployment Guides**: 9
+- **Feature Documentation**: 4
+- **Fix Documentation**: 3
 
 ## 🔄 Documentation Maintenance
 

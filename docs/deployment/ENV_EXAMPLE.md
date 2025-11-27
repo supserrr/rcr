@@ -52,6 +52,25 @@ NEXT_PUBLIC_SOCKET_URL=ws://localhost:3000
 NEXT_PUBLIC_GOOGLE_CLIENT_ID=your-google-client-id.apps.googleusercontent.com
 ```
 
+See [GOOGLE_OAUTH_SETUP.md](./GOOGLE_OAUTH_SETUP.md) for detailed setup instructions.
+
+## Jitsi Video Conferencing
+
+```env
+# Jitsi Domain (default: meet.jit.si for free tier)
+NEXT_PUBLIC_JITSI_DOMAIN=8x8.vc
+
+# Jitsi JaaS App ID (required for JaaS)
+NEXT_PUBLIC_JITSI_APP_ID=your-jitsi-app-id
+
+# Jitsi Private Key (server-side only, for JWT signing)
+JITSI_PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----
+[... your full private key ...]
+-----END RSA PRIVATE KEY-----"
+```
+
+See [Jitsi Setup Guide](../features/jitsi/SETUP.md) and [Jitsi Production Deployment](./JITSI_PRODUCTION.md) for detailed setup instructions.
+
 ## AI Assistant
 
 ```env
@@ -72,6 +91,11 @@ SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 
 # Supabase Access Token (for Management API, server-side only)
 SUPABASE_ACCESS_TOKEN=your-access-token
+
+# Jitsi Private Key (server-side only, for JWT signing)
+JITSI_PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----
+[... your full private key ...]
+-----END RSA PRIVATE KEY-----"
 ```
 
 ## Development Setup
@@ -98,6 +122,9 @@ SUPABASE_ACCESS_TOKEN=your-access-token
    - `NEXT_PUBLIC_SUPABASE_URL`
    - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
    - `NEXT_PUBLIC_GOOGLE_CLIENT_ID`
+   - `NEXT_PUBLIC_JITSI_DOMAIN` (if using JaaS)
+   - `NEXT_PUBLIC_JITSI_APP_ID` (if using JaaS)
+   - `JITSI_PRIVATE_KEY` (server-side only, if using JaaS)
    - Any other required variables
 
 3. **Set environment-specific values**:
@@ -111,7 +138,7 @@ SUPABASE_ACCESS_TOKEN=your-access-token
 
 ## Security Notes
 
-- ✅ **Safe for client-side** (NEXT_PUBLIC_*): Supabase URL, Anon Key, Google Client ID
-- ❌ **Never expose to client**: Service Role Key, Access Token, API Keys
+- ✅ **Safe for client-side** (NEXT_PUBLIC_*): Supabase URL, Anon Key, Google Client ID, Jitsi Domain, Jitsi App ID
+- ❌ **Never expose to client**: Service Role Key, Access Token, API Keys, Jitsi Private Key
 - 🔒 **Keep secrets secure**: Use Vercel Environment Variables for production
 - 🔄 **Rotate keys regularly**: Especially after team member changes
