@@ -531,9 +531,18 @@ const mapAdminUserToCounselor = (user: AdminUser): CounselorProfile => {
     toString(metadata.professionalTitle) ??
     toString(metadata.professional_title) ??
     toString(metadata.title);
-  const displayName = professionalTitle
-    ? `${professionalTitle} ${baseName}`.trim()
-    : baseName;
+  const displayName = (() => {
+    if (!professionalTitle) {
+      return baseName;
+    }
+    // Check if baseName already starts with the professional title to avoid duplication
+    const titleLower = professionalTitle.trim().toLowerCase();
+    const baseNameLower = baseName.trim().toLowerCase();
+    if (baseNameLower.startsWith(titleLower)) {
+      return baseName.trim();
+    }
+    return `${professionalTitle} ${baseName}`.trim();
+  })();
 
   const createdAt =
     toString(user.createdAt) ??

@@ -361,9 +361,18 @@ const adminUserToLandingCounselor = (user: AdminUser): Counselor | null => {
     toString(metadata.professionalTitle) ??
     toString(metadata.professional_title) ??
     toString(metadata.title);
-  const name = professionalTitle
-    ? `${professionalTitle} ${baseName}`.trim()
-    : baseName;
+  const name = (() => {
+    if (!professionalTitle) {
+      return baseName;
+    }
+    // Check if baseName already starts with the professional title to avoid duplication
+    const titleLower = professionalTitle.trim().toLowerCase();
+    const baseNameLower = baseName.trim().toLowerCase();
+    if (baseNameLower.startsWith(titleLower)) {
+      return baseName.trim();
+    }
+    return `${professionalTitle} ${baseName}`.trim();
+  })();
 
   const title = specialty;
 
