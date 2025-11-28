@@ -2,11 +2,31 @@
   "name": "rwanda-cancer-relief",
   "version": "0.0.1",
   "private": true,
+  "description": "Healthcare management platform for Rwanda Cancer Relief",
+  "keywords": [
+    "healthcare",
+    "cancer-relief",
+    "nextjs",
+    "supabase",
+    "typescript"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-org/rwanda-cancer-relief.git"
+  },
+  "author": "Rwanda Cancer Relief Development Team",
+  "license": "MIT",
   "scripts": {
     "build": "turbo build",
     "dev": "turbo dev",
     "lint": "turbo lint",
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:unit": "vitest run --dir apps/web/__tests__/unit",
+    "test:integration": "vitest run --dir apps/web/__tests__/integration",
+    "test:e2e": "playwright test",
+    "test:coverage": "vitest run --coverage",
     "seed:dashboard": "tsx scripts/seed-dashboard-data.ts",
     "test:dashboard-data": "tsx scripts/test-dashboard-data.ts",
     "backfill:avatars": "tsx scripts/backfill-counselor-avatars.ts",

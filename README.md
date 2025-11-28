@@ -162,3 +162,13 @@ Follow the writing standards in `docs/README.md` when adding or updating documen
 - Review open tasks and next steps in `docs/NEXT_STEPS.md`.
 - For Supabase or schema issues, consult the migrations and the seed scripts in `supabase/` and `scripts/`.
 - For legacy backend questions, rely on `docs/legacy/backend/` to avoid reintroducing deprecated services.
+
+## Handover
+
+This repository has been prepared for handover with comprehensive documentation and industry-standard practices. For handover information, see:
+
+- [Handover Guide](docs/HANDOVER.md) - Complete handover documentation
+- [Onboarding Guide](docs/ONBOARDING.md) - New developer onboarding
+- [Project Structure](docs/PROJECT_STRUCTURE.md) - Detailed project structure
+- [Architecture Overview](docs/ARCHITECTURE.md) - System architecture
+- [Known Issues](docs/HANDOVER/KNOWN_ISSUES.md) - Known issues and technical debt
