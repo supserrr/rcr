@@ -39,8 +39,31 @@ const SUPPRESSED_PATTERNS = [
   // Network errors from third-party services (non-critical)
   /net::ERR_BLOCKED_BY_CLIENT/i,
   /net::ERR_NAME_NOT_RESOLVED/i,
+  /net::ERR_INTERNET_DISCONNECTED/i,
   /ERR_BLOCKED_BY_CLIENT/i,
   /ERR_NAME_NOT_RESOLVED/i,
+  /ERR_INTERNET_DISCONNECTED/i,
+  
+  // Vercel Analytics (blocked by content blockers, non-critical)
+  /vercel.*speed-insights/i,
+  /vercel.*insights/i,
+  /_vercel\/speed-insights/i,
+  /_vercel\/insights/i,
+  /\[Vercel Speed Insights\]/i,
+  /\[Vercel Web Analytics\]/i,
+  
+  // WebSocket connection failures when offline (non-critical)
+  /WebSocket connection.*failed/i,
+  /WebSocket.*ERR_INTERNET_DISCONNECTED/i,
+  /realtime.*websocket.*failed/i,
+  
+  // Supabase token refresh failures when offline (non-critical)
+  /auth\/v1\/token.*grant_type=refresh_token/i,
+  /token.*refresh.*ERR_INTERNET_DISCONNECTED/i,
+  
+  // Permissions-Policy header warnings (browser compatibility, non-critical)
+  /Permissions-Policy.*Unrecognized feature/i,
+  /browsing-topics/i,
   
   // Jitsi internal warnings
   /PLAY_SOUND: no sound found/i,

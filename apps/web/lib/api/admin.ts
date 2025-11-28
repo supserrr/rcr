@@ -2494,6 +2494,59 @@ export class AdminApi {
     return Object.fromEntries(sanitizedEntries);
   }
 
+  /**
+   * Check if an error indicates the user is offline
+   */
+  private static isOfflineError(error: unknown): boolean {
+    if (typeof error === 'string') {
+      return /ERR_INTERNET_DISCONNECTED|Failed to fetch|network error|offline/i.test(error);
+    }
+    if (error instanceof Error) {
+      return /ERR_INTERNET_DISCONNECTED|Failed to fetch|network error|offline/i.test(error.message);
+    }
+    return false;
+  }
+
+  /**
+   * Retry a function with exponential backoff
+   */
+  private static async retryWithBackoff<T>(
+    fn: () => Promise<T>,
+    maxRetries: number = 3,
+    initialDelay: number = 1000,
+  ): Promise<T> {
+    let lastError: Error | null = null;
+    
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        return await fn();
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error(String(error));
+        
+        // Don't retry on offline errors or 404 (function doesn't exist)
+        if (this.isOfflineError(error) || (error instanceof Error && error.message.includes('404'))) {
+          throw lastError;
+        }
+        
+        // Don't retry on auth errors
+        if (error instanceof Error && /401|403|authentication|unauthorized/i.test(error.message)) {
+          throw lastError;
+        }
+        
+        // If this was the last attempt, throw the error
+        if (attempt === maxRetries) {
+          throw lastError;
+        }
+        
+        // Calculate delay with exponential backoff
+        const delay = initialDelay * Math.pow(2, attempt);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+    
+    throw lastError || new Error('Retry failed');
+  }
+
   private static async invokeAdminFunction<T>(
     supabase: NonNullable<ReturnType<typeof createClient>>,
     payload: Record<string, unknown>,
@@ -2513,6 +2566,7 @@ export class AdminApi {
 
     let primaryError: Error | null = null;
 
+    // Try Supabase SDK invoke first
     try {
       const { data, error } = await supabase.functions.invoke('admin', {
         method: 'POST',
@@ -2533,86 +2587,103 @@ export class AdminApi {
         `Supabase function returned unexpected payload: ${JSON.stringify(data)}`;
       primaryError = new Error(functionErrorMessage);
     } catch (invokeError) {
+      // Check if it's an offline error
+      if (this.isOfflineError(invokeError)) {
+        throw new Error('You appear to be offline. Please check your internet connection and try again.');
+      }
       primaryError =
         invokeError instanceof Error
           ? invokeError
           : new Error(String(invokeError ?? 'Unknown error invoking edge function'));
     }
 
-    let response: Response;
-    try {
-      response = await fetch(`${supabaseUrl}/functions/v1/admin`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          apikey: supabaseAnonKey,
-          Authorization: `Bearer ${accessToken}`,
-        },
-        body: JSON.stringify(sanitizedPayload),
-      });
-    } catch (networkError) {
-      const label = debugLabel ? ` (${debugLabel})` : '';
-      const networkMessage =
-        networkError instanceof Error ? networkError.message : String(networkError ?? 'Unknown network error');
-      throw new Error(
-        `Edge function${label} network error: ${networkMessage}${
-          primaryError ? `; previous=${primaryError.message}` : ''
-        }`,
-      );
-    }
-
-    const responseBody = await response.text();
-    let parsed: any = null;
-
-    if (responseBody) {
+    // Fallback to direct fetch with retry logic
+    return this.retryWithBackoff(async () => {
+      let response: Response;
       try {
-        parsed = JSON.parse(responseBody);
-      } catch {
+        response = await fetch(`${supabaseUrl}/functions/v1/admin`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            apikey: supabaseAnonKey,
+            Authorization: `Bearer ${accessToken}`,
+          },
+          body: JSON.stringify(sanitizedPayload),
+        });
+      } catch (networkError) {
+        // Check if it's an offline error
+        if (this.isOfflineError(networkError)) {
+          throw new Error('You appear to be offline. Please check your internet connection and try again.');
+        }
         const label = debugLabel ? ` (${debugLabel})` : '';
+        const networkMessage =
+          networkError instanceof Error ? networkError.message : String(networkError ?? 'Unknown network error');
         throw new Error(
-          `Edge function${label} returned invalid JSON: ${responseBody}`,
+          `Edge function${label} network error: ${networkMessage}${
+            primaryError ? `; previous=${primaryError.message}` : ''
+          }`,
         );
       }
-    }
 
-    if (!response.ok) {
-      const label = debugLabel ? ` (${debugLabel})` : '';
-      let errorMessage = `Edge function${label} failed. status=${response.status}`;
-      
-      // Try to parse error message from response
-      if (parsed?.error) {
-        errorMessage += ` error=${parsed.error}`;
-        if (typeof parsed.error === 'object' && parsed.error.message) {
-          errorMessage = parsed.error.message;
-        } else if (typeof parsed.error === 'string') {
-          errorMessage = parsed.error;
+      const responseBody = await response.text();
+      let parsed: any = null;
+
+      if (responseBody) {
+        try {
+          parsed = JSON.parse(responseBody);
+        } catch {
+          const label = debugLabel ? ` (${debugLabel})` : '';
+          throw new Error(
+            `Edge function${label} returned invalid JSON: ${responseBody}`,
+          );
         }
-      } else if (responseBody) {
-        errorMessage += ` body=${responseBody}`;
       }
-      
-      // Provide helpful messages for common status codes
-      if (response.status === 403) {
-        errorMessage = 'You do not have permission to perform this action. Please ensure you are logged in as a counselor or admin.';
-      } else if (response.status === 401) {
-        errorMessage = 'Authentication failed. Please log in again.';
-      } else if (response.status === 404 && errorMessage.includes('Patient not found')) {
-        errorMessage = 'Patient not found. Please ensure the patient ID is correct.';
+
+      if (!response.ok) {
+        const label = debugLabel ? ` (${debugLabel})` : '';
+        let errorMessage = `Edge function${label} failed. status=${response.status}`;
+        
+        // Try to parse error message from response
+        if (parsed?.error) {
+          errorMessage += ` error=${parsed.error}`;
+          if (typeof parsed.error === 'object' && parsed.error.message) {
+            errorMessage = parsed.error.message;
+          } else if (typeof parsed.error === 'string') {
+            errorMessage = parsed.error;
+          }
+        } else if (responseBody) {
+          errorMessage += ` body=${responseBody}`;
+        }
+        
+        // Provide helpful messages for common status codes
+        if (response.status === 403) {
+          errorMessage = 'You do not have permission to perform this action. Please ensure you are logged in as a counselor or admin.';
+        } else if (response.status === 401) {
+          errorMessage = 'Authentication failed. Please log in again.';
+        } else if (response.status === 404) {
+          // Check if it's a "Patient not found" error or function not found
+          if (errorMessage.includes('Patient not found') || errorMessage.includes('not found')) {
+            errorMessage = 'Patient not found. Please ensure the patient ID is correct.';
+          } else {
+            // Admin edge function doesn't exist - this is expected in some deployments
+            errorMessage = 'Admin edge function is not available. The application will use fallback methods.';
+          }
+        }
+        
+        throw new Error(errorMessage);
       }
-      
-      throw new Error(errorMessage);
-    }
 
-    if (!parsed?.success) {
-      const label = debugLabel ? ` (${debugLabel})` : '';
-      throw new Error(
-        `Edge function${label} returned error: ${parsed?.error?.message ?? 'Unknown error'}${
-          primaryError ? `; previous=${primaryError.message}` : ''
-        }`,
-      );
-    }
+      if (!parsed?.success) {
+        const label = debugLabel ? ` (${debugLabel})` : '';
+        throw new Error(
+          `Edge function${label} returned error: ${parsed?.error?.message ?? 'Unknown error'}${
+            primaryError ? `; previous=${primaryError.message}` : ''
+          }`,
+        );
+      }
 
-    return parsed.data as T;
+      return parsed.data as T;
+    });
   }
 
   private static mapSystemHealthFromDb(row: Record<string, unknown>): SystemHealthStatus {
