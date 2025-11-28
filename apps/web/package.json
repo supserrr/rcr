@@ -47,7 +47,7 @@
     "@vercel/speed-insights": "^1.2.0",
     "@workspace/ui": "workspace:*",
     "apexcharts": "^5.3.5",
-    "autoprefixer": "^10.4.21",
+    "autoprefixer": "^10.4.22",
     "class-variance-authority": "^0.7.1",
     "date-fns": "^4.1.0",
     "flatpickr": "^4.6.13",
