@@ -113,8 +113,8 @@ import { formatDate } from '@/lib/utils/date';
 
 describe('formatDate', () => {
   it('formats date correctly', () => {
-    const date = new Date('2024-01-15');
-    expect(formatDate(date)).toBe('Jan 15, 2024');
+    const date = new Date('2025-01-15');
+    expect(formatDate(date)).toBe('Jan 15, 2025');
   });
 });
 ```

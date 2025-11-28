@@ -226,7 +226,7 @@ Authorization: Bearer <token>
         "id": "uuid",
         "patientId": "uuid",
         "counselorId": "uuid",
-        "date": "2024-01-15",
+        "date": "2025-01-15",
         "time": "10:00:00",
         "duration": 60,
         "type": "video",
@@ -235,8 +235,8 @@ Authorization: Bearer <token>
         "jitsiRoomUrl": "https://8x8.vc/room-name",
         "jitsiRoomName": "session-uuid",
         "rating": null,
-        "createdAt": "2024-01-01T00:00:00Z",
-        "updatedAt": "2024-01-01T00:00:00Z"
+        "createdAt": "2025-01-01T00:00:00Z",
+        "updatedAt": "2025-01-01T00:00:00Z"
       }
     ],
     "total": 1,
@@ -263,7 +263,7 @@ Content-Type: application/json
 {
   "patientId": "uuid",
   "counselorId": "uuid",
-  "date": "2024-01-15",
+  "date": "2025-01-15",
   "time": "10:00:00",
   "duration": 60,
   "type": "video",
@@ -294,7 +294,7 @@ Authorization: Bearer <token>
 Content-Type: application/json
 
 {
-  "date": "2024-01-20",
+  "date": "2025-01-20",
   "time": "14:00:00"
 }
 ```
@@ -608,7 +608,7 @@ socket.on('notification', (data) => {
 #### Get Analytics
 
 ```http
-GET /api/admin/analytics?startDate=2024-01-01&endDate=2024-12-31
+GET /api/admin/analytics?startDate=2025-01-01&endDate=2025-12-31
 Authorization: Bearer <token>
 ```
 

@@ -31,12 +31,12 @@ const SERVICE_ROLE_KEY =
   process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.SUPABASE_SERVICE_KEY;
 
 if (!SUPABASE_URL) {
-  console.error('❌ Missing Supabase URL (SUPABASE_URL or NEXT_PUBLIC_SUPABASE_URL)');
+  console.error('[ERROR] Missing Supabase URL (SUPABASE_URL or NEXT_PUBLIC_SUPABASE_URL)');
   process.exit(1);
 }
 
 if (!SERVICE_ROLE_KEY) {
-  console.error('❌ Missing Supabase service role key (SUPABASE_SERVICE_ROLE_KEY)');
+  console.error('[ERROR] Missing Supabase service role key (SUPABASE_SERVICE_ROLE_KEY)');
   process.exit(1);
 }
 
@@ -90,7 +90,7 @@ async function seedSystemHealth() {
     { onConflict: 'component' }
   );
 
-  console.log('✅ Seeded system health entries');
+  console.log('[OK] Seeded system health entries');
 }
 
 async function seedAdminActivity() {
@@ -131,7 +131,7 @@ async function seedAdminActivity() {
   ];
 
   await supabase.from('admin_activity_log').insert(entries);
-  console.log('✅ Seeded admin activity log');
+  console.log('[OK] Seeded admin activity log');
 }
 
 async function seedResourceMetrics() {
@@ -183,7 +183,7 @@ async function seedResourceMetrics() {
       .eq('id', metric.resource_id);
   }
 
-  console.log('✅ Seeded resource metrics');
+  console.log('[OK] Seeded resource metrics');
 }
 
 async function seedPatientProgress() {
@@ -305,7 +305,7 @@ async function seedPatientProgress() {
     console.log(`   → Seeded progress for patient ${patient.full_name ?? patient.id}`);
   }
 
-  console.log('✅ Seeded patient progress data');
+  console.log('[OK] Seeded patient progress data');
 }
 
 async function main() {
@@ -319,7 +319,7 @@ async function main() {
 
     console.log('\n✅ Dashboard data seed complete.\n');
   } catch (error) {
-    console.error('❌ Seeding failed:', error instanceof Error ? error.message : error);
+    console.error('[ERROR] Seeding failed:', error instanceof Error ? error.message : error);
     process.exit(1);
   }
 }

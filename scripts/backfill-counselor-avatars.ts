@@ -72,7 +72,7 @@ async function listAllAvatarObjects(): Promise<AvatarObject[]> {
 }
 
 async function main(): Promise<void> {
-  console.log('🔍 Fetching counselor profiles without avatar URLs...');
+  console.log('Fetching counselor profiles without avatar URLs...');
   const { data: profiles, error } = await supabase
     .from('profiles')
     .select('id, role, avatar_url, metadata')
@@ -89,14 +89,14 @@ async function main(): Promise<void> {
   );
 
   if (counselorsNeedingAvatar.length === 0) {
-    console.log('✅ All counselor profiles already have an avatar URL.');
+    console.log('[OK] All counselor profiles already have an avatar URL.');
     return;
   }
 
   console.log(
-    `📦 Found ${counselorsNeedingAvatar.length} counselor(s) missing avatar URLs.`,
+    `Found ${counselorsNeedingAvatar.length} counselor(s) missing avatar URLs.`,
   );
-  console.log('📁 Listing avatar objects from Supabase Storage...');
+  console.log('Listing avatar objects from Supabase Storage...');
   const storageObjects = await listAllAvatarObjects();
 
   const objectByUserId = new Map<string, AvatarObject>();
@@ -173,7 +173,7 @@ async function main(): Promise<void> {
     .length;
   const skipped = results.length - updated;
 
-  console.log('✅ Backfill complete.');
+  console.log('[OK] Backfill complete.');
   console.table(results);
   console.log(
     `Summary: ${updated} updated, ${skipped} skipped (of ${results.length} processed).`,
@@ -183,7 +183,7 @@ async function main(): Promise<void> {
 main()
   .then(() => process.exit(0))
   .catch((err) => {
-    console.error('❌ Backfill failed:', err);
+    console.error('[ERROR] Backfill failed:', err);
     process.exit(1);
   });
 

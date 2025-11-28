@@ -8,7 +8,7 @@ import { Smile } from 'lucide-react';
 
 export interface ReactionPickerProps {
   /**
-   * Current reactions on the message {emoji: [userId1, userId2, ...]}
+   * Current reactions on the message {reaction: [userId1, userId2, ...]}
    */
   reactions?: Record<string, string[]>;
   /**
@@ -18,7 +18,7 @@ export interface ReactionPickerProps {
   /**
    * Callback when a reaction is added or removed
    */
-  onReaction?: (emoji: string) => void;
+  onReaction?: (reaction: string) => void;
   /**
    * Additional CSS classes
    */
@@ -26,15 +26,15 @@ export interface ReactionPickerProps {
 }
 
 /**
- * Common emoji reactions
+ * Common reactions (text-based)
  */
-const COMMON_EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
+const COMMON_REACTIONS = ['like', 'love', 'laugh', 'wow', 'sad', 'pray'];
 
 /**
  * ReactionPicker component
  * 
  * Displays message reactions and allows users to add/remove reactions.
- * Shows a popover with emoji picker when clicking the reaction button.
+ * Shows a popover with reaction picker when clicking the reaction button.
  */
 export function ReactionPicker({
   reactions = {},
@@ -44,35 +44,35 @@ export function ReactionPicker({
 }: ReactionPickerProps) {
   const [isOpen, setIsOpen] = useState(false);
 
-  const handleReaction = (emoji: string) => {
-    onReaction?.(emoji);
+  const handleReaction = (reaction: string) => {
+    onReaction?.(reaction);
     setIsOpen(false);
   };
 
-  // Get all unique emojis that have reactions
-  const reactedEmojis = Object.keys(reactions).filter(
-    (emoji) => reactions[emoji] && reactions[emoji].length > 0
+  // Get all unique reactions that have reactions
+  const reactedReactions = Object.keys(reactions).filter(
+    (reaction) => reactions[reaction] && reactions[reaction].length > 0
   );
 
-  // Check if current user has reacted with any emoji
+  // Check if current user has reacted with any reaction
   const userHasReacted = currentUserId
-    ? reactedEmojis.some((emoji) => reactions[emoji]?.includes(currentUserId))
+    ? reactedReactions.some((reaction) => reactions[reaction]?.includes(currentUserId))
     : false;
 
   return (
     <div className={cn("flex items-center gap-1", className)}>
       {/* Display existing reactions */}
-      {reactedEmojis.length > 0 && (
+      {reactedReactions.length > 0 && (
         <div className="flex items-center gap-1 flex-wrap">
-          {reactedEmojis.map((emoji) => {
-            const userIds = reactions[emoji] || [];
+          {reactedReactions.map((reaction) => {
+            const userIds = reactions[reaction] || [];
             const count = userIds.length;
             const hasUserReacted = currentUserId ? userIds.includes(currentUserId) : false;
 
             return (
               <button
-                key={emoji}
-                onClick={() => handleReaction(emoji)}
+                key={reaction}
+                onClick={() => handleReaction(reaction)}
                 className={cn(
                   "inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs transition-colors",
                   "hover:bg-muted/80 border",
@@ -82,7 +82,7 @@ export function ReactionPicker({
                 )}
                 title={`${count} reaction${count !== 1 ? 's' : ''}`}
               >
-                <span>{emoji}</span>
+                <span>{reaction}</span>
                 <span className="text-[10px] font-medium">{count}</span>
               </button>
             );
@@ -107,22 +107,22 @@ export function ReactionPicker({
         </PopoverTrigger>
         <PopoverContent className="w-auto p-2" align="start">
           <div className="flex items-center gap-1">
-            {COMMON_EMOJIS.map((emoji) => {
-              const userIds = reactions[emoji] || [];
+            {COMMON_REACTIONS.map((reaction) => {
+              const userIds = reactions[reaction] || [];
               const hasUserReacted = currentUserId ? userIds.includes(currentUserId) : false;
 
               return (
                 <button
-                  key={emoji}
-                  onClick={() => handleReaction(emoji)}
+                  key={reaction}
+                  onClick={() => handleReaction(reaction)}
                   className={cn(
-                    "h-8 w-8 rounded-md text-lg transition-colors flex items-center justify-center",
+                    "h-8 px-2 rounded-md text-xs transition-colors flex items-center justify-center",
                     "hover:bg-muted",
                     hasUserReacted && "bg-primary/10"
                   )}
                   title={hasUserReacted ? 'Remove reaction' : 'Add reaction'}
                 >
-                  {emoji}
+                  {reaction}
                 </button>
               );
             })}

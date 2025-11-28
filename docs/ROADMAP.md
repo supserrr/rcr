@@ -8,7 +8,7 @@ This roadmap provides a high-level view of planned work. Priorities may change b
 
 ## Current Focus
 
-### Q1 2024
+### Q1 2025
 
 - Complete handover documentation
 - Implement testing infrastructure

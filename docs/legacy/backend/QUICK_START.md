@@ -118,7 +118,7 @@ Server starts on `http://localhost:5000`
 curl http://localhost:5000/health
 
 # Expected response:
-# {"status":"UP","timestamp":"2024-01-01T00:00:00.000Z"}
+# {"status":"UP","timestamp":"2025-01-01T00:00:00.000Z"}
 ```
 
 ### Test API Endpoints

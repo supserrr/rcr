@@ -46,30 +46,30 @@ interface SupabaseAuthConfig {
 async function configureResendSMTP() {
   // Validate required environment variables
   if (!SUPABASE_ACCESS_TOKEN) {
-    console.error('❌ Error: SUPABASE_ACCESS_TOKEN is required');
+    console.error('[ERROR] Error: SUPABASE_ACCESS_TOKEN is required');
     console.error('   Get it from: https://supabase.com/dashboard/account/tokens');
     process.exit(1);
   }
 
   if (!SUPABASE_PROJECT_REF) {
-    console.error('❌ Error: SUPABASE_PROJECT_REF is required');
+    console.error('[ERROR] Error: SUPABASE_PROJECT_REF is required');
     console.error('   Find it in your Supabase project URL: https://supabase.com/dashboard/project/[PROJECT_REF]');
     process.exit(1);
   }
 
   if (!RESEND_API_KEY) {
-    console.error('❌ Error: RESEND_API_KEY is required');
+    console.error('[ERROR] Error: RESEND_API_KEY is required');
     console.error('   Get it from: https://resend.com/api-keys');
     process.exit(1);
   }
 
   if (!RESEND_FROM_EMAIL) {
-    console.error('❌ Error: RESEND_FROM_EMAIL is required');
+    console.error('[ERROR] Error: RESEND_FROM_EMAIL is required');
     console.error('   Use a verified email address from your Resend account');
     process.exit(1);
   }
 
-  console.log('📧 Configuring Resend SMTP for Supabase...\n');
+  console.log('Configuring Resend SMTP for Supabase...\n');
 
   const authConfig: SupabaseAuthConfig = {
     external_email_enabled: true,
@@ -98,28 +98,28 @@ async function configureResendSMTP() {
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('❌ Failed to configure Resend SMTP:');
+      console.error('[ERROR] Failed to configure Resend SMTP:');
       console.error(`   Status: ${response.status} ${response.statusText}`);
       console.error(`   Error: ${errorText}`);
       process.exit(1);
     }
 
     const result = await response.json();
-    console.log('✅ Successfully configured Resend SMTP!\n');
+    console.log('[OK] Successfully configured Resend SMTP!\n');
     console.log('Configuration:');
     console.log(`   SMTP Host: ${authConfig.smtp_host}`);
     console.log(`   SMTP Port: ${authConfig.smtp_port}`);
     console.log(`   SMTP User: ${authConfig.smtp_user}`);
     console.log(`   From Email: ${authConfig.smtp_admin_email}`);
     console.log(`   From Name: ${authConfig.smtp_sender_name}`);
-    console.log('\n📝 Next steps:');
+    console.log('\nNext steps:');
     console.log('   1. Test password reset in your application');
     console.log('   2. Check Resend dashboard for email logs');
     console.log('   3. Adjust rate limits in Supabase Dashboard → Authentication → Rate Limits');
-    console.log('\n💡 Note: Rate limit is set to 30 emails/hour by default.');
+    console.log('\nNote: Rate limit is set to 30 emails/hour by default.');
     console.log('   Adjust it in Supabase Dashboard based on your Resend plan limits.');
   } catch (error) {
-    console.error('❌ Error configuring Resend SMTP:');
+    console.error('[ERROR] Error configuring Resend SMTP:');
     if (error instanceof Error) {
       console.error(`   ${error.message}`);
     } else {

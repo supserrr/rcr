@@ -1,6 +1,6 @@
 -- Migration: Row Level Security (RLS) Policies
 -- Description: Sets up RLS policies for all tables to ensure proper access control
--- Created: 2024
+-- Created: 2025
 
 -- Enable RLS on all tables
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;

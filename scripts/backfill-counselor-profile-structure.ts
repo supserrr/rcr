@@ -107,7 +107,7 @@ const parseProfessionalReferences = (value: unknown) =>
     .filter((entry): entry is { name?: string; organization?: string; email?: string; phone?: string } => entry !== null);
 
 async function main(): Promise<void> {
-  console.log('🔍 Loading counselor profiles for backfill...');
+  console.log('Loading counselor profiles for backfill...');
   const { data: profiles, error } = await supabase
     .from('profiles')
     .select('id, metadata, languages, contact_phone, emergency_contact_name, emergency_contact_phone, approval_status, visibility_settings')
@@ -239,7 +239,7 @@ async function main(): Promise<void> {
   const updatedCount = pendingUpdates.filter((entry) => entry.result === 'updated').length;
   const skippedCount = pendingUpdates.length - updatedCount;
 
-  console.log('✅ Counselor profile backfill completed.');
+  console.log('[OK] Counselor profile backfill completed.');
   console.table(pendingUpdates);
   console.log(`Summary: ${updatedCount} updated, ${skippedCount} skipped.`);
 }
@@ -247,6 +247,6 @@ async function main(): Promise<void> {
 main()
   .then(() => process.exit(0))
   .catch((error) => {
-    console.error('❌ Backfill failed:', error);
+    console.error('[ERROR] Backfill failed:', error);
     process.exit(1);
   });

@@ -151,7 +151,7 @@ Expected response:
   "success": true,
   "data": {
     "status": "ok",
-    "timestamp": "2024-01-01T00:00:00.000Z",
+    "timestamp": "2025-01-01T00:00:00.000Z",
     "version": "1.0.0",
     "database": "connected"
   }

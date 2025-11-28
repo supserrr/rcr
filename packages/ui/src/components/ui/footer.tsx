@@ -37,7 +37,7 @@ interface NavLink {
  */
 interface CopyrightInfo {
   /**
-   * Copyright text (e.g., "© 2024 Company Name").
+   * Copyright text (e.g., "© 2025 Company Name").
    */
   text: string;
   /**

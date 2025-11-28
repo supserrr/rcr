@@ -239,22 +239,22 @@ pnpm lint
 ## Key Features
 
 ### For Patients
-- 📱 **AI Chatbot** - 24/7 support and information
-- 🎙️ **Voice Interface** - Voice-powered assistance
-- 📅 **Appointment Booking** - Multi-step booking forms
-- 📚 **Education** - Audio content and resources
-- 🤝 **Support Groups** - Community connections
+- **AI Chatbot** - 24/7 support and information
+- **Voice Interface** - Voice-powered assistance
+- **Appointment Booking** - Multi-step booking forms
+- **Education** - Audio content and resources
+- **Support Groups** - Community connections
 
 ### For Healthcare Providers
-- 📊 **Admin Dashboard** - Patient and resource management
-- 📈 **Analytics** - Data visualization and reporting
-- 👥 **Team Directory** - Staff profiles and statistics
-- 📋 **Forms** - Registration and intake forms
+- **Admin Dashboard** - Patient and resource management
+- **Analytics** - Data visualization and reporting
+- **Team Directory** - Staff profiles and statistics
+- **Forms** - Registration and intake forms
 
 ### For Partners
-- 🏢 **Logo Showcase** - Partner recognition
-- 📊 **Impact Metrics** - Statistics and outcomes
-- 🎨 **Brand Components** - Consistent design system
+- **Logo Showcase** - Partner recognition
+- **Impact Metrics** - Statistics and outcomes
+- **Brand Components** - Consistent design system
 
 ## Use Cases Implemented
 

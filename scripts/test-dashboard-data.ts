@@ -20,12 +20,12 @@ const SERVICE_ROLE_KEY =
   process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.SUPABASE_SERVICE_KEY;
 
 if (!SUPABASE_URL) {
-  console.error('❌ Missing Supabase URL (SUPABASE_URL or NEXT_PUBLIC_SUPABASE_URL)');
+  console.error('[ERROR] Missing Supabase URL (SUPABASE_URL or NEXT_PUBLIC_SUPABASE_URL)');
   process.exit(1);
 }
 
 if (!SERVICE_ROLE_KEY) {
-  console.error('❌ Missing Supabase service role key (SUPABASE_SERVICE_ROLE_KEY)');
+  console.error('[ERROR] Missing Supabase service role key (SUPABASE_SERVICE_ROLE_KEY)');
   process.exit(1);
 }
 
@@ -125,7 +125,7 @@ async function validatePatientProgress() {
 }
 
 async function main() {
-  console.log('\n🧪 Validating dashboard data views...\n');
+  console.log('\nValidating dashboard data views...\n');
 
   try {
     await validateSessionViews();
@@ -134,9 +134,9 @@ async function main() {
     await validateAdminActivity();
     await validatePatientProgress();
 
-    console.log('\n✅ Dashboard data validation passed.\n');
+    console.log('\n[OK] Dashboard data validation passed.\n');
   } catch (error) {
-    console.error('\n❌ Dashboard data validation failed:', error instanceof Error ? error.message : error);
+    console.error('\n[ERROR] Dashboard data validation failed:', error instanceof Error ? error.message : error);
     process.exit(1);
   }
 }

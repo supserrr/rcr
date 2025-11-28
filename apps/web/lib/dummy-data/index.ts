@@ -23,8 +23,8 @@ export const dummyUsers: User[] = [
     email: 'jean@example.com',
     role: 'patient',
     avatar: '/avatars/patient1.jpg',
-    createdAt: new Date('2024-01-15'),
-    lastLogin: new Date('2024-01-20')
+    createdAt: new Date('2025-01-15'),
+    lastLogin: new Date('2025-01-20')
   },
   {
     id: '2',
@@ -32,8 +32,8 @@ export const dummyUsers: User[] = [
     email: 'marie@example.com',
     role: 'counselor',
     avatar: '/avatars/counselor1.jpg',
-    createdAt: new Date('2024-01-10'),
-    lastLogin: new Date('2024-01-20')
+    createdAt: new Date('2025-01-10'),
+    lastLogin: new Date('2025-01-20')
   },
   {
     id: '3',
@@ -41,8 +41,8 @@ export const dummyUsers: User[] = [
     email: 'admin@example.com',
     role: 'admin',
     avatar: '/avatars/admin1.jpg',
-    createdAt: new Date('2024-01-01'),
-    lastLogin: new Date('2024-01-20')
+    createdAt: new Date('2025-01-01'),
+    lastLogin: new Date('2025-01-20')
   }
 ];
 
@@ -54,8 +54,8 @@ export const dummyPatients: Patient[] = [
     email: 'jean@example.com',
     role: 'patient',
     avatar: '/avatars/patient1.jpg',
-    createdAt: new Date('2024-01-15'),
-    lastLogin: new Date('2024-01-20'),
+    createdAt: new Date('2025-01-15'),
+    lastLogin: new Date('2025-01-20'),
     dateOfBirth: new Date('1985-03-15'),
     phoneNumber: '+250 788 123 456',
     emergencyContact: '+250 788 654 321',
@@ -73,8 +73,8 @@ export const dummyPatients: Patient[] = [
     email: 'grace@example.com',
     role: 'patient',
     avatar: '/avatars/patient2.jpg',
-    createdAt: new Date('2024-01-18'),
-    lastLogin: new Date('2024-01-19'),
+    createdAt: new Date('2025-01-18'),
+    lastLogin: new Date('2025-01-19'),
     dateOfBirth: new Date('1990-07-22'),
     phoneNumber: '+250 788 234 567',
     emergencyContact: '+250 788 765 432',
@@ -92,8 +92,8 @@ export const dummyPatients: Patient[] = [
     email: 'paul@example.com',
     role: 'patient',
     avatar: '/avatars/patient3.jpg',
-    createdAt: new Date('2024-01-12'),
-    lastLogin: new Date('2024-01-20'),
+    createdAt: new Date('2025-01-12'),
+    lastLogin: new Date('2025-01-20'),
     dateOfBirth: new Date('1978-11-08'),
     phoneNumber: '+250 788 345 678',
     emergencyContact: '+250 788 876 543',
@@ -115,8 +115,8 @@ export const dummyCounselors: Counselor[] = [
     email: 'marie@example.com',
     role: 'counselor',
     avatar: '/avatars/counselor1.jpg',
-    createdAt: new Date('2024-01-10'),
-    lastLogin: new Date('2024-01-20'),
+    createdAt: new Date('2025-01-10'),
+    lastLogin: new Date('2025-01-20'),
     specialty: 'Oncology Psychology',
     experience: 8,
     languages: ['English', 'French', 'Kinyarwanda'],
@@ -133,8 +133,8 @@ export const dummyCounselors: Counselor[] = [
     email: 'jeanpaul@example.com',
     role: 'counselor',
     avatar: '/avatars/counselor2.jpg',
-    createdAt: new Date('2024-01-08'),
-    lastLogin: new Date('2024-01-19'),
+    createdAt: new Date('2025-01-08'),
+    lastLogin: new Date('2025-01-19'),
     specialty: 'Grief Counseling',
     experience: 12,
     languages: ['English', 'Kinyarwanda'],
@@ -151,8 +151,8 @@ export const dummyCounselors: Counselor[] = [
     email: 'immaculee@example.com',
     role: 'counselor',
     avatar: '/avatars/counselor3.jpg',
-    createdAt: new Date('2024-01-05'),
-    lastLogin: new Date('2024-01-18'),
+    createdAt: new Date('2025-01-05'),
+    lastLogin: new Date('2025-01-18'),
     specialty: 'Family Therapy',
     experience: 6,
     languages: ['English', 'French', 'Kinyarwanda'],
@@ -182,7 +182,7 @@ export const dummySessions: Session[] = [
     id: 'session-2',
     patientId: '4',
     counselorId: '2',
-    date: new Date('2024-01-23T14:00:00'),
+    date: new Date('2025-01-23T14:00:00'),
     time: '2:00 PM',
     duration: 45,
     status: 'scheduled',
@@ -193,7 +193,7 @@ export const dummySessions: Session[] = [
     id: 'session-3',
     patientId: '5',
     counselorId: '6',
-    date: new Date('2024-01-21T09:00:00'),
+    date: new Date('2025-01-21T09:00:00'),
     time: '9:00 AM',
     duration: 60,
     status: 'completed',
@@ -213,7 +213,7 @@ export const dummyResources: Resource[] = [
     thumbnail: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&h=300&fit=crop',
     duration: 15,
     tags: ['meditation', 'anxiety', 'stress-relief'],
-    createdAt: new Date('2024-01-15'),
+    createdAt: new Date('2025-01-15'),
     isPublic: true,
     publisher: 'Dr. Sarah Johnson'
   },
@@ -225,7 +225,7 @@ export const dummyResources: Resource[] = [
     url: 'https://mozilla.github.io/pdf.js/web/compressed.tracemonkey-pldi-09.pdf',
     thumbnail: 'https://images.unsplash.com/photo-1559757148-5c350d0d3c56?w=400&h=300&fit=crop',
     tags: ['treatment', 'options', 'medical-guide'],
-    createdAt: new Date('2024-01-16'),
+    createdAt: new Date('2025-01-16'),
     isPublic: true,
     publisher: 'Dr. Lisa Thompson'
   },
@@ -238,7 +238,7 @@ export const dummyResources: Resource[] = [
     thumbnail: 'https://images.unsplash.com/photo-1490645935967-10de6ba17061?w=400&h=300&fit=crop',
     duration: 25,
     tags: ['nutrition', 'treatment', 'wellness'],
-    createdAt: new Date('2024-01-12'),
+    createdAt: new Date('2025-01-12'),
     isPublic: true,
     publisher: 'Dr. Emily Rodriguez'
   },
@@ -251,7 +251,7 @@ export const dummyResources: Resource[] = [
     thumbnail: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=400&h=300&fit=crop',
     duration: 30,
     tags: ['exercise', 'recovery', 'wellness'],
-    createdAt: new Date('2024-01-14'),
+    createdAt: new Date('2025-01-14'),
     isPublic: true,
     publisher: 'Dr. Sarah Johnson',
     isYouTube: true,
@@ -265,7 +265,7 @@ export const dummyResources: Resource[] = [
     url: '/resources/chemotherapy-side-effects.html',
     thumbnail: 'https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=400&h=300&fit=crop',
     tags: ['chemotherapy', 'side-effects', 'coping'],
-    createdAt: new Date('2024-01-08'),
+    createdAt: new Date('2025-01-08'),
     isPublic: true,
     publisher: 'Dr. James Wilson',
     content: `
@@ -352,7 +352,7 @@ export const dummyMessages: Message[] = [
     senderId: '1',
     receiverId: '2',
     content: 'Thank you for the session today. The breathing exercises really helped.',
-    timestamp: new Date('2024-01-20T15:30:00'),
+    timestamp: new Date('2025-01-20T15:30:00'),
     isRead: true,
     type: 'text'
   },
@@ -361,7 +361,7 @@ export const dummyMessages: Message[] = [
     senderId: '2',
     receiverId: '1',
     content: 'I\'m glad they helped! Remember to practice them daily. See you next week.',
-    timestamp: new Date('2024-01-20T15:35:00'),
+    timestamp: new Date('2025-01-20T15:35:00'),
     isRead: true,
     type: 'text'
   },
@@ -370,7 +370,7 @@ export const dummyMessages: Message[] = [
     senderId: '4',
     receiverId: '2',
     content: 'I have a question about my upcoming session.',
-    timestamp: new Date('2024-01-20T16:00:00'),
+    timestamp: new Date('2025-01-20T16:00:00'),
     isRead: false,
     type: 'text'
   }
@@ -383,8 +383,8 @@ export const dummyChats: Chat[] = [
     participants: ['1', '2'],
     messages: [dummyMessages[0]!, dummyMessages[1]!],
     lastMessage: dummyMessages[1]!,
-    createdAt: new Date('2024-01-20'),
-    updatedAt: new Date('2024-01-21'),
+    createdAt: new Date('2025-01-20'),
+    updatedAt: new Date('2025-01-21'),
     unreadCount: 0
   },
   {
@@ -392,8 +392,8 @@ export const dummyChats: Chat[] = [
     participants: ['4', '2'],
     messages: [dummyMessages[2]!],
     lastMessage: dummyMessages[2]!,
-    createdAt: new Date('2024-01-19'),
-    updatedAt: new Date('2024-01-22'),
+    createdAt: new Date('2025-01-19'),
+    updatedAt: new Date('2025-01-22'),
     unreadCount: 1
   }
 ];
@@ -409,8 +409,8 @@ export const dummySupportTickets: SupportTicket[] = [
     status: 'open',
     priority: 'medium',
     category: 'Technical',
-    createdAt: new Date('2024-01-19'),
-    updatedAt: new Date('2024-01-19')
+    createdAt: new Date('2025-01-19'),
+    updatedAt: new Date('2025-01-19')
   },
   {
     id: 'ticket-2',
@@ -421,8 +421,8 @@ export const dummySupportTickets: SupportTicket[] = [
     status: 'in_progress',
     priority: 'high',
     category: 'Scheduling',
-    createdAt: new Date('2024-01-18'),
-    updatedAt: new Date('2024-01-20'),
+    createdAt: new Date('2025-01-18'),
+    updatedAt: new Date('2025-01-20'),
     assignedTo: '3'
   }
 ];
@@ -436,8 +436,8 @@ export const dummyModules: Module[] = [
     content: 'This module covers the basics of cancer diagnosis, including what your diagnosis means, treatment options, and how to cope with the news.',
     order: 1,
     isActive: true,
-    createdAt: new Date('2024-01-10'),
-    updatedAt: new Date('2024-01-10')
+    createdAt: new Date('2025-01-10'),
+    updatedAt: new Date('2025-01-10')
   },
   {
     id: 'module-2',
@@ -446,8 +446,8 @@ export const dummyModules: Module[] = [
     content: 'Learn breathing exercises, mindfulness techniques, and other strategies to help manage anxiety and stress.',
     order: 2,
     isActive: true,
-    createdAt: new Date('2024-01-11'),
-    updatedAt: new Date('2024-01-11')
+    createdAt: new Date('2025-01-11'),
+    updatedAt: new Date('2025-01-11')
   },
   {
     id: 'module-3',
@@ -456,8 +456,8 @@ export const dummyModules: Module[] = [
     content: 'Comprehensive guide to managing nausea, fatigue, pain, and other treatment-related side effects.',
     order: 3,
     isActive: true,
-    createdAt: new Date('2024-01-12'),
-    updatedAt: new Date('2024-01-12')
+    createdAt: new Date('2025-01-12'),
+    updatedAt: new Date('2025-01-12')
   }
 ];
 
@@ -469,7 +469,7 @@ export const dummyPendingCounselors: any[] = [
     email: 'sarah.mukamana@example.com',
     role: 'counselor',
     avatar: '/avatars/pending1.jpg',
-    createdAt: new Date('2024-01-22'),
+    createdAt: new Date('2025-01-22'),
     specialty: 'Trauma Therapy',
     experience: 5,
     languages: ['English', 'Kinyarwanda', 'French'],
@@ -508,7 +508,7 @@ export const dummyPendingCounselors: any[] = [
     email: 'emmanuel.nkurunziza@example.com',
     role: 'counselor',
     avatar: '/avatars/pending2.jpg',
-    createdAt: new Date('2024-01-21'),
+    createdAt: new Date('2025-01-21'),
     specialty: 'Family Counseling',
     experience: 7,
     languages: ['English', 'Kinyarwanda'],
@@ -520,7 +520,7 @@ export const dummyPendingCounselors: any[] = [
     patients: [],
     // Professional License
     licenseNumber: 'RMC-2022-0321',
-    licenseExpiry: '2024-11-30',
+    licenseExpiry: '2025-11-30',
     issuingAuthority: 'Rwanda Medical Council',
     // Education
     highestDegree: 'Master\'s Degree',
@@ -547,7 +547,7 @@ export const dummyPendingCounselors: any[] = [
     email: 'grace.uwimana@example.com',
     role: 'counselor',
     avatar: '/avatars/pending3.jpg',
-    createdAt: new Date('2024-01-20'),
+    createdAt: new Date('2025-01-20'),
     specialty: 'Child and Adolescent Psychology',
     experience: 6,
     languages: ['English', 'Kinyarwanda', 'French'],
@@ -595,8 +595,8 @@ export const dummyTrainingResources: TrainingResource[] = [
     fileUrl: 'https://mozilla.github.io/pdf.js/web/compressed.tracemonkey-pldi-09.pdf',
     thumbnailUrl: '/training/thumbnails/psychology-fundamentals.jpg',
     tags: ['psychology', 'fundamentals', 'cancer', 'diagnosis'],
-    createdAt: new Date('2024-01-15'),
-    updatedAt: new Date('2024-01-15'),
+    createdAt: new Date('2025-01-15'),
+    updatedAt: new Date('2025-01-15'),
     isActive: true,
     downloads: 45,
     rating: 4.8,
@@ -619,8 +619,8 @@ export const dummyTrainingResources: TrainingResource[] = [
     fileUrl: '/training/patient-communication.html',
     thumbnailUrl: 'https://images.unsplash.com/photo-1527613426441-4da17471b66d?w=400&h=300&fit=crop',
     tags: ['communication', 'empathy', 'cultural-competency'],
-    createdAt: new Date('2024-01-18'),
-    updatedAt: new Date('2024-01-18'),
+    createdAt: new Date('2025-01-18'),
+    updatedAt: new Date('2025-01-18'),
     isActive: true,
     downloads: 12,
     rating: 4.5,
@@ -642,8 +642,8 @@ export const dummyTrainingResources: TrainingResource[] = [
     fileUrl: 'https://arxiv.org/pdf/1706.03762.pdf',
     thumbnailUrl: '/training/thumbnails/grief-counseling.jpg',
     tags: ['grief', 'counseling', 'loss', 'family-support'],
-    createdAt: new Date('2024-01-10'),
-    updatedAt: new Date('2024-01-20'),
+    createdAt: new Date('2025-01-10'),
+    updatedAt: new Date('2025-01-20'),
     isActive: true,
     downloads: 32,
     rating: 4.9,
@@ -666,8 +666,8 @@ export const dummyTrainingResources: TrainingResource[] = [
     fileUrl: 'https://www.w3schools.com/html/mov_bbb.mp4',
     thumbnailUrl: '/training/thumbnails/trauma-care.jpg',
     tags: ['trauma', 'oncology', 'care', 'advanced'],
-    createdAt: new Date('2024-01-05'),
-    updatedAt: new Date('2024-01-18'),
+    createdAt: new Date('2025-01-05'),
+    updatedAt: new Date('2025-01-18'),
     isActive: true,
     downloads: 28,
     rating: 4.7,
@@ -690,8 +690,8 @@ export const dummyTrainingResources: TrainingResource[] = [
     fileUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',
     thumbnailUrl: '/training/thumbnails/cultural-competency.jpg',
     tags: ['cultural', 'diversity', 'competency', 'inclusive-care'],
-    createdAt: new Date('2024-01-12'),
-    updatedAt: new Date('2024-01-12'),
+    createdAt: new Date('2025-01-12'),
+    updatedAt: new Date('2025-01-12'),
     isActive: true,
     downloads: 38,
     rating: 4.6,
@@ -714,8 +714,8 @@ export const dummyTrainingResources: TrainingResource[] = [
     fileUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
     thumbnailUrl: '/training/thumbnails/self-care.jpg',
     tags: ['self-care', 'burnout', 'wellness', 'mental-health'],
-    createdAt: new Date('2024-01-08'),
-    updatedAt: new Date('2024-01-22'),
+    createdAt: new Date('2025-01-08'),
+    updatedAt: new Date('2025-01-22'),
     isActive: true,
     downloads: 52,
     rating: 4.9,
@@ -738,7 +738,7 @@ export const dummySystemHealth: SystemHealth[] = [
     status: 'healthy',
     responseTime: 45,
     description: 'Primary PostgreSQL database running optimally',
-    lastChecked: new Date('2024-01-20T10:30:00'),
+    lastChecked: new Date('2025-01-20T10:30:00'),
     uptime: 99.9,
     errorCount: 0,
     warningCount: 0
@@ -750,7 +750,7 @@ export const dummySystemHealth: SystemHealth[] = [
     status: 'healthy',
     responseTime: 120,
     description: 'Main API gateway handling requests normally',
-    lastChecked: new Date('2024-01-20T10:30:00'),
+    lastChecked: new Date('2025-01-20T10:30:00'),
     uptime: 99.8,
     errorCount: 2,
     warningCount: 1
@@ -762,7 +762,7 @@ export const dummySystemHealth: SystemHealth[] = [
     status: 'warning',
     responseTime: 850,
     description: 'Storage system showing increased latency',
-    lastChecked: new Date('2024-01-20T10:30:00'),
+    lastChecked: new Date('2025-01-20T10:30:00'),
     uptime: 98.5,
     errorCount: 5,
     warningCount: 12
@@ -774,7 +774,7 @@ export const dummySystemHealth: SystemHealth[] = [
     status: 'healthy',
     responseTime: 200,
     description: 'Content delivery network operating normally',
-    lastChecked: new Date('2024-01-20T10:30:00'),
+    lastChecked: new Date('2025-01-20T10:30:00'),
     uptime: 99.7,
     errorCount: 1,
     warningCount: 3
@@ -786,7 +786,7 @@ export const dummySystemHealth: SystemHealth[] = [
     status: 'critical',
     responseTime: 0,
     description: 'Security scanner service is offline',
-    lastChecked: new Date('2024-01-20T10:30:00'),
+    lastChecked: new Date('2025-01-20T10:30:00'),
     uptime: 0,
     errorCount: 15,
     warningCount: 0
@@ -798,7 +798,7 @@ export const dummySystemHealth: SystemHealth[] = [
     status: 'healthy',
     responseTime: 25,
     description: 'Redis cache layer performing well',
-    lastChecked: new Date('2024-01-20T10:30:00'),
+    lastChecked: new Date('2025-01-20T10:30:00'),
     uptime: 99.9,
     errorCount: 0,
     warningCount: 0
@@ -810,7 +810,7 @@ export const dummySystemHealth: SystemHealth[] = [
     status: 'warning',
     responseTime: 1200,
     description: 'Email service experiencing delays',
-    lastChecked: new Date('2024-01-20T10:30:00'),
+    lastChecked: new Date('2025-01-20T10:30:00'),
     uptime: 97.2,
     errorCount: 8,
     warningCount: 15
@@ -822,7 +822,7 @@ export const dummySystemHealth: SystemHealth[] = [
     status: 'healthy',
     responseTime: 50,
     description: 'Load balancer distributing traffic efficiently',
-    lastChecked: new Date('2024-01-20T10:30:00'),
+    lastChecked: new Date('2025-01-20T10:30:00'),
     uptime: 99.8,
     errorCount: 1,
     warningCount: 2
@@ -840,8 +840,8 @@ export const dummyMaintenanceLogs: MaintenanceLog[] = [
     duration: '15 minutes',
     riskLevel: 'low',
     frequency: 'Daily at 2:00 AM',
-    lastRun: new Date('2024-01-20T02:00:00'),
-    nextRun: new Date('2024-01-21T02:00:00'),
+    lastRun: new Date('2025-01-20T02:00:00'),
+    nextRun: new Date('2025-01-21T02:00:00'),
     steps: [
       {
         title: 'Create backup snapshot',
@@ -862,29 +862,29 @@ export const dummyMaintenanceLogs: MaintenanceLog[] = [
     ],
     logs: [
       {
-        timestamp: new Date('2024-01-20T02:00:00'),
+        timestamp: new Date('2025-01-20T02:00:00'),
         level: 'info',
         message: 'Starting database backup process'
       },
       {
-        timestamp: new Date('2024-01-20T02:05:00'),
+        timestamp: new Date('2025-01-20T02:05:00'),
         level: 'info',
         message: 'Database snapshot created successfully'
       },
       {
-        timestamp: new Date('2024-01-20T02:10:00'),
+        timestamp: new Date('2025-01-20T02:10:00'),
         level: 'info',
         message: 'Backup files compressed and uploaded'
       },
       {
-        timestamp: new Date('2024-01-20T02:15:00'),
+        timestamp: new Date('2025-01-20T02:15:00'),
         level: 'success',
         message: 'Backup completed successfully'
       }
     ],
     createdBy: 'system',
-    createdAt: new Date('2024-01-15'),
-    updatedAt: new Date('2024-01-20T02:15:00')
+    createdAt: new Date('2025-01-15'),
+    updatedAt: new Date('2025-01-20T02:15:00')
   },
   {
     id: 'maintenance-2',
@@ -895,8 +895,8 @@ export const dummyMaintenanceLogs: MaintenanceLog[] = [
     duration: '2 hours',
     riskLevel: 'high',
     frequency: 'Weekly on Sundays at 1:00 AM',
-    lastRun: new Date('2024-01-14T01:00:00'),
-    nextRun: new Date('2024-01-21T01:00:00'),
+    lastRun: new Date('2025-01-14T01:00:00'),
+    nextRun: new Date('2025-01-21T01:00:00'),
     steps: [
       {
         title: 'Download security patches',
@@ -920,8 +920,8 @@ export const dummyMaintenanceLogs: MaintenanceLog[] = [
       }
     ],
     createdBy: 'admin',
-    createdAt: new Date('2024-01-10'),
-    updatedAt: new Date('2024-01-14T03:00:00')
+    createdAt: new Date('2025-01-10'),
+    updatedAt: new Date('2025-01-14T03:00:00')
   },
   {
     id: 'maintenance-3',
@@ -932,8 +932,8 @@ export const dummyMaintenanceLogs: MaintenanceLog[] = [
     duration: '30 minutes',
     riskLevel: 'low',
     frequency: 'Weekly on Saturdays at 3:00 AM',
-    lastRun: new Date('2024-01-20T03:00:00'),
-    nextRun: new Date('2024-01-27T03:00:00'),
+    lastRun: new Date('2025-01-20T03:00:00'),
+    nextRun: new Date('2025-01-27T03:00:00'),
     steps: [
       {
         title: 'Identify old log files',
@@ -954,29 +954,29 @@ export const dummyMaintenanceLogs: MaintenanceLog[] = [
     ],
     logs: [
       {
-        timestamp: new Date('2024-01-20T03:00:00'),
+        timestamp: new Date('2025-01-20T03:00:00'),
         level: 'info',
         message: 'Starting log cleanup process'
       },
       {
-        timestamp: new Date('2024-01-20T03:05:00'),
+        timestamp: new Date('2025-01-20T03:05:00'),
         level: 'info',
         message: 'Found 1,247 log files to process'
       },
       {
-        timestamp: new Date('2024-01-20T03:10:00'),
+        timestamp: new Date('2025-01-20T03:10:00'),
         level: 'info',
         message: 'Archiving critical logs to cold storage'
       },
       {
-        timestamp: new Date('2024-01-20T03:15:00'),
+        timestamp: new Date('2025-01-20T03:15:00'),
         level: 'info',
         message: 'Deleting 1,200 old log files'
       }
     ],
     createdBy: 'system',
-    createdAt: new Date('2024-01-15'),
-    updatedAt: new Date('2024-01-20T03:15:00')
+    createdAt: new Date('2025-01-15'),
+    updatedAt: new Date('2025-01-20T03:15:00')
   },
   {
     id: 'maintenance-4',
@@ -987,8 +987,8 @@ export const dummyMaintenanceLogs: MaintenanceLog[] = [
     duration: '45 minutes',
     riskLevel: 'medium',
     frequency: 'Monthly on the first Sunday at 4:00 AM',
-    lastRun: new Date('2024-01-07T04:00:00'),
-    nextRun: new Date('2024-02-04T04:00:00'),
+    lastRun: new Date('2025-01-07T04:00:00'),
+    nextRun: new Date('2025-02-04T04:00:00'),
     steps: [
       {
         title: 'Analyze slow queries',
@@ -1013,34 +1013,34 @@ export const dummyMaintenanceLogs: MaintenanceLog[] = [
     ],
     logs: [
       {
-        timestamp: new Date('2024-01-07T04:00:00'),
+        timestamp: new Date('2025-01-07T04:00:00'),
         level: 'info',
         message: 'Starting performance optimization'
       },
       {
-        timestamp: new Date('2024-01-07T04:10:00'),
+        timestamp: new Date('2025-01-07T04:10:00'),
         level: 'info',
         message: 'Analyzed 156 slow queries, identified 12 for optimization'
       },
       {
-        timestamp: new Date('2024-01-07T04:20:00'),
+        timestamp: new Date('2025-01-07T04:20:00'),
         level: 'info',
         message: 'Updated database indexes successfully'
       },
       {
-        timestamp: new Date('2024-01-07T04:30:00'),
+        timestamp: new Date('2025-01-07T04:30:00'),
         level: 'info',
         message: 'Cleared and rebuilt application caches'
       },
       {
-        timestamp: new Date('2024-01-07T04:45:00'),
+        timestamp: new Date('2025-01-07T04:45:00'),
         level: 'success',
         message: 'Performance optimization completed - 23% improvement in query speed'
       }
     ],
     createdBy: 'admin',
-    createdAt: new Date('2024-01-01'),
-    updatedAt: new Date('2024-01-07T04:45:00')
+    createdAt: new Date('2025-01-01'),
+    updatedAt: new Date('2025-01-07T04:45:00')
   },
   {
     id: 'maintenance-5',
@@ -1051,8 +1051,8 @@ export const dummyMaintenanceLogs: MaintenanceLog[] = [
     duration: '20 minutes',
     riskLevel: 'medium',
     frequency: 'Daily at 6:00 AM',
-    lastRun: new Date('2024-01-20T06:00:00'),
-    nextRun: new Date('2024-01-21T06:00:00'),
+    lastRun: new Date('2025-01-20T06:00:00'),
+    nextRun: new Date('2025-01-21T06:00:00'),
     steps: [
       {
         title: 'Check monitoring services',
@@ -1073,29 +1073,29 @@ export const dummyMaintenanceLogs: MaintenanceLog[] = [
     ],
     logs: [
       {
-        timestamp: new Date('2024-01-20T06:00:00'),
+        timestamp: new Date('2025-01-20T06:00:00'),
         level: 'info',
         message: 'Starting monitoring system check'
       },
       {
-        timestamp: new Date('2024-01-20T06:05:00'),
+        timestamp: new Date('2025-01-20T06:05:00'),
         level: 'warning',
         message: 'Email alert service not responding'
       },
       {
-        timestamp: new Date('2024-01-20T06:10:00'),
+        timestamp: new Date('2025-01-20T06:10:00'),
         level: 'error',
         message: 'Failed to connect to monitoring database'
       },
       {
-        timestamp: new Date('2024-01-20T06:15:00'),
+        timestamp: new Date('2025-01-20T06:15:00'),
         level: 'error',
         message: 'Monitoring check failed - manual intervention required'
       }
     ],
     createdBy: 'system',
-    createdAt: new Date('2024-01-15'),
-    updatedAt: new Date('2024-01-20T06:15:00')
+    createdAt: new Date('2025-01-15'),
+    updatedAt: new Date('2025-01-20T06:15:00')
   }
 ];
 

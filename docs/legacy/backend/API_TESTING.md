@@ -127,7 +127,7 @@ curl -X POST http://localhost:10000/api/sessions \
   -d "{
     \"patientId\": \"$(curl -X GET http://localhost:10000/api/auth/me -H \"Authorization: Bearer $TOKEN\" | jq -r '.data.user.id')\",
     \"counselorId\": \"$COUNSELOR_ID\",
-    \"date\": \"2024-12-15\",
+    \"date\": \"2025-12-15\",
     \"time\": \"10:00:00\",
     \"duration\": 60,
     \"type\": \"video\",
@@ -247,7 +247,7 @@ curl -X PUT "http://localhost:10000/api/notifications/$NOTIFICATION_ID" \
 ```bash
 ADMIN_TOKEN="..."
 
-curl -X GET "http://localhost:10000/api/admin/analytics?startDate=2024-01-01&endDate=2024-12-31" \
+curl -X GET "http://localhost:10000/api/admin/analytics?startDate=2025-01-01&endDate=2025-12-31" \
   -H "Authorization: Bearer $ADMIN_TOKEN"
 ```
 

@@ -69,7 +69,7 @@ export interface MessageBubbleProps {
    */
   showDateSeparator?: boolean;
   /**
-   * Date separator text (e.g., "Today", "Yesterday", "Jan 15, 2024")
+   * Date separator text (e.g., "Today", "Yesterday", "Jan 15, 2025")
    */
   dateSeparator?: string;
   /**

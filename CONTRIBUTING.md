@@ -172,5 +172,5 @@ When adding or modifying features:
 
 ## License
 
-By contributing, you agree that your contributions will be licensed under the MIT License.
+By contributing, you agree that your contributions will be subject to the proprietary license of Rwanda Cancer Relief. All contributions become the property of Rwanda Cancer Relief.
 

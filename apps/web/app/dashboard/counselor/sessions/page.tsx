@@ -525,7 +525,7 @@ export default function CounselorSessionsPage() {
       if (rawAvatar) {
         const normalized = normalizeAvatarUrl(rawAvatar);
         if (normalized && process.env.NODE_ENV === 'development') {
-          console.debug(`[getPatientAvatar] ✅ Found avatar for ${patientId}: ${normalized}`);
+          console.debug(`[getPatientAvatar] [OK] Found avatar for ${patientId}: ${normalized}`);
         }
         return normalized;
       } else if (process.env.NODE_ENV === 'development') {
@@ -756,7 +756,7 @@ export default function CounselorSessionsPage() {
           
           setViewingPatient(patient);
           setIsProfileOpen(true);
-          console.log('[handleViewPatientProfile] ✅ Patient profile loaded successfully');
+          console.log('[handleViewPatientProfile] [OK] Patient profile loaded successfully');
         } else {
           throw new Error('Patient not found. You may only view profiles of patients you have sessions with.');
         }

@@ -15,7 +15,7 @@
     "url": "https://github.com/your-org/rwanda-cancer-relief.git"
   },
   "author": "Rwanda Cancer Relief Development Team",
-  "license": "MIT",
+  "license": "UNLICENSED",
   "scripts": {
     "build": "turbo build",
     "dev": "turbo dev",

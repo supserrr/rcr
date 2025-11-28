@@ -21,17 +21,17 @@ const SERVICE_ROLE_KEY =
 const TEST_USER_ID = process.env.NOTIFICATION_TEST_USER_ID ?? '';
 
 if (!SUPABASE_URL) {
-  console.error('❌ Missing Supabase URL. Set NEXT_PUBLIC_SUPABASE_URL or SUPABASE_URL.');
+  console.error('[ERROR] Missing Supabase URL. Set NEXT_PUBLIC_SUPABASE_URL or SUPABASE_URL.');
   process.exit(1);
 }
 
 if (!SERVICE_ROLE_KEY) {
-  console.error('❌ Missing Supabase service role key. Set SUPABASE_SERVICE_ROLE_KEY.');
+  console.error('[ERROR] Missing Supabase service role key. Set SUPABASE_SERVICE_ROLE_KEY.');
   process.exit(1);
 }
 
 if (!TEST_USER_ID) {
-  console.error('❌ Missing NOTIFICATION_TEST_USER_ID pointing to an existing user.');
+  console.error('[ERROR] Missing NOTIFICATION_TEST_USER_ID pointing to an existing user.');
   process.exit(1);
 }
 
@@ -39,7 +39,7 @@ process.env.NEXT_PUBLIC_SUPABASE_URL = SUPABASE_URL;
 process.env.SUPABASE_SERVICE_ROLE_KEY = SERVICE_ROLE_KEY;
 
 async function main() {
-  console.log('✅ Running notification enqueue + dispatch smoke test');
+  console.log('[OK] Running notification enqueue + dispatch smoke test');
 
   const enqueueResult = await NotificationService.enqueue({
     userId: TEST_USER_ID,
@@ -55,11 +55,11 @@ async function main() {
   const dispatched = await NotificationService.dispatchDueNotifications(50);
 
   console.log(JSON.stringify({ enqueueStatus: enqueueResult.status, dispatched }, null, 2));
-  console.log('✅ Notification smoke test finished');
+  console.log('[OK] Notification smoke test finished');
 }
 
 main().catch((error) => {
-  console.error('❌ Notification smoke test failed:', error);
+  console.error('[ERROR] Notification smoke test failed:', error);
   process.exit(1);
 });
 

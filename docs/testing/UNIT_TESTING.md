@@ -24,8 +24,8 @@ import { formatDate, calculateAge } from '@/lib/utils/date';
 
 describe('formatDate', () => {
   it('formats date in default format', () => {
-    const date = new Date('2024-01-15');
-    expect(formatDate(date)).toBe('Jan 15, 2024');
+    const date = new Date('2025-01-15');
+    expect(formatDate(date)).toBe('Jan 15, 2025');
   });
 
   it('handles invalid dates', () => {
@@ -36,7 +36,7 @@ describe('formatDate', () => {
 describe('calculateAge', () => {
   it('calculates age correctly', () => {
     const birthDate = new Date('2000-01-01');
-    const today = new Date('2024-01-01');
+    const today = new Date('2025-01-01');
     expect(calculateAge(birthDate, today)).toBe(24);
   });
 });

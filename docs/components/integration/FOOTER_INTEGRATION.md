@@ -83,7 +83,7 @@ interface NavLink {
 }
 
 interface CopyrightInfo {
-  text: string;                     // Copyright text (e.g., "© 2024 Company")
+  text: string;                     // Copyright text (e.g., "© 2025 Company")
   license?: string;                 // Optional license text
 }
 ```
@@ -118,7 +118,7 @@ export default function MyPage() {
         { href: '/terms', label: 'Terms of Service' },
       ]}
       copyright={{
-        text: '© 2024 Rwanda Cancer Relief',
+        text: '© 2025 Rwanda Cancer Relief',
         license: 'All rights reserved.',
       }}
     />
@@ -176,7 +176,7 @@ export default function MyLayout({ children }) {
           { href: '/disclaimer', label: 'Medical Disclaimer' },
         ]}
         copyright={{
-          text: '© 2024 Rwanda Cancer Relief',
+          text: '© 2025 Rwanda Cancer Relief',
           license: 'All rights reserved. Registered nonprofit organization.',
         }}
       />
@@ -200,7 +200,7 @@ export default function MyLayout({ children }) {
     { href: '/privacy', label: 'Privacy' },
   ]}
   copyright={{
-    text: '© 2024 Your Organization',
+    text: '© 2025 Your Organization',
   }}
 />
 ```
@@ -321,18 +321,18 @@ Secondary legal/policy links typically include:
 ```typescript
 // Simple copyright
 copyright: {
-  text: '© 2024 Rwanda Cancer Relief'
+  text: '© 2025 Rwanda Cancer Relief'
 }
 
 // With license
 copyright: {
-  text: '© 2024 Rwanda Cancer Relief',
+  text: '© 2025 Rwanda Cancer Relief',
   license: 'All rights reserved.'
 }
 
 // With additional info
 copyright: {
-  text: '© 2024 Rwanda Cancer Relief',
+  text: '© 2025 Rwanda Cancer Relief',
   license: 'Registered nonprofit organization. Tax ID: XX-XXXXXXX'
 }
 ```
@@ -366,7 +366,7 @@ The demo includes:
 3. Medical Disclaimer - Healthcare information disclaimer
 
 ### Copyright
-- Text: "© 2024 Rwanda Cancer Relief"
+- Text: "© 2025 Rwanda Cancer Relief"
 - License: "All rights reserved. Registered nonprofit organization."
 
 ## View the Demo

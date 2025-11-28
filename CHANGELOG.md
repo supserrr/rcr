@@ -21,7 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Enhanced project documentation structure
 - Improved code organization standards
 
-## [0.0.1] - 2024-01-01
+## [0.0.1] - 2025-01-01
 
 ### Added
 - Initial project setup

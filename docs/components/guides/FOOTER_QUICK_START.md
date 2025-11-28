@@ -64,7 +64,7 @@ export default function MyLayout({ children }) {
           { href: '/terms', label: 'Terms of Service' },
         ]}
         copyright={{
-          text: '© 2024 Rwanda Cancer Relief',
+          text: '© 2025 Rwanda Cancer Relief',
           license: 'All rights reserved.',
         }}
       />
@@ -88,7 +88,7 @@ export default function MyLayout({ children }) {
     { href: '/privacy', label: 'Privacy' },
   ]}
   copyright={{
-    text: '© 2024 Your Organization',
+    text: '© 2025 Your Organization',
   }}
 />
 ```
@@ -180,7 +180,7 @@ The demo includes:
 3. Medical Disclaimer
 
 **Copyright**:
-- "© 2024 Rwanda Cancer Relief"
+- "© 2025 Rwanda Cancer Relief"
 - "All rights reserved. Registered nonprofit organization."
 
 ## Customization

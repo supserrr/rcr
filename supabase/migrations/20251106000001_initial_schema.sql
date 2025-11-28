@@ -1,6 +1,6 @@
 -- Migration: Initial Database Schema
 -- Description: Creates all base tables for Rwanda Cancer Relief backend
--- Created: 2024
+-- Created: 2025
 
 -- Enable UUID extension
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";

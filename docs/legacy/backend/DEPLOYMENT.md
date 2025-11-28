@@ -152,7 +152,7 @@ GET /health
 ```json
 {
   "status": "ok",
-  "timestamp": "2024-01-01T00:00:00Z",
+  "timestamp": "2025-01-01T00:00:00Z",
   "version": "1.0.0"
 }
 ```
