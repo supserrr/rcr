@@ -89,7 +89,6 @@ Contributions are welcome. Please:
 
 - [Known Issues](HANDOVER/KNOWN_ISSUES.md)
 - [Development Guide](DEVELOPMENT.md)
-- [Contributing Guide](../CONTRIBUTING.md)
 
 ---
 
