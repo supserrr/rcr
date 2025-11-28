@@ -53,6 +53,8 @@ export default function AdminDashboard() {
     authLoading || loading || metricsLoading || systemHealthLoading || activityLoading;
 
   useEffect(() => {
+    let isMounted = true;
+    
     const fetchDashboardData = async () => {
       try {
         setLoading(true);
@@ -79,6 +81,9 @@ export default function AdminDashboard() {
           AdminApi.listAdminActivity({ limit: 8 }),
         ]);
 
+        // Check if component is still mounted before updating state
+        if (!isMounted) return;
+
         setAnalytics(analyticsData);
         setPlatformMetrics(metricsOverview);
         setTrendPoints(trends);
@@ -87,21 +92,29 @@ export default function AdminDashboard() {
         setSystemHealth(systemHealthData);
         setActivityEntries(activityData);
       } catch (err) {
-        console.error('Error fetching admin dashboard data:', err);
-        const message = err instanceof Error ? err.message : 'Failed to load admin dashboard data';
-        setError(message);
-        toast.error(message);
+        if (isMounted) {
+          console.error('Error fetching admin dashboard data:', err);
+          const message = err instanceof Error ? err.message : 'Failed to load admin dashboard data';
+          setError(message);
+          toast.error(message);
+        }
       } finally {
-        setLoading(false);
-        setMetricsLoading(false);
-        setSystemHealthLoading(false);
-        setActivityLoading(false);
+        if (isMounted) {
+          setLoading(false);
+          setMetricsLoading(false);
+          setSystemHealthLoading(false);
+          setActivityLoading(false);
+        }
       }
     };
 
     if (user?.id) {
       fetchDashboardData();
     }
+    
+    return () => {
+      isMounted = false;
+    };
   }, [user?.id]);
 
   const weeklyTrends = useMemo(() => trendPoints.slice(-7), [trendPoints]);

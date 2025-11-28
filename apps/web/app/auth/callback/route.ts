@@ -26,6 +26,39 @@ async function checkOnboardingComplete(
 ): Promise<boolean> {
   if (!supabase) return false;
 
+  // First, check the onboarding_completed flag in metadata (this is set when onboarding form is submitted)
+  // This should be checked FIRST because a user who has submitted onboarding should be considered complete
+  // even if they're still pending approval
+  const onboardingObj = userMetadata.onboarding as Record<string, unknown> | undefined;
+  const onboardingFlag =
+    userMetadata.onboarding_completed ??
+    userMetadata.onboardingCompleted ??
+    userMetadata.onboarding_complete ??
+    userMetadata.has_completed_onboarding ??
+    onboardingObj?.completed ??
+    onboardingObj?.isComplete ??
+    onboardingObj?.is_completed;
+
+  if (typeof onboardingFlag === 'boolean' && onboardingFlag === true) {
+    return true;
+  }
+
+  if (typeof onboardingFlag === 'string') {
+    const normalized = onboardingFlag.trim().toLowerCase();
+    if (normalized === 'true' || normalized === '1' || normalized === 'yes' || normalized === 'completed') {
+      return true;
+    }
+  }
+
+  if (typeof onboardingFlag === 'number' && onboardingFlag === 1) {
+    return true;
+  }
+
+  // Check for completion timestamp
+  if (userMetadata.onboarding_completed_at || userMetadata.onboardingCompletedAt) {
+    return true;
+  }
+
   // For counselors: Check approval status and profile
   if (userRole === 'counselor') {
     // Check approval status from metadata first
@@ -40,12 +73,14 @@ async function checkOnboardingComplete(
     // Check profile for approval status
     const { data: profile } = await supabase
       .from('profiles')
-      .select('approval_status, approval_reviewed_at')
+      .select('approval_status, approval_reviewed_at, metadata')
       .eq('id', userId)
       .maybeSingle();
 
     if (profile) {
+      const profileMetadata = (profile.metadata || {}) as Record<string, unknown>;
       const profileApprovalStatus = profile.approval_status as CounselorApprovalStatus | null;
+      
       if (profileApprovalStatus === 'approved') {
         return true;
       }
@@ -58,6 +93,20 @@ async function checkOnboardingComplete(
         .maybeSingle();
 
       if (counselorProfile) {
+        return true;
+      }
+
+      // Check profile metadata for onboarding flag
+      const profileOnboardingFlag =
+        profileMetadata.onboarding_completed ??
+        profileMetadata.onboardingCompleted ??
+        profileMetadata.onboarding_complete;
+      
+      if (typeof profileOnboardingFlag === 'boolean' && profileOnboardingFlag === true) {
+        return true;
+      }
+
+      if (profileMetadata.onboarding_completed_at || profileMetadata.onboardingCompletedAt) {
         return true;
       }
 
@@ -116,35 +165,8 @@ async function checkOnboardingComplete(
     }
   }
 
-    // Check onboarding_completed flag from metadata
-    const onboardingObj = userMetadata.onboarding as Record<string, unknown> | undefined;
-    const flag =
-      userMetadata.onboarding_completed ??
-      userMetadata.onboardingCompleted ??
-      userMetadata.onboarding_complete ??
-      userMetadata.has_completed_onboarding ??
-      onboardingObj?.completed ??
-      onboardingObj?.isComplete ??
-      onboardingObj?.is_completed;
-
-  if (typeof flag === 'boolean') {
-    return flag;
-  }
-
-  if (typeof flag === 'string') {
-    const normalized = flag.trim().toLowerCase();
-    return normalized === 'true' || normalized === '1' || normalized === 'yes' || normalized === 'completed';
-  }
-
-  if (typeof flag === 'number') {
-    return flag === 1;
-  }
-
-  // Check for completion timestamp
-  if (userMetadata.onboarding_completed_at || userMetadata.onboardingCompletedAt) {
-    return true;
-  }
-
+  // The onboarding flag check was already done at the top of the function
+  // If we reach here, onboarding is not complete
   return false;
 }
 

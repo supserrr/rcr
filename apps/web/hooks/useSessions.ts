@@ -2,7 +2,7 @@
  * React hook for managing sessions
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { SessionsApi, type Session, type CreateSessionInput, type UpdateSessionInput, type RescheduleSessionInput, type CancelSessionInput, type CompleteSessionInput, type SessionQueryParams } from '@/lib/api/sessions';
 import { ApiError } from '@/lib/api/client';
 
@@ -33,6 +33,9 @@ export function useSessions(
   const [total, setTotal] = useState(0);
   const enabled = options?.enabled ?? true;
 
+  // Memoize params to prevent unnecessary re-fetches
+  const paramsKey = useMemo(() => JSON.stringify(params ?? null), [params]);
+
   const fetchSessions = useCallback(async () => {
     if (!enabled) {
       setLoading(false);
@@ -44,7 +47,8 @@ export function useSessions(
     setLoading(true);
     setError(null);
     try {
-      const response = await SessionsApi.listSessions(params);
+      const effectiveParams = paramsKey === 'null' ? undefined : (JSON.parse(paramsKey) as SessionQueryParams);
+      const response = await SessionsApi.listSessions(effectiveParams);
       setSessions(response.sessions);
       setTotal(response.total);
     } catch (err) {
@@ -54,7 +58,7 @@ export function useSessions(
     } finally {
       setLoading(false);
     }
-  }, [enabled, params]);
+  }, [enabled, paramsKey]);
 
   useEffect(() => {
     fetchSessions();

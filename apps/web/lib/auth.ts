@@ -159,11 +159,42 @@ export function getOnboardingRoute(userRole: UserRole): string {
 /**
  * Check if user has completed onboarding
  * 
- * For counselors: Checks if they are approved/active or have a counselor profile
+ * For counselors: Checks if they have completed onboarding (submitted form) or are approved/active
  * For patients: Checks if they have essential profile data (treatment stage, contact info, etc.)
  */
 export function isOnboardingComplete(user: User | null): boolean {
   if (!user) return false;
+  
+  // First, check the onboarding_completed flag in metadata (this is set when onboarding form is submitted)
+  const metadata = (user as any).metadata || {};
+  const onboardingFlag =
+    metadata.onboarding_completed ??
+    metadata.onboardingCompleted ??
+    metadata.onboarding_complete ??
+    metadata.has_completed_onboarding ??
+    metadata.onboarding?.completed ??
+    metadata.onboarding?.isComplete ??
+    metadata.onboarding?.is_completed;
+
+  if (typeof onboardingFlag === 'boolean' && onboardingFlag === true) {
+    return true;
+  }
+
+  if (typeof onboardingFlag === 'string') {
+    const normalized = onboardingFlag.trim().toLowerCase();
+    if (normalized === 'true' || normalized === '1' || normalized === 'yes' || normalized === 'completed') {
+      return true;
+    }
+  }
+
+  if (typeof onboardingFlag === 'number' && onboardingFlag === 1) {
+    return true;
+  }
+
+  // Check for completion timestamp
+  if (metadata.onboarding_completed_at || metadata.onboardingCompletedAt) {
+    return true;
+  }
   
   // For counselors: If they are approved or active, they have completed onboarding
   if (user.role === 'counselor') {
@@ -194,8 +225,6 @@ export function isOnboardingComplete(user: User | null): boolean {
   
   // For patients: Check if they have essential profile data indicating onboarding completion
   if (user.role === 'patient') {
-    const metadata = (user as any).metadata || {};
-    
     // Check if patient has essential onboarding data filled out
     // These fields are typically required during patient onboarding
     const hasTreatmentInfo = 
@@ -237,38 +266,6 @@ export function isOnboardingComplete(user: User | null): boolean {
     if (hasEmergencyContact && hasLocation && hasContactInfo) {
       return true;
     }
-  }
-  
-  // Check if onboarding_completed flag exists in user metadata
-  // We'll check this from the user object's metadata
-  // For now, we'll check if the user has any onboarding data
-  // This will be set when onboarding is completed
-  const metadata = (user as any).metadata || {};
-  const flag =
-    metadata.onboarding_completed ??
-    metadata.onboardingCompleted ??
-    metadata.onboarding_complete ??
-    metadata.has_completed_onboarding ??
-    metadata.onboarding?.completed ??
-    metadata.onboarding?.isComplete ??
-    metadata.onboarding?.is_completed;
-
-  if (typeof flag === 'boolean') {
-    return flag;
-  }
-
-  if (typeof flag === 'string') {
-    const normalized = flag.trim().toLowerCase();
-    return normalized === 'true' || normalized === '1' || normalized === 'yes' || normalized === 'completed';
-  }
-
-  if (typeof flag === 'number') {
-    return flag === 1;
-  }
-
-  // Fallback: if we have a completion timestamp, consider onboarding done
-  if (metadata.onboarding_completed_at || metadata.onboardingCompletedAt) {
-    return true;
   }
 
   return false;

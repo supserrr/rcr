@@ -109,6 +109,8 @@ export default function CounselorDashboard() {
 
   // Load assigned patients - only those explicitly assigned to this counselor
   useEffect(() => {
+    let isMounted = true;
+    
     const fetchPatients = async () => {
       try {
         setPatientsLoading(true);
@@ -152,12 +154,19 @@ export default function CounselorDashboard() {
           }
         }
 
+        // Check if component is still mounted before updating state
+        if (!isMounted) return;
+        
         setPatients(assignedPatientsList);
       } catch (error) {
-        console.error('Error fetching patients:', error);
-        toast.error('Failed to load patients');
+        if (isMounted) {
+          console.error('Error fetching patients:', error);
+          toast.error('Failed to load patients');
+        }
       } finally {
-        setPatientsLoading(false);
+        if (isMounted) {
+          setPatientsLoading(false);
+        }
       }
     };
 
@@ -169,6 +178,10 @@ export default function CounselorDashboard() {
 
     // Always fetch assigned patients, not just when there are sessions
     fetchPatients();
+    
+    return () => {
+      isMounted = false;
+    };
   }, [user?.id]);
 
   // Filter upcoming sessions
@@ -176,16 +189,46 @@ export default function CounselorDashboard() {
     const now = new Date();
     return sessions
       .filter((session) => {
-        const sessionDate = new Date(`${session.date}T${session.time}`);
-        return (
-          ['scheduled', 'rescheduled'].includes(session.status) &&
-          sessionDate.getTime() >= now.getTime()
-        );
+        if (!['scheduled', 'rescheduled'].includes(session.status)) {
+          return false;
+        }
+        
+        // Parse date (session.date is a string in YYYY-MM-DD format)
+        const sessionDate = new Date(session.date);
+        
+        // If session has a time, combine date and time
+        if (session.time) {
+          // Parse time (format: HH:MM or HH:MM:SS)
+          const [hours, minutes] = session.time.split(':').map(Number);
+          const sessionDateTime = new Date(sessionDate);
+          sessionDateTime.setHours(hours || 0, minutes || 0, 0, 0);
+          
+          // Session is upcoming if the datetime hasn't passed
+          return sessionDateTime.getTime() >= now.getTime();
+        }
+        
+        // If no time specified, check if date is today or in the future
+        // Set to end of day for date-only comparison
+        const endOfSessionDate = new Date(sessionDate);
+        endOfSessionDate.setHours(23, 59, 59, 999);
+        return endOfSessionDate.getTime() >= now.getTime();
       })
-      .sort(
-        (a, b) =>
-          new Date(`${a.date}T${a.time}`).getTime() - new Date(`${b.date}T${b.time}`).getTime()
-      )
+      .sort((a, b) => {
+        // Handle sorting with potential missing time
+        const getSessionTime = (session: typeof a) => {
+          if (session.time) {
+            const [hours, minutes] = session.time.split(':').map(Number);
+            const date = new Date(session.date);
+            date.setHours(hours || 0, minutes || 0, 0, 0);
+            return date.getTime();
+          }
+          // If no time, use start of day
+          const date = new Date(session.date);
+          date.setHours(0, 0, 0, 0);
+          return date.getTime();
+        };
+        return getSessionTime(a) - getSessionTime(b);
+      })
       .slice(0, 3);
   }, [sessions]);
 
@@ -681,7 +724,18 @@ export default function CounselorDashboard() {
             ) : upcomingSessions.length > 0 ? (
               <div className="space-y-4">
                 {upcomingSessions.map((session) => {
-                  const sessionDateTime = new Date(`${session.date}T${session.time}`);
+                  // Build session datetime safely
+                  const sessionDate = new Date(session.date);
+                  let sessionDateTime: Date;
+                  if (session.time) {
+                    const [hours, minutes] = session.time.split(':').map(Number);
+                    sessionDateTime = new Date(sessionDate);
+                    sessionDateTime.setHours(hours || 0, minutes || 0, 0, 0);
+                  } else {
+                    // If no time, use start of day
+                    sessionDateTime = new Date(sessionDate);
+                    sessionDateTime.setHours(0, 0, 0, 0);
+                  }
                   return (
                     <div key={session.id} className="flex items-center justify-between p-3 border rounded-lg">
                       <div className="flex items-center space-x-3">
@@ -694,8 +748,8 @@ export default function CounselorDashboard() {
                         <div>
                           <p className="font-medium">{getPatientName(session.patientId)}</p>
                           <p className="text-sm text-muted-foreground">
-                            {sessionDateTime.toLocaleDateString(undefined, { dateStyle: 'medium' })}{' '}
-                            at {sessionDateTime.toLocaleTimeString(undefined, { timeStyle: 'short' })}
+                            {sessionDateTime.toLocaleDateString(undefined, { dateStyle: 'medium' })}
+                            {session.time ? ` at ${sessionDateTime.toLocaleTimeString(undefined, { timeStyle: 'short' })}` : ''}
                           </p>
                         </div>
                       </div>

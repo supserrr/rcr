@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useMemo } from 'react';
+import { useState, useRef, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@workspace/ui/components/button';
 import { Input } from '@workspace/ui/components/input';
@@ -41,6 +41,7 @@ import type {
 } from '../../../lib/types';
 import { toast } from 'sonner';
 import { useAuth } from '@/components/auth/AuthProvider';
+import { isOnboardingComplete, getDashboardRoute } from '../../../lib/auth';
 
 interface CounselorOnboardingData {
   professionalTitle: string;
@@ -267,7 +268,7 @@ const toggleValue = <T,>(collection: T[], value: T): T[] =>
 
 export default function CounselorOnboardingPage() {
   const router = useRouter();
-  const { checkAuth } = useAuth();
+  const { user, isLoading: authLoading, checkAuth } = useAuth();
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const profileFileInputRef = useRef<HTMLInputElement>(null);
@@ -280,6 +281,18 @@ export default function CounselorOnboardingPage() {
     () => Math.round((currentStep / TOTAL_STEPS) * 100),
     [currentStep],
   );
+
+  // Check if user has already completed onboarding and redirect
+  useEffect(() => {
+    if (!authLoading && user) {
+      const onboardingComplete = isOnboardingComplete(user);
+      if (onboardingComplete) {
+        // User has already completed onboarding, redirect to dashboard
+        const dashboardRoute = getDashboardRoute(user.role);
+        router.replace(dashboardRoute);
+      }
+    }
+  }, [user, authLoading, router]);
 
   const handleVisibilityToggle = (surface: VisibilitySurface, value: boolean) => {
     setFormData((prev) => ({
@@ -400,7 +413,76 @@ export default function CounselorOnboardingPage() {
     });
   };
 
+  // Validation function for each step
+  const validateStep = (step: number): { isValid: boolean; errorMessage?: string } => {
+    switch (step) {
+      case 1: // Account Basics
+        if (!formData.bio.trim()) {
+          return { isValid: false, errorMessage: 'Please provide a short bio.' };
+        }
+        if (!formData.approachSummary.trim()) {
+          return { isValid: false, errorMessage: 'Please describe your therapeutic approach.' };
+        }
+        if (formData.languages.length === 0) {
+          return { isValid: false, errorMessage: 'Please select at least one language you provide support in.' };
+        }
+        if (formData.serviceRegions.length === 0) {
+          return { isValid: false, errorMessage: 'Please select at least one region you serve.' };
+        }
+        return { isValid: true };
+      
+      case 2: // Professional Credentials
+        if (!formData.resumeFile) {
+          return { isValid: false, errorMessage: 'Please upload your resume/CV (required).' };
+        }
+        if (formData.hasLicense && !formData.licenseFile) {
+          return { isValid: false, errorMessage: 'Please upload your license document (required when license is provided).' };
+        }
+        return { isValid: true };
+      
+      case 3: // Practice Details
+        if (formData.specializations.length === 0) {
+          return { isValid: false, errorMessage: 'Please select at least one specialization.' };
+        }
+        if (!formData.motivationStatement.trim()) {
+          return { isValid: false, errorMessage: 'Please provide your motivation to join RCR.' };
+        }
+        return { isValid: true };
+      
+      case 4: // Care Delivery & Availability
+        if (formData.sessionModalities.length === 0) {
+          return { isValid: false, errorMessage: 'Please select at least one session modality.' };
+        }
+        if (formData.sessionDurations.length === 0) {
+          return { isValid: false, errorMessage: 'Please select at least one session duration.' };
+        }
+        return { isValid: true };
+      
+      case 5: // Emergency Contact & Consent
+        if (!formData.emergencyContactName.trim()) {
+          return { isValid: false, errorMessage: 'Please provide your emergency contact name.' };
+        }
+        if (!formData.emergencyContactPhone.trim()) {
+          return { isValid: false, errorMessage: 'Please provide your emergency contact phone number.' };
+        }
+        if (!formData.consentAcknowledged) {
+          return { isValid: false, errorMessage: 'Please acknowledge that your information is accurate.' };
+        }
+        return { isValid: true };
+      
+      default:
+        return { isValid: true };
+    }
+  };
+
   const handleNext = async () => {
+    // Validate current step before proceeding
+    const validation = validateStep(currentStep);
+    if (!validation.isValid) {
+      toast.error(validation.errorMessage || 'Please complete all required fields before continuing.');
+      return;
+    }
+
     if (currentStep < TOTAL_STEPS) {
       setCurrentStep((step) => step + 1);
     } else {
@@ -415,6 +497,13 @@ export default function CounselorOnboardingPage() {
   };
 
   const handleSubmit = async () => {
+    // Final validation before submission
+    const validation = validateStep(TOTAL_STEPS);
+    if (!validation.isValid) {
+      toast.error(validation.errorMessage || 'Please complete all required fields before submitting.');
+      return;
+    }
+
     if (!formData.consentAcknowledged) {
       toast.error('Please acknowledge that your information is accurate before submitting.');
       return;
@@ -708,7 +797,9 @@ export default function CounselorOnboardingPage() {
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-foreground mb-2">Regions You Serve</label>
+        <label className="block text-sm font-medium text-foreground mb-2">
+          Regions You Serve <span className="text-red-500">*</span>
+        </label>
         <div className="flex flex-wrap gap-2 mb-3">
           {SERVICE_REGION_SUGGESTIONS.map((region) => (
             <Badge
@@ -744,7 +835,9 @@ export default function CounselorOnboardingPage() {
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-foreground mb-2">Languages You Provide Support In</label>
+        <label className="block text-sm font-medium text-foreground mb-2">
+          Languages You Provide Support In <span className="text-red-500">*</span>
+        </label>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {LANGUAGE_OPTIONS.map((language) => (
             <button
@@ -765,7 +858,9 @@ export default function CounselorOnboardingPage() {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
         <div>
-          <label className="block text-sm font-medium text-foreground mb-2">Short Bio</label>
+          <label className="block text-sm font-medium text-foreground mb-2">
+            Short Bio <span className="text-red-500">*</span>
+          </label>
           <Textarea
             placeholder="Share your background, years of service, and what inspires your work."
             value={formData.bio}
@@ -774,7 +869,9 @@ export default function CounselorOnboardingPage() {
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-foreground mb-2">Your Therapeutic Approach</label>
+          <label className="block text-sm font-medium text-foreground mb-2">
+            Your Therapeutic Approach <span className="text-red-500">*</span>
+          </label>
           <Textarea
             placeholder="Focus areas, methodologies, and what patients can expect in sessions."
             value={formData.approachSummary}
@@ -959,7 +1056,9 @@ export default function CounselorOnboardingPage() {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
         <div>
-          <label className="block text-sm font-medium text-foreground mb-2">Upload Resume/CV (PDF)</label>
+          <label className="block text-sm font-medium text-foreground mb-2">
+            Upload Resume/CV (PDF) <span className="text-red-500">*</span>
+          </label>
           <div className="border-2 border-dashed border-border rounded-lg p-6 text-center">
             <Upload className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
             <p className="text-sm text-muted-foreground mb-2">
@@ -979,7 +1078,9 @@ export default function CounselorOnboardingPage() {
           </div>
         </div>
         <div>
-          <label className="block text-sm font-medium text-foreground mb-2">Upload License (PDF/Image)</label>
+          <label className="block text-sm font-medium text-foreground mb-2">
+            Upload License (PDF/Image) {formData.hasLicense && <span className="text-red-500">*</span>}
+          </label>
           <div
             className={`border-2 border-dashed rounded-lg p-6 text-center ${
               formData.hasLicense ? 'border-border' : 'border-border/50 bg-muted/30 text-muted-foreground'
@@ -1073,7 +1174,9 @@ export default function CounselorOnboardingPage() {
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-foreground mb-2">Specializations</label>
+        <label className="block text-sm font-medium text-foreground mb-2">
+          Specializations <span className="text-red-500">*</span>
+        </label>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {SPECIALIZATION_OPTIONS.map((specialization) => (
             <button
@@ -1114,7 +1217,9 @@ export default function CounselorOnboardingPage() {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
         <div>
-          <label className="block text-sm font-medium text-foreground mb-2">Motivation to Join RCR</label>
+          <label className="block text-sm font-medium text-foreground mb-2">
+            Motivation to Join RCR <span className="text-red-500">*</span>
+          </label>
           <Textarea
             placeholder="What inspires you to support cancer patients and families?"
             value={formData.motivationStatement}
@@ -1149,7 +1254,9 @@ export default function CounselorOnboardingPage() {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
         <div>
-          <label className="block text-sm font-medium text-foreground mb-2">Session Modalities</label>
+          <label className="block text-sm font-medium text-foreground mb-2">
+            Session Modalities <span className="text-red-500">*</span>
+          </label>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {SESSION_MODALITY_OPTIONS.map(({ value, label, icon: Icon }) => (
               <button
@@ -1171,7 +1278,9 @@ export default function CounselorOnboardingPage() {
           </div>
         </div>
         <div>
-          <label className="block text-sm font-medium text-foreground mb-2">Typical Session Durations</label>
+          <label className="block text-sm font-medium text-foreground mb-2">
+            Typical Session Durations <span className="text-red-500">*</span>
+          </label>
           <div className="flex flex-wrap gap-3">
             {SESSION_DURATION_OPTIONS.map((duration) => (
               <button
@@ -1355,7 +1464,9 @@ export default function CounselorOnboardingPage() {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
         <div>
-          <label className="block text-sm font-medium text-foreground mb-2">Emergency Contact Name</label>
+          <label className="block text-sm font-medium text-foreground mb-2">
+            Emergency Contact Name <span className="text-red-500">*</span>
+          </label>
           <Input
             type="text"
             placeholder="Name of emergency contact"
@@ -1364,7 +1475,9 @@ export default function CounselorOnboardingPage() {
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-foreground mb-2">Emergency Contact Phone</label>
+          <label className="block text-sm font-medium text-foreground mb-2">
+            Emergency Contact Phone <span className="text-red-500">*</span>
+          </label>
           <Input
             type="tel"
             placeholder="e.g., +250 700 000 000"

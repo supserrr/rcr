@@ -341,7 +341,8 @@ export default function SessionRoomPage() {
               <div>
                 <p className="text-sm text-muted-foreground">Date & Time</p>
                 <p className="font-semibold">
-                  {new Date(session.date).toLocaleDateString()} at {session.time}
+                  {new Date(session.date).toLocaleDateString()}
+                  {session.time ? ` at ${session.time}` : ' (Time TBD)'}
                 </p>
               </div>
             </div>

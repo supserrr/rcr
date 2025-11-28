@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { AnimatedPageHeader } from '@workspace/ui/components/animated-page-header';
 import { AnimatedCard } from '@workspace/ui/components/animated-card';
@@ -38,6 +38,102 @@ import { Spinner } from '@workspace/ui/components/ui/shadcn-io/spinner';
 import { AdminApi, type AdminUser } from '../../../../lib/api/admin';
 import type { Counselor } from '../../../../lib/types';
 import { normalizeAvatarUrl } from '@workspace/ui/lib/avatar';
+import { useProfileUpdates } from '../../../../hooks/useRealtime';
+import type { RealtimeProfile } from '../../../../lib/realtime/client';
+
+/**
+ * Maps AdminUser to Counselor format for patient sessions page
+ */
+const mapAdminUserToCounselor = (adminUser: AdminUser): Counselor => {
+  const metadata = (adminUser.metadata ?? {}) as Record<string, unknown>;
+  const counselorProfile = adminUser.counselorProfile;
+  
+  // Extract title from metadata
+  const professionalTitle = 
+    (typeof metadata.professionalTitle === 'string' ? metadata.professionalTitle : undefined) ||
+    (typeof metadata.professional_title === 'string' ? metadata.professional_title : undefined) ||
+    (typeof metadata.title === 'string' ? metadata.title : undefined) ||
+    undefined;
+  
+  const baseName = adminUser.fullName || 'Counselor';
+  // Only add professional title if the name doesn't already start with it
+  const displayName = professionalTitle 
+    ? (baseName.trim().toLowerCase().startsWith(professionalTitle.trim().toLowerCase())
+        ? baseName
+        : `${professionalTitle} ${baseName}`.trim())
+    : baseName;
+
+  return {
+    id: adminUser.id,
+    name: displayName,
+    title: professionalTitle,
+    email: adminUser.email || '',
+    role: 'counselor',
+    avatar: adminUser.avatarUrl || undefined,
+    createdAt: new Date(adminUser.createdAt),
+    lastLogin: adminUser.lastLogin ? new Date(adminUser.lastLogin) : undefined,
+    metadata,
+    specialty: adminUser.specialty || 'General Counseling',
+    experience: adminUser.experience || 0,
+    availability: (metadata.availability || (counselorProfile as any)?.availability_status || adminUser.availability || 'available') as 'available' | 'busy' | 'offline',
+    phoneNumber: adminUser.phoneNumber || undefined,
+    bio: (metadata.bio as string | undefined) || counselorProfile?.bio || undefined,
+    credentials: (metadata.credentials as string | undefined) || (counselorProfile as any)?.credentials || undefined,
+    languages: Array.isArray(metadata.languages) 
+      ? metadata.languages.filter((item): item is string => typeof item === 'string')
+      : undefined,
+    location: (metadata.location as string | undefined) || adminUser.location || undefined,
+    visibilitySettings: metadata.visibilitySettings as any,
+    approvalStatus: metadata.approvalStatus as any,
+    availabilityStatus: metadata.availabilityStatus as any,
+  };
+};
+
+/**
+ * Maps RealtimeProfile to AdminUser format
+ */
+const mapProfileRecordToAdminUser = (profile: RealtimeProfile): AdminUser => {
+  const metadata = (profile.metadata ?? {}) as Record<string, unknown>;
+
+  return {
+    id: profile.id,
+    email:
+      (typeof profile.email === 'string' ? profile.email : undefined) ??
+      (typeof metadata.email === 'string' ? metadata.email : undefined) ??
+      (typeof metadata.contact_email === 'string' ? metadata.contact_email : undefined) ??
+      '',
+    fullName:
+      (typeof profile.full_name === 'string' ? profile.full_name : undefined) ??
+      (typeof metadata.full_name === 'string' ? metadata.full_name : undefined),
+    role: (profile.role as AdminUser['role']) || 'counselor',
+    isVerified: Boolean(profile.is_verified),
+    createdAt: profile.created_at ?? new Date().toISOString(),
+    lastLogin: profile.updated_at ?? undefined,
+    metadata,
+    specialty:
+      (typeof profile.specialty === 'string' ? profile.specialty : undefined) ??
+      (typeof metadata.specialty === 'string' ? metadata.specialty : undefined),
+    experience:
+      (typeof profile.experience_years === 'number' ? profile.experience_years : undefined) ??
+      (typeof metadata.experience === 'number' ? metadata.experience : undefined),
+    availability:
+      (typeof profile.availability === 'string' ? profile.availability : undefined) ??
+      (typeof metadata.availability === 'string' ? metadata.availability : undefined),
+    availabilityStatus:
+      (typeof profile.approval_status === 'string' ? profile.approval_status : undefined) ??
+      (typeof metadata.availabilityStatus === 'string' ? metadata.availabilityStatus : undefined),
+    avatarUrl:
+      (typeof profile.avatar_url === 'string' ? profile.avatar_url : undefined) ??
+      (typeof metadata.avatar_url === 'string' ? metadata.avatar_url : undefined) ??
+      (typeof metadata.avatar === 'string' ? metadata.avatar : undefined),
+    phoneNumber:
+      (typeof profile.phone_number === 'string' ? profile.phone_number : undefined) ??
+      (typeof metadata.phoneNumber === 'string' ? metadata.phoneNumber : undefined),
+    location:
+      (typeof metadata.location === 'string' ? metadata.location : undefined),
+    counselorProfile: undefined,
+  };
+};
 
 export default function PatientSessionsPage() {
   const router = useRouter();
@@ -53,6 +149,7 @@ export default function PatientSessionsPage() {
   const [selectedSession, setSelectedSession] = useState<Session | null>(null);
   const [counselors, setCounselors] = useState<Counselor[]>([]);
   const [counselorsLoading, setCounselorsLoading] = useState(false);
+  const [fetchingCounselorIds, setFetchingCounselorIds] = useState<Set<string>>(new Set());
   const [isSessionInfoOpen, setIsSessionInfoOpen] = useState(false);
   const [viewingSession, setViewingSession] = useState<Session | null>(null);
 
@@ -110,11 +207,36 @@ export default function PatientSessionsPage() {
 
   // Load counselors on mount (for displaying names in session cards)
   useEffect(() => {
+    let isMounted = true;
+    let timeoutId: NodeJS.Timeout | null = null;
+    
+    // Only load if we have no counselors, not currently loading, and have a user
     if (counselors.length === 0 && !counselorsLoading && user?.id) {
       const loadCounselors = async () => {
         try {
           setCounselorsLoading(true);
+          
+          // Set a timeout to prevent getting stuck on loading forever (30 seconds)
+          timeoutId = setTimeout(() => {
+            if (isMounted) {
+              console.warn('Counselor loading timeout - resetting loading state');
+              setCounselorsLoading(false);
+            }
+          }, 30000);
+          
           const response = await AdminApi.listUsers({ role: 'counselor' });
+          
+          // Clear timeout on success
+          if (timeoutId) {
+            clearTimeout(timeoutId);
+            timeoutId = null;
+          }
+          
+          // Check if component is still mounted before updating state
+          if (!isMounted) {
+            setCounselorsLoading(false);
+            return;
+          }
           
           // Map AdminUser to Counselor format
           const mappedCounselors: Counselor[] = response.users
@@ -131,63 +253,96 @@ export default function PatientSessionsPage() {
               
               return true;
             })
-            .map((adminUser): Counselor => {
-              const metadata = (adminUser.metadata ?? {}) as Record<string, unknown>;
-              const counselorProfile = adminUser.counselorProfile;
-              
-              // Extract title from metadata
-              const professionalTitle = 
-                (typeof metadata.professionalTitle === 'string' ? metadata.professionalTitle : undefined) ||
-                (typeof metadata.professional_title === 'string' ? metadata.professional_title : undefined) ||
-                (typeof metadata.title === 'string' ? metadata.title : undefined) ||
-                undefined;
-              
-              const baseName = adminUser.fullName || 'Counselor';
-              // Only add professional title if the name doesn't already start with it
-              const displayName = professionalTitle 
-                ? (baseName.trim().toLowerCase().startsWith(professionalTitle.trim().toLowerCase())
-                    ? baseName
-                    : `${professionalTitle} ${baseName}`.trim())
-                : baseName;
-
-              return {
-                id: adminUser.id,
-                name: displayName,
-                title: professionalTitle,
-                email: adminUser.email || '',
-                role: 'counselor',
-                avatar: adminUser.avatarUrl || undefined,
-                createdAt: new Date(adminUser.createdAt),
-                lastLogin: adminUser.lastLogin ? new Date(adminUser.lastLogin) : undefined,
-                metadata,
-                specialty: adminUser.specialty || 'General Counseling',
-                experience: adminUser.experience || 0,
-                availability: (metadata.availability || (counselorProfile as any)?.availability_status || adminUser.availability || 'available') as 'available' | 'busy' | 'offline',
-                phoneNumber: adminUser.phoneNumber || undefined,
-                bio: (metadata.bio as string | undefined) || counselorProfile?.bio || undefined,
-                credentials: (metadata.credentials as string | undefined) || (counselorProfile as any)?.credentials || undefined,
-                languages: Array.isArray(metadata.languages) 
-                  ? metadata.languages.filter((item): item is string => typeof item === 'string')
-                  : undefined,
-                location: (metadata.location as string | undefined) || adminUser.location || undefined,
-                visibilitySettings: metadata.visibilitySettings as any,
-                approvalStatus: metadata.approvalStatus as any,
-                availabilityStatus: metadata.availabilityStatus as any,
-              };
-            });
+            .map(mapAdminUserToCounselor);
           
-          setCounselors(mappedCounselors);
+          if (isMounted) {
+            setCounselors(mappedCounselors);
+            setCounselorsLoading(false);
+          }
         } catch (error) {
-          console.error('Error loading counselors:', error);
-          toast.error('Failed to load counselors');
-        } finally {
-          setCounselorsLoading(false);
+          // Clear timeout on error
+          if (timeoutId) {
+            clearTimeout(timeoutId);
+            timeoutId = null;
+          }
+          
+          if (isMounted) {
+            console.error('Error loading counselors:', error);
+            toast.error('Failed to load counselors');
+            setCounselorsLoading(false);
+          }
         }
       };
       
       loadCounselors();
+    } else if (!user?.id && counselorsLoading) {
+      // If no user, ensure loading is false
+      setCounselorsLoading(false);
     }
+    
+    return () => {
+      isMounted = false;
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
   }, [counselors.length, counselorsLoading, user?.id]);
+
+  // Subscribe to realtime counselor profile updates
+  const profileSubscriptionFilters = useMemo(
+    () => ({ role: 'counselor' as const }),
+    [],
+  );
+
+  const handleRealtimeProfileUpdate = useCallback(
+    (profile: RealtimeProfile, { eventType }: { eventType: string; oldRecord: Record<string, unknown> | null }) => {
+      if (!profile?.id) {
+        return;
+      }
+
+      const adminUser = mapProfileRecordToAdminUser(profile);
+      const counselor = mapAdminUserToCounselor(adminUser);
+
+      // Filter based on approval status
+      const metadata = (adminUser.metadata ?? {}) as Record<string, unknown>;
+      const approvalStatus = metadata.approvalStatus || (adminUser.counselorProfile as any)?.approval_status;
+      const shouldInclude = !approvalStatus || approvalStatus === 'approved' || approvalStatus === 'active';
+
+      setCounselors((previous) => {
+        const existingIndex = previous.findIndex((c) => c.id === adminUser.id);
+
+        if (eventType === 'DELETE') {
+          return existingIndex === -1
+            ? previous
+            : previous.filter((counselorItem) => counselorItem.id !== adminUser.id);
+        }
+
+        if (!shouldInclude) {
+          // Remove if no longer approved/active
+          return existingIndex === -1
+            ? previous
+            : previous.filter((counselorItem) => counselorItem.id !== adminUser.id);
+        }
+
+        if (existingIndex === -1) {
+          return [...previous, counselor].sort((a, b) => a.name.localeCompare(b.name));
+        }
+
+        const next = [...previous];
+        next[existingIndex] = counselor;
+        return next;
+      });
+    },
+    [],
+  );
+
+  useProfileUpdates(
+    profileSubscriptionFilters,
+    handleRealtimeProfileUpdate,
+    (error) => {
+      console.error('Realtime counselor subscription error:', error);
+    },
+  );
 
   // Check for counselorId in URL query params on mount
   useEffect(() => {
@@ -201,24 +356,76 @@ export default function PatientSessionsPage() {
     }
   }, [searchParams, router]);
 
-  // Get counselor name by ID
-  const getCounselorName = (counselorId: string) => {
-    const counselor = counselors.find(c => c.id === counselorId);
-    return counselor?.name || 'Unknown Counselor';
-  };
+  // Fetch a specific counselor if not in the list
+  const fetchCounselorById = useCallback(async (counselorId: string) => {
+    if (fetchingCounselorIds.has(counselorId) || counselors.find(c => c.id === counselorId)) {
+      return; // Already fetching or already exists
+    }
 
-  const getCounselorSpecialty = (counselorId: string) => {
+    setFetchingCounselorIds(prev => new Set(prev).add(counselorId));
+    try {
+      const profile = await AdminApi.getUserProfile(counselorId);
+      if (profile && profile.role === 'counselor' && profile.id) {
+        const adminUser: AdminUser = {
+          id: profile.id,
+          email: profile.email || '',
+          fullName: profile.fullName,
+          role: 'counselor',
+          isVerified: false,
+          createdAt: profile.createdAt || new Date().toISOString(),
+          avatarUrl: profile.avatarUrl,
+          metadata: profile.metadata || {},
+        };
+        const counselor = mapAdminUserToCounselor(adminUser);
+        setCounselors(prev => {
+          if (prev.find(c => c.id === counselorId)) {
+            return prev; // Already added
+          }
+          return [...prev, counselor].sort((a, b) => a.name.localeCompare(b.name));
+        });
+      }
+    } catch (error) {
+      console.error(`Error fetching counselor ${counselorId}:`, error);
+    } finally {
+      setFetchingCounselorIds(prev => {
+        const next = new Set(prev);
+        next.delete(counselorId);
+        return next;
+      });
+    }
+  }, [fetchingCounselorIds, counselors]);
+
+  // Get counselor name by ID
+  const getCounselorName = useCallback((counselorId: string) => {
+    const counselor = counselors.find(c => c.id === counselorId);
+    if (counselor) {
+      return counselor.name;
+    }
+    // If counselor not found and we're still loading the initial list (and have no counselors yet), show loading
+    // But only for a short time - don't get stuck on loading forever
+    if (counselorsLoading && counselors.length === 0) {
+      return 'Loading...';
+    }
+    // If counselor not found, try to fetch it (but don't show loading for individual fetches)
+    if (counselorId && !fetchingCounselorIds.has(counselorId)) {
+      fetchCounselorById(counselorId);
+    }
+    // Show generic name - individual fetches happen in background
+    return 'Counselor';
+  }, [counselors, counselorsLoading, fetchingCounselorIds, fetchCounselorById]);
+
+  const getCounselorSpecialty = useCallback((counselorId: string) => {
     const counselor = counselors.find(c => c.id === counselorId);
     return counselor?.specialty || 'Counselor';
-  };
+  }, [counselors]);
 
-  const getCounselorAvatar = (counselorId: string) => {
+  const getCounselorAvatar = useCallback((counselorId: string) => {
     const counselor = counselors.find(c => c.id === counselorId);
     if (counselor?.avatar) {
       return normalizeAvatarUrl(counselor.avatar);
     }
     return undefined;
-  };
+  }, [counselors]);
 
   const getPatientAvatar = () => {
     // Patient's own avatar from auth user

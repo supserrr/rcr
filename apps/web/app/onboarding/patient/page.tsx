@@ -14,6 +14,8 @@ import { UsersIcon } from '@workspace/ui/components/users';
 import { AuthApi } from '../../../lib/api/auth';
 import { toast } from 'sonner';
 import { useAuth } from '@/components/auth/AuthProvider';
+import { isOnboardingComplete, getDashboardRoute } from '../../../lib/auth';
+import { useEffect } from 'react';
 
 /**
  * Patient onboarding form data structure
@@ -53,7 +55,7 @@ export default function PatientOnboardingPage() {
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { checkAuth } = useAuth();
+  const { user, isLoading: authLoading, checkAuth } = useAuth();
   const [formData, setFormData] = useState<PatientOnboardingData>({
     age: '',
     gender: '',
@@ -75,6 +77,18 @@ export default function PatientOnboardingPage() {
   });
 
   const totalSteps = 4;
+
+  // Check if user has already completed onboarding and redirect
+  useEffect(() => {
+    if (!authLoading && user) {
+      const onboardingComplete = isOnboardingComplete(user);
+      if (onboardingComplete) {
+        // User has already completed onboarding, redirect to dashboard
+        const dashboardRoute = getDashboardRoute(user.role);
+        router.replace(dashboardRoute);
+      }
+    }
+  }, [user, authLoading, router]);
 
   const handleInputChange = (field: keyof PatientOnboardingData, value: string | string[]) => {
     setFormData(prev => ({
@@ -117,7 +131,55 @@ export default function PatientOnboardingPage() {
     }));
   };
 
+  // Validation function for each step
+  const validateStep = (step: number): { isValid: boolean; errorMessage?: string } => {
+    switch (step) {
+      case 1: // Personal Information
+        if (!formData.age.trim()) {
+          return { isValid: false, errorMessage: 'Please provide your age.' };
+        }
+        if (!formData.gender.trim()) {
+          return { isValid: false, errorMessage: 'Please select your gender.' };
+        }
+        if (!formData.location.trim()) {
+          return { isValid: false, errorMessage: 'Please provide your location.' };
+        }
+        if (!formData.contactPhone.trim()) {
+          return { isValid: false, errorMessage: 'Please provide your primary contact phone number.' };
+        }
+        return { isValid: true };
+      
+      case 2: // Medical Information
+        if (!formData.cancerType.trim()) {
+          return { isValid: false, errorMessage: 'Please select your type of cancer.' };
+        }
+        if (!formData.treatmentStage.trim()) {
+          return { isValid: false, errorMessage: 'Please select your treatment stage.' };
+        }
+        return { isValid: true };
+      
+      case 3: // Support Needs
+        if (!formData.emergencyContactName.trim()) {
+          return { isValid: false, errorMessage: 'Please provide your emergency contact name.' };
+        }
+        if (!formData.emergencyContactPhone.trim()) {
+          return { isValid: false, errorMessage: 'Please provide your emergency contact phone number.' };
+        }
+        return { isValid: true };
+      
+      default:
+        return { isValid: true };
+    }
+  };
+
   const handleNext = async () => {
+    // Validate current step before proceeding
+    const validation = validateStep(currentStep);
+    if (!validation.isValid) {
+      toast.error(validation.errorMessage || 'Please complete all required fields before continuing.');
+      return;
+    }
+
     if (currentStep < totalSteps) {
       setCurrentStep(currentStep + 1);
     } else {
@@ -127,23 +189,18 @@ export default function PatientOnboardingPage() {
   };
 
   const handleSubmit = async () => {
+    // Final validation before submission
+    const validation = validateStep(totalSteps);
+    if (!validation.isValid) {
+      toast.error(validation.errorMessage || 'Please complete all required fields before submitting.');
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       const contactPhone = formData.contactPhone.trim();
       const emergencyContactName = formData.emergencyContactName.trim();
       const emergencyContactPhone = formData.emergencyContactPhone.trim();
-
-      if (!contactPhone) {
-        toast.error('Please provide your primary contact phone number.');
-        setIsSubmitting(false);
-        return;
-      }
-
-      if (!emergencyContactName || !emergencyContactPhone) {
-        toast.error('Please provide your emergency contact\'s name and phone number.');
-        setIsSubmitting(false);
-        return;
-      }
 
       // Upload profile image if provided
       let avatarUrl: string | undefined;
@@ -262,7 +319,9 @@ export default function PatientOnboardingPage() {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
         <div>
-          <label className="block text-sm font-medium text-foreground mb-2">Age</label>
+          <label className="block text-sm font-medium text-foreground mb-2">
+            Age <span className="text-red-500">*</span>
+          </label>
           <Input
             type="number"
             placeholder="Enter your age"
@@ -272,7 +331,9 @@ export default function PatientOnboardingPage() {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-foreground mb-2">Gender</label>
+          <label className="block text-sm font-medium text-foreground mb-2">
+            Gender <span className="text-red-500">*</span>
+          </label>
           <select
             className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground"
             value={formData.gender}
@@ -287,7 +348,9 @@ export default function PatientOnboardingPage() {
         </div>
 
         <div className="md:col-span-2">
-          <label className="block text-sm font-medium text-foreground mb-2">Location</label>
+          <label className="block text-sm font-medium text-foreground mb-2">
+            Location <span className="text-red-500">*</span>
+          </label>
           <Input
             type="text"
             placeholder="City, Province (e.g., Kigali, Kigali City)"
@@ -297,7 +360,9 @@ export default function PatientOnboardingPage() {
         </div>
 
         <div className="md:col-span-2">
-          <label className="block text-sm font-medium text-foreground mb-2">Primary Contact Phone</label>
+          <label className="block text-sm font-medium text-foreground mb-2">
+            Primary Contact Phone <span className="text-red-500">*</span>
+          </label>
           <Input
             type="tel"
             placeholder="e.g., +250 7XX XXX XXX"
@@ -324,7 +389,9 @@ export default function PatientOnboardingPage() {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
         <div>
-          <label className="block text-sm font-medium text-foreground mb-2">Type of Cancer</label>
+          <label className="block text-sm font-medium text-foreground mb-2">
+            Type of Cancer <span className="text-red-500">*</span>
+          </label>
           <select
             className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground"
             value={formData.cancerType}
@@ -373,7 +440,9 @@ export default function PatientOnboardingPage() {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-foreground mb-2">Treatment Stage</label>
+          <label className="block text-sm font-medium text-foreground mb-2">
+            Treatment Stage <span className="text-red-500">*</span>
+          </label>
           <select
             className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground"
             value={formData.treatmentStage}
@@ -468,7 +537,9 @@ export default function PatientOnboardingPage() {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
         <div>
-          <label className="block text-sm font-medium text-foreground mb-2">Emergency Contact Name</label>
+          <label className="block text-sm font-medium text-foreground mb-2">
+            Emergency Contact Name <span className="text-red-500">*</span>
+          </label>
           <Input
             type="text"
             placeholder="Full name of your emergency contact"
@@ -477,7 +548,9 @@ export default function PatientOnboardingPage() {
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-foreground mb-2">Emergency Contact Phone</label>
+          <label className="block text-sm font-medium text-foreground mb-2">
+            Emergency Contact Phone <span className="text-red-500">*</span>
+          </label>
           <Input
             type="tel"
             placeholder="e.g., +250 7XX XXX XXX"

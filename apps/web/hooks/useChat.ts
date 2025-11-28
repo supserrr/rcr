@@ -4,7 +4,7 @@
 
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { ChatApi, type Chat, type Message, type MessageType, type SendMessageInput, type CreateChatInput, type ChatQueryParams, type MessagesQueryParams, type MarkReadInput } from '@/lib/api/chat';
 import { useChatMessages, type RealtimeMessage } from './useRealtime';
 import { ApiError } from '@/lib/api/client';
@@ -373,9 +373,15 @@ export function useChat(
     }
   }, [currentChat?.id, currentUserId, deduplicateAndSortMessages]);
 
+  // Use ref to track loaded chat IDs to avoid Set dependency issues
+  const loadedChatIdsRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    loadedChatIdsRef.current = loadedChatIds;
+  }, [loadedChatIds]);
+
   const loadMessages = useCallback(async (chatId: string, messageParams?: MessagesQueryParams, forceReload = false) => {
     // Don't reload if messages are already loaded for this chat (unless forced)
-    if (!forceReload && loadedChatIds.has(chatId) && currentChat?.id === chatId) {
+    if (!forceReload && loadedChatIdsRef.current.has(chatId) && currentChat?.id === chatId) {
       return;
     }
 
@@ -404,7 +410,7 @@ export function useChat(
     } finally {
       setMessagesLoading(false);
     }
-  }, [deduplicateAndSortMessages, loadedChatIds, currentChat?.id]);
+  }, [deduplicateAndSortMessages, currentChat?.id]);
 
   const markMessagesRead = useCallback(async (chatId: string, data?: MarkReadInput): Promise<void> => {
     try {

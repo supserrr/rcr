@@ -4,7 +4,7 @@
  * Provides real-time subscriptions for messages, notifications, and sessions
  */
 
-import { useEffect, useCallback, useRef } from 'react';
+import { useEffect, useCallback, useRef, useMemo } from 'react';
 import {
   subscribeToMessages,
   subscribeToNotifications,
@@ -151,7 +151,8 @@ export function useProfileUpdates(
   ) => void,
   onError?: (error: Error) => void
 ) {
-  const filtersKey = JSON.stringify(filters ?? {});
+  // Use useMemo to stabilize filters key and prevent unnecessary re-subscriptions
+  const filtersKey = useMemo(() => JSON.stringify(filters ?? {}), [filters]);
 
   useEffect(() => {
     if (!filters || (Array.isArray(filters.ids) && filters.ids.length === 0 && !filters.role)) {
@@ -163,6 +164,6 @@ export function useProfileUpdates(
     return () => {
       unsubscribe();
     };
-  }, [filtersKey, onUpdate, onError, filters]);
+  }, [filtersKey, onUpdate, onError]);
 }
 

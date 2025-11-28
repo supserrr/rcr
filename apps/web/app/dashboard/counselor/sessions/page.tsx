@@ -75,6 +75,8 @@ export default function CounselorSessionsPage() {
   // Load counselor profile for specialty
   // Note: Patient data is loaded via the fallback useEffect below from session profiles
   useEffect(() => {
+    let isMounted = true;
+    
     const fetchCounselorProfile = async () => {
       if (!user?.id) return;
       
@@ -89,6 +91,9 @@ export default function CounselorSessionsPage() {
           .eq('id', user.id)
           .eq('role', 'counselor')
           .maybeSingle();
+        
+        // Check if component is still mounted before processing
+        if (!isMounted) return;
         
         if (error) {
           console.error('Error fetching counselor profile:', error);
@@ -116,18 +121,28 @@ export default function CounselorSessionsPage() {
             updatedAt: profile.updated_at || new Date().toISOString(),
           };
           
-          setCounselorProfile(counselorProfile);
+          if (isMounted) {
+            setCounselorProfile(counselorProfile);
+          }
         }
       } catch (error) {
-        console.error('Error fetching counselor profile:', error);
+        if (isMounted) {
+          console.error('Error fetching counselor profile:', error);
+        }
       }
     };
 
     fetchCounselorProfile();
+    
+    return () => {
+      isMounted = false;
+    };
   }, [user?.id]);
 
   // Load patients assigned to this counselor for the schedule modal
   useEffect(() => {
+    let isMounted = true;
+    
     const loadAssignedPatients = async () => {
       if (!user?.id) return;
       
@@ -141,6 +156,9 @@ export default function CounselorSessionsPage() {
           .select('id,full_name,role,avatar_url,metadata,created_at,updated_at,phone_number,preferred_language,treatment_stage,contact_phone,emergency_contact_name,emergency_contact_phone,assigned_counselor_id,diagnosis,date_of_birth')
           .eq('role', 'patient')
           .eq('assigned_counselor_id', user.id);
+        
+        // Check if component is still mounted before processing
+        if (!isMounted) return;
         
         if (error) {
           console.error('[loadAssignedPatients] Error fetching assigned patients:', error);
@@ -185,6 +203,9 @@ export default function CounselorSessionsPage() {
             } as AdminUser;
           });
           
+          // Check if still mounted before updating state
+          if (!isMounted) return;
+          
           // Merge with existing patients list
           setPatients(prev => {
             const existingIds = new Set(prev.map(p => p.id));
@@ -202,11 +223,17 @@ export default function CounselorSessionsPage() {
           });
         }
       } catch (error) {
-        console.error('[loadAssignedPatients] Error loading assigned patients:', error);
+        if (isMounted) {
+          console.error('[loadAssignedPatients] Error loading assigned patients:', error);
+        }
       }
     };
     
     loadAssignedPatients();
+    
+    return () => {
+      isMounted = false;
+    };
   }, [user?.id]);
 
   // Note: Patient profiles are also fetched via the FALLBACK useEffect below
@@ -249,6 +276,8 @@ export default function CounselorSessionsPage() {
   // Fetch patient names directly from sessions if not in loaded list
   // This is a fallback when AdminApi.listUsers doesn't return patients
   useEffect(() => {
+    let isMounted = true;
+    
     // Always fetch patient profiles from sessions if we have sessions
     // This ensures we have patient data even if AdminApi.listUsers fails
     // Run immediately if we have sessions, don't wait for patientsLoading
@@ -280,6 +309,9 @@ export default function CounselorSessionsPage() {
             .select('id,full_name,role,avatar_url,metadata,created_at,updated_at,phone_number,preferred_language,treatment_stage,contact_phone,emergency_contact_name,emergency_contact_phone,assigned_counselor_id,diagnosis,date_of_birth')
             .in('id', missingPatientIds)
             .in('role', ['patient', 'guest']);
+          
+          // Check if component is still mounted before processing
+          if (!isMounted) return;
           
           if (error) {
             console.error('[FALLBACK] Failed to fetch patient profiles from sessions:', error);
@@ -391,6 +423,9 @@ export default function CounselorSessionsPage() {
               } as AdminUser;
             });
             
+            // Check if still mounted before updating state
+            if (!isMounted) return;
+            
             // Add to patients list and cache (merge with existing)
             setPatients(prev => {
               const existingIds = new Set(prev.map(p => p.id));
@@ -415,13 +450,19 @@ export default function CounselorSessionsPage() {
             console.warn(`[FALLBACK] No patient profiles found for IDs:`, missingPatientIds);
           }
         } catch (error) {
-          console.error('[FALLBACK] Error fetching patient profiles from sessions:', error);
-          if (error instanceof Error) {
-            console.error('[FALLBACK] Error stack:', error.stack);
+          if (isMounted) {
+            console.error('[FALLBACK] Error fetching patient profiles from sessions:', error);
+            if (error instanceof Error) {
+              console.error('[FALLBACK] Error stack:', error.stack);
+            }
           }
         }
       })();
     }
+    
+    return () => {
+      isMounted = false;
+    };
   }, [sessions, patients.length, patientCache.size]); // Run when sessions change or when patients/cache are updated
 
   const getPatientName = (patientId: string): string => {
