@@ -57,7 +57,7 @@
     "@types/three": "^0.180.0",
     "@workspace/eslint-config": "workspace:*",
     "@workspace/typescript-config": "workspace:*",
-    "tailwindcss": "^4.1.11",
+    "tailwindcss": "^4.1.17",
     "typescript": "^5.9.2"
   },
   "exports": {
