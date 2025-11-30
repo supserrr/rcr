@@ -27,7 +27,7 @@ import type {
 } from '../../../../lib/types';
 import { toast } from 'sonner';
 import { Spinner } from '@workspace/ui/components/ui/shadcn-io/spinner';
-import type { Counselor } from '@workspace/ui/lib/types';
+import type { Counselor } from '@/lib/types';
 import { useProfileUpdates } from '../../../../hooks/useRealtime';
 import type { RealtimeProfile } from '../../../../lib/realtime/client';
 import { normalizeAvatarUrl } from '@workspace/ui/lib/avatar';
